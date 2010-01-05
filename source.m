@@ -1,4 +1,4 @@
-classdef source < handle%< stochasticWave
+classdef source < stochasticWave
     % SOURCE Create a source object
     %
     % src = source creates an on-axis star at infinity
@@ -36,7 +36,6 @@ classdef source < handle%< stochasticWave
         % # of photon [m^{-2}.s^{-1}] 
         nPhoton;
         waveNumber;
-        wave;
     end
     
     properties (Access=private)
@@ -48,7 +47,7 @@ classdef source < handle%< stochasticWave
         
         % Constructor
         function obj = source(varargin)
-%             obj = obj@stochasticWave;
+            obj = obj@stochasticWave;
             p = inputParser;
             p.addParamValue('asterism',[],@iscell);
             p.addParamValue('zenith',0,@isnumeric);
@@ -177,14 +176,20 @@ classdef source < handle%< stochasticWave
         
         function val = get.waveNumber(obj)
             val = 2*pi/obj.wavelength;
+        end        
+                
+        function obj = mtimes(obj,otherObj)
+            % MTIMES Source object multiplication
+            %
+            % src = src*otherObj implements obj1*obj2 for source objects
+            % respecting Matlab left-most precedence meaning that the
+            % source object must always be on the left side of the
+            % expression. The input and output source objects are not two
+            % copies but the same handle
+            
+            relay(otherObj,obj);
         end
-        
-        function val = get.wave(obj)
-            val = zeros(size(obj.wavefront));
-            index = logical(obj.tel.pupil);
-            val(index) = exp(1i.*obj.waveNumber.*obj.wavefront(index))./obj.wavefront(index);
-        end
-        
+
         function out = fresnelPropagation(obj,tel)
             % FRESNELPROPAGATION Source propagation to the light collector
             % fresnelPropagation(a,tel) propagates the source seen

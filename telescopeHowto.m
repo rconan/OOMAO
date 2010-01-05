@@ -40,23 +40,27 @@ sys.opticalAberration.layer
 %%
 % * a natural guide star on axis
 src = source;
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
 src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4);
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
 src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]});
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc([src.phase])
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
 sys.focalDistance = 90e3;
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 
 %% a 3 layer case
@@ -75,22 +79,26 @@ sys.opticalAberration.layer(3)
 %%
 % * a natural guide star on axis
 src = source;
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
 src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4);
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
 src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]});
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc([src.meanRmPhase])
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
 sys.focalDistance = 90e3;
-imagesc(getPhaseScreen(sys,src) )
+relay(sys,src)
+imagesc([src.phase])
 axis equal tight, colorbar('NorthOutside')
 

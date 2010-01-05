@@ -227,6 +227,42 @@ classdef telescope < telescopeCore
             end
         end
         
+        function relay(obj,srcs)
+           nSrc = numel(srcs);
+           for kSrc=1:nSrc
+               src = srcs(kSrc);
+               src.mask      = obj.pupilLogical;
+               if isempty(src.nPhoton)
+                   src.amplitude = obj.pupil;
+               else
+                   src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
+               end
+               src.phase = fresnelPropagation(src,obj);
+               out = 0;
+               if ~isempty(obj.atm)
+                   if obj.fieldOfView==0 && isNgs(src)
+                      out = sum(cat(3,obj.atm.layer.phase),3);
+                   else
+                       for kLayer = 1:obj.atm.nLayer
+                           if obj.atm.layer(kLayer).altitude==0
+                               out = out + obj.atm.layer(kLayer).phase;
+                           else
+                               layerR = obj.R*(1-obj.atm.layer(kLayer).altitude./src.height);
+                               u = obj.sampler*layerR;
+                               xc = obj.atm.layer(kLayer).altitude.*src.directionVector.x;
+                               yc = obj.atm.layer(kLayer).altitude.*src.directionVector.y;
+                               out = out + ...
+                                   spline2({obj.layerSampling{kLayer},obj.layerSampling{kLayer}},...
+                                   obj.atm.layer(kLayer).phase,{u+yc,u+xc});
+                           end
+                       end
+                   end
+               end
+               src.phase = src.phase + out;
+               src.phase(~src.mask) = 0;
+           end
+        end
+        
         function varargout = footprintProjection(obj,zernModeMax,src)
             nSource = length(src);
             P = cell(obj.atm.nLayer,nSource);
