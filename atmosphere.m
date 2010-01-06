@@ -63,6 +63,7 @@ classdef atmosphere < handle
     
     properties (Access=private)
         p_wavelength;
+        log;
     end
     
     methods
@@ -93,6 +94,7 @@ classdef atmosphere < handle
                     p.Results.windSpeed,...
                     p.Results.windDirection);
             end
+            obj.log = logBook.checkIn(obj);
         end
         
         function newObj = slab(obj,layerIndex)
@@ -105,6 +107,7 @@ classdef atmosphere < handle
                 obj.r0,...
                 obj.L0);
             newObj.layer = obj.layer(layerIndex);
+            checkOut(obj.log,obj)
         end
         
         function val = get.wavelength(obj)

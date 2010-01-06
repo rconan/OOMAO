@@ -17,6 +17,8 @@ classdef lensletArray < handle
         imageletsListener
         % stacked imagelets sum
         sumStack = false;
+        % the number of lenslet arrays
+        nArray;
     end
     
     properties (SetObservable=true)
@@ -35,8 +37,6 @@ classdef lensletArray < handle
         nyquistSampling;
         % the lenslet field of view given in diffraction fwhm units
         fieldStopSize;
-        % the light source
-        lightSource;
     end
     
     properties (Dependent, SetAccess=private)
@@ -44,18 +44,16 @@ classdef lensletArray < handle
         nLensletImagePx;
         % the total # of pixel per imagelet
         nLensletsImagePx;
-        % the number of lenslet arrays
-        nArray;
     end
 
     properties (Access=private)
         p_nLensletWavePx;
         p_nyquistSampling;
         p_fieldStopSize;
-        p_lightSource;
         fftPhasor;
         imageHandle;
         zoomTransmittance;
+        log;
     end
 
     methods
@@ -69,6 +67,7 @@ classdef lensletArray < handle
             obj.imageletsListener = addlistener(obj,'imagelets','PostSet',...
                 @(src,evnt) obj.imagesc );
             obj.imageletsListener.Enabled = false;
+            obj.log = logBook.checkIn(obj);
         end
 
         % Destructor
@@ -76,6 +75,7 @@ classdef lensletArray < handle
             if ishandle(obj.imageHandle)
                 delete(get(obj.imageHandle,'parent'));
             end
+            checkOut(obj.log,obj)
         end
 
         % Lenslet image sampling
@@ -98,15 +98,6 @@ classdef lensletArray < handle
             if ~isempty(obj.nLensletWavePx) % refreshing phasor
                 setPhasor(obj);
             end
-            if ~isempty(obj.wave) % refreshing intensity
-                fprintf(' @(lensletArray)> Re-evaluating the intensity!\n')
-                obj.propagateThrough;
-            end
-            if ishandle(obj.imageHandle)
-                axisLim = [0,obj.nLensletsImagePx]+0.5;
-                set( get(obj.imageHandle,'parent') , ...
-                    'xlim',axisLim,'ylim',axisLim);
-            end
         end
         
         % Field stop
@@ -118,15 +109,6 @@ classdef lensletArray < handle
             if ~isempty(obj.nLensletWavePx) % refreshing phasor
                 setPhasor(obj);
             end
-            if ~isempty(obj.wave) && ~isempty(obj.imagelets) % refreshing intensity
-                fprintf(' @(lensletArray)> Re-evaluating the intensity!\n')
-                obj.propagateThrough;
-            end      
-            if ishandle(obj.imageHandle)
-                axisLim = [0,obj.nLensletsImagePx]+0.5;
-                set( get(obj.imageHandle,'parent') , ...
-                    'xlim',axisLim,'ylim',axisLim);
-            end
         end
 
         % Number of wave pixel per lenslet
@@ -135,67 +117,13 @@ classdef lensletArray < handle
         end
         function set.nLensletWavePx(obj,val)
             obj.p_nLensletWavePx = val;
-%             if isempty(obj.p_fieldStopSize)
                 fprintf(' @(lensletArray)> Setting the lenslet field stop size!\n')
                 obj.fieldStopSize  = obj.p_nLensletWavePx/obj.p_nyquistSampling/2;
-%             else
-%                 setPhasor(obj);
-%             end
 %             % set the wave reshaping index (2D to 3D)
 %             logBook.add(obj,'Set the wave reshaping index (2D to 3D)')
         end  
-        
-        % lenslets light source
-        function out = get.lightSource(obj)
-            out = obj.p_lightSource;
-        end
-        function set.lightSource(obj,val)
-            obj.p_lightSource = val;
-            if ndims(val)==3
-                obj.sumStack = true;
-            end
-        end        
-%         % Conjugation altitude of the lenslet array
-%         function obj = set.conjugationAltitude(obj,val)
-%             obj.conjugationAltitude ...
-%                         = val;
-%             nSample     = obj.nLenslet*obj.nLensletWavePx;
-%             D           = obj.nLenslet*obj.sideLength;
-%             [xRho,yRho] = freqSpaceZeroCentered(nSample,D/nSample/2);
-%             s0          = hypot( hypot(xRho,yRho) ,obj.conjugationAltitude);
-%            obj.zoomTransmittance ...
-%                         = exp(-i.*obj.lightSource.waveNumber.*s0)./s0;
-%         end
-        
-        % # of lenslet arrays
-        function out = get.nArray(obj)
-            out = max(numel(obj.lightSource),1);
-        end
 
-        % Getting the wave
-        function out = get.wave(obj)
-%             if isa(obj.wave,'function_handle')
-%                 out = obj.wave();
-%             else
-%                 out = obj.wave;
-%             end
-            switch class(obj.wave)
-                case 'function_handle'
-                    out = obj.wave();
-                case {'telescope','deformableMirror'}
-%                     update(obj.wave);
-%                     out = getWave(obj.wave,obj.lightSource);
-%                 case 'deformableMirror'
-%                     if isa(obj.wave.opticalAberration,'telescope')
-%                         update(obj.wave.opticalAberration);
-%                     end
-                    out = getWave(obj.wave,obj.lightSource);
-                otherwise
-                    out = obj.wave;
-            end
-        end
-
-        function propagateThrough(obj)
+        function propagateThrough(obj,src)
             % PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane
             %
             % propagateThrough(obj) progates the object wave throught the
@@ -209,7 +137,11 @@ classdef lensletArray < handle
             % setting fftPad=1, fieldStopSize should be set to default
             % n/nLenslet/nyquistSampling/2
             
-            val = obj.wave;
+            obj.nArray = numel(src);
+            if ndims(src)==3
+                obj.sumStack = true;
+            end
+            val = src.catWave;
             [nLensletsWavePx,nLensletsWavePxNGuideStar,nWave] = size(val);
             % Resize the 3D input into a 2D input
             nLensletsWavePxNGuideStar = nLensletsWavePxNGuideStar*nWave;
@@ -326,7 +258,12 @@ classdef lensletArray < handle
         %
         % See also: imagesc
         
-        if ishandle(obj.imageHandle)
+ %             if ishandle(obj.imageHandle)
+%                 axisLim = [0,obj.nLensletsImagePx]+0.5;
+%                 set( get(obj.imageHandle,'parent') , ...
+%                     'xlim',axisLim,'ylim',axisLim);
+%             end
+       if ishandle(obj.imageHandle)
             set(obj.imageHandle,'Cdata',obj.imagelets,varargin{:});
         else
             %                 figure

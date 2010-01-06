@@ -41,7 +41,8 @@ sys.opticalAberration.layer
 % * a natural guide star on axis
 src = source;
 relay(sys,src)
-imagesc(src.phase)
+figure
+imagesc(src.meanRmPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
@@ -53,7 +54,7 @@ axis equal tight, colorbar('NorthOutside')
 % * an asterism of 4 stars conjugated at infinity
 src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]});
 relay(sys,src)
-imagesc([src.phase])
+imagesc(src.catPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
@@ -64,6 +65,7 @@ imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 
 %% a 3 layer case
+delete(imagesc(sys))
 atm = atmosphere(2.2e-6,0.8,25,...
     'altitude',[0,10,15].*1e3,...
     'fractionnalR0',[0.7,0.2,0.1],...
@@ -99,6 +101,6 @@ axis equal tight, colorbar('NorthOutside')
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
 sys.focalDistance = 90e3;
 relay(sys,src)
-imagesc([src.phase])
+imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 

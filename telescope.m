@@ -45,6 +45,7 @@ classdef telescope < telescopeCore
         imageHandle;
         layerSampling;
         sampler;
+        log;
     end
     
     methods
@@ -67,16 +68,18 @@ classdef telescope < telescopeCore
                 'resolution',p.Results.resolution);
             obj.samplingTime = p.Results.samplingTime;
             obj.opticalAberration = p.Results.opticalAberration;
+            obj.log = logBook.checkIn(obj);
         end
         
         % Destructor
         function delete(obj)
             if isa(obj.opticalAberration,'atmosphere')
-                fprintf(' @(telescope) > Deleting atmosphere layer slabs!\n')
+                add(obj.log,obj,'Deleting atmosphere layer slabs!')
                 for kLayer=1:obj.atm.nLayer
                     obj.atm.layer(kLayer).phase = [];
                 end
             end
+            checkOut(obj.log,obj)
         end
         
         % Set/Get for opticalAberration property
@@ -93,11 +96,14 @@ classdef telescope < telescopeCore
             out = obj.atm;
         end
         
-        function update(obj)
+        function varargout = update(obj)
             % UPDATE Phase screens deplacement
             %
             % update(obj) moves the phase screens of each layer of one time
             % step in the direction of the corresponding wind vectors
+            %
+            % obj = update(obj) moves the phase screens and returns the
+            % object
             
 %             disp(' (@telescope) > Layer translation')
             if ~isempty(obj.atm)
@@ -146,28 +152,32 @@ classdef telescope < telescopeCore
                 
             end
             
+            if nargout>0
+                varargout{1} = obj;
+            end
+            
         end
         
-        function varargout = getPhaseScreen(obj,src)
-            % GETPHASESCREEN Geometric phase propagation
+        function relay(obj,srcs)
+            % RELAY Telescope to source relay
             %
-            % out = getPhaseScreen(obj,src) computes the geometric
-            % propagation of the phase trough the turbulence layers in the
-            % direction given by the source object src
-            %
-            % See also: source
+            % relay(obj,srcs) writes the telescope amplitude and phase into
+            % the properties of the source object(s)
             
-            if nargin<2 || isempty(src) || isempty(obj.atm)
-                out = zeros(size(obj.pupil));
-            else
-                if numel(src)>1
-                    out = cell2mat( ...
-                        cellfun( @obj.getPhaseScreen, num2cell(src), 'UniformOutput',false ) );
+            nSrc = numel(srcs);
+            for kSrc=1:nSrc
+                src = srcs(kSrc);
+                src.mask      = obj.pupilLogical;
+                if isempty(src.nPhoton)
+                    src.amplitude = obj.pupil;
                 else
+                    src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
+                end
+                out = fresnelPropagation(src,obj);
+                if ~isempty(obj.atm)
                     if obj.fieldOfView==0 && isNgs(src)
-                        out = sum(cat(3,obj.atm.layer.phase),3);
+                        out = out + sum(cat(3,obj.atm.layer.phase),3);
                     else
-                        out = 0;
                         for kLayer = 1:obj.atm.nLayer
                             if obj.atm.layer(kLayer).altitude==0
                                 out = out + obj.atm.layer(kLayer).phase;
@@ -182,85 +192,9 @@ classdef telescope < telescopeCore
                             end
                         end
                     end
-                    out = out + fresnelPropagation(src,obj);
-                    out(~obj.pupil) = 0;
                 end
+                src.phase = out;
             end
-            obj.pupilPhase = out;
-            if nargout>0
-                varargout{1} = out;
-            end
-        end
-        
-        function out = getWave(obj,src)
-            if isempty(obj.atm) && numel(src)==0
-                % if there is no optical aberration and no sources return
-                % the telescope pupil
-                out = ones(size(obj.pupil));
-                out(~obj.pupil) = 0;
-            elseif isempty(obj.atm)
-                % if there is no optical aberration but at least 1 source:
-                % fresnel wave propagation of the wave from the source to the
-                % telescope pupil
-                srcDims = size(src);
-                out = bsxfun( @times , repmat( obj.pupil ,[1 srcDims(2)/srcDims(1)] ) ,...
-                    exp( 1i.*cell2mat( ...
-                    cellfun(@(x) fresnelPropagation(x,obj),num2cell(src),...
-                    'UniformOutput',false) ) ) );
-                if ~isempty([src.nPhoton])
-                    photons = cell2mat( ...
-                        cellfun( @(x) sqrt(x.nPhoton).*obj.area/sum(obj.pupil(:)),...
-                        num2cell(src),'UniformOutput',false));
-                    out = bsxfun( @times, out, photons);
-                end
-            elseif numel(src)>1
-                % if there is optical aberration and more than 1 source
-                out = cell2mat( ...
-                    cellfun( @obj.getWave, num2cell(src), 'UniformOutput',false ) );
-            else
-                % if there is optical aberration and only 1 source
-                out = exp(1i*getPhaseScreen(obj,src));
-                out(~obj.pupil) = 0;
-                if ~isempty(src.nPhoton)
-                    out = out.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
-                end
-            end
-        end
-        
-        function relay(obj,srcs)
-           nSrc = numel(srcs);
-           for kSrc=1:nSrc
-               src = srcs(kSrc);
-               src.mask      = obj.pupilLogical;
-               if isempty(src.nPhoton)
-                   src.amplitude = obj.pupil;
-               else
-                   src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
-               end
-               src.phase = fresnelPropagation(src,obj);
-               out = 0;
-               if ~isempty(obj.atm)
-                   if obj.fieldOfView==0 && isNgs(src)
-                      out = sum(cat(3,obj.atm.layer.phase),3);
-                   else
-                       for kLayer = 1:obj.atm.nLayer
-                           if obj.atm.layer(kLayer).altitude==0
-                               out = out + obj.atm.layer(kLayer).phase;
-                           else
-                               layerR = obj.R*(1-obj.atm.layer(kLayer).altitude./src.height);
-                               u = obj.sampler*layerR;
-                               xc = obj.atm.layer(kLayer).altitude.*src.directionVector.x;
-                               yc = obj.atm.layer(kLayer).altitude.*src.directionVector.y;
-                               out = out + ...
-                                   spline2({obj.layerSampling{kLayer},obj.layerSampling{kLayer}},...
-                                   obj.atm.layer(kLayer).phase,{u+yc,u+xc});
-                           end
-                       end
-                   end
-               end
-               src.phase = src.phase + out;
-               src.phase(~src.mask) = 0;
-           end
         end
         
         function varargout = footprintProjection(obj,zernModeMax,src)

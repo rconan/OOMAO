@@ -134,6 +134,17 @@ classdef zernike < handle
             end
         end
         
+        function relay(obj,src)
+            % RELAY zernike to source relay
+            %
+            % relay(obj,srcs) writes the zernike amplitude and phase into
+            % the properties of the source object(s)
+            
+            src.mask      = obj.pupil;
+            src.amplitude = double(obj.pupil);
+            src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
+        end
+        
         % fourier transform
         function out = fourier(obj,f,o,D)
             out = zeros(size(f,1),size(f,2),obj.nMode);

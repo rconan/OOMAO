@@ -6,9 +6,9 @@ nlenslet = 10;
 nPx = 60;
 la = lensletArray(nlenslet)
 % a circular pupil
-la.wave = utilities.piston(nPx);
-% propagated throught the lenslet array
-propagateThrough(la)
+ngs = source*utilities.piston(nPx);
+% a circular pupil propagated throught the lenslet array
+propagateThrough(la,ngs)
 % and displayed
 imagesc(la)
 % auto-update of the display
@@ -17,39 +17,38 @@ la.imageletsListener.Enabled = true;
 %% changing the sampling:
 % nyquistSampling=1 corresponds to 2 pixels per fwhm
 la.nyquistSampling = 0.5;
+propagateThrough(la,ngs)
 
 %% increasing the field of view
-% fieldStopSize is given in units of fwhm, for example for a nxn input wave
+% fieldStopSize is given in units of fwhm, for example for a nXn input wave
 % and nyquistSampling=1, the default value of fieldStopSize is
 % (n/nLenslet)/2
 la.fieldStopSize = 6;
+propagateThrough(la,ngs)
 
 %% back to original sampling and field of view
 la.nyquistSampling = 1;
 la.fieldStopSize = 3;
+propagateThrough(la,ngs)
 
 %% a random aberration
 zern = zernike(5:6,'resolution',nPx);
 zern.c = 4*rand(2,1);
-zern.lex = false;
-la.wave = zern.wave;
-propagateThrough(la)
+propagateThrough(la,ngs*zern)
 
 %% a random aberration function
-f = @(x) zern.wave;
-la.wave = f;
 for k=1:100
     o = (k-1).*2*pi/99;
     zern.c = 4.*[cos(o);sin(o)];
-    propagateThrough(la)
+    propagateThrough(la,reset(ngs)*zern)
     drawnow
 end
 
 %% stacked waves
-la.wave = cat(3,utilities.piston(nPx),zern.wave);
+zern.lex = false;
+ngs = source*cat(3,utilities.piston(nPx),zern.wave);
 la.imageletsListener.Enabled = false;
-propagateThrough(la)
-figure
+propagateThrough(la,ngs)
 imagesc( [la.imagelets(:,:,1) , la.imagelets(:,:,2)] )
 axis equal tight
 colorbar('location','NorthOutside')
@@ -61,9 +60,9 @@ zern.c = 6*rand;
 wave1  = zern.wave;
 zern.c = -6*rand;
 wave2  = zern.wave;
-la.wave = cat(3,wave1,wave2);
+ngs = source*cat(3,wave1,wave2);
 la.sumStack = true;
-propagateThrough(la)
+propagateThrough(la,ngs)
 imagesc( la )
 la.sumStack = false;
 
@@ -80,23 +79,22 @@ sys = telescope(30,...
     'opticalAberration',atm);
 update(sys)
 imagesc(sys)
-la.lightSource = source; % NGS
-la.wave = sys;
-propagateThrough(la)
+%%
+ngs = source*sys;
+propagateThrough(la,ngs)
 imagesc( la )
 la.imageletsListener.Enabled = true;
 for k=1:50
-    propagateThrough(la)
+    reset(ngs)*update(sys)*la;
     drawnow
 end
 %%
 % a simple Laser Guide Star
-la.lightSource = source('height',[89.6,90,90.4].*1e3,'wavelength',589e-9); 
-la.sumStack = true;
+lgs = source('height',[89.6,90,90.4].*1e3,'wavelength',589e-9); 
 sys.focalDistance = 90e3;
-propagateThrough(la)
+propagateThrough(la,lgs*sys)
 for k=1:50
-    propagateThrough(la)
+    reset(lgs)*update(sys)*la;
     drawnow
 end
 

@@ -178,16 +178,48 @@ classdef source < stochasticWave
             val = 2*pi/obj.wavelength;
         end        
                 
-        function obj = mtimes(obj,otherObj)
+        function varargout = mtimes(obj,otherObj)
             % MTIMES Source object multiplication
             %
-            % src = src*otherObj implements obj1*obj2 for source objects
+            % src*otherObj implements obj1*obj2 for source objects
             % respecting Matlab left-most precedence meaning that the
             % source object must always be on the left side of the
-            % expression. The input and output source objects are not two
-            % copies but the same handle
+            % expression.
+            %
+            % src = src*otherObj returns the source object
             
-            relay(otherObj,obj);
+            nOut = nargout;
+            if isa(otherObj,'shackHartmann')
+                propagateThrough(otherObj.lenslets,obj)
+                grabAndProcess(otherObj)
+                if nOut>0
+                    varargout{1} = otherObj;
+                    nOut = 0;
+                end
+            elseif isa(otherObj,'lensletArray')
+                propagateThrough(otherObj,obj)
+                if nOut>0
+                    varargout{1} = otherObj;
+                    nOut = 0;
+                end
+            elseif ~isempty(otherObj) % do nothing if the other object is empty
+                nObj = numel(obj);
+                if nObj>1 % if the source is an array, recursive self-calls
+                    for kObj = 1:nObj
+                        mtimes(obj(kObj),otherObj);
+                    end
+                else
+                    if isobject(otherObj)
+                        relay(otherObj,obj);
+                    else
+                        obj.amplitude = abs(otherObj);
+                        obj.phase     = angle(otherObj);
+                    end
+                end
+            end
+            if nOut>0
+                varargout{1} = obj;
+            end
         end
 
         function out = fresnelPropagation(obj,tel)

@@ -13,12 +13,12 @@ la = lensletArray(nLenslet);
 % the telescope
 res = nLenslet*nPxPerLenset;
 cfht = telescope(3.6,'resolution',res);
-la.wave = cfht;
 
 %%
 % the camera
 cam = detector(res)
 cam.frameGrabber = la;
+source*cfht*la;
 grab(cam)
 imagesc(cam)
 cam.frameListener.Enabled = true;
@@ -27,6 +27,7 @@ cam.frameListener.Enabled = true;
 % adding noise
 cam.readOutNoise = 0.1;
 grab(cam)
+
 
 %%
 % camera free run mode

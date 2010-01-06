@@ -21,8 +21,6 @@ classdef telescopeCore < handle
         fieldOfView;
         % diameter resolution in pixel
         resolution;
-        % phase map on the telescope pupil
-        pupilPhase; 
     end
     
     properties (Dependent)
@@ -37,8 +35,6 @@ classdef telescopeCore < handle
         pupilLogical;
         % telescope area
         area;
-        % piston removed phase map on the telescope pupil
-        pistonFreePupilPhase; 
     end
     
     properties (Access=protected)
@@ -95,12 +91,6 @@ classdef telescopeCore < handle
         
         function out = get.R(obj)
             out = obj.D/2;
-        end
-        
-        function out = get.pistonFreePupilPhase(obj)
-            out = obj.pupilPhase;
-            u = obj.pupilLogical;
-            out(u) = out(u) - mean(out(u));
         end
         
         function out = get.area(obj)
@@ -245,57 +235,7 @@ classdef telescopeCore < handle
                     end
             end
         end
-        
-%% STATISTICS
-        
-        function out = mean(obj,map)
-            % MEAN Average or mean value of array within the telescope
-            %
-            % out = mean(obj) computes the average or mean value of the
-            % phase within the telescope
-            %
-            % out = mean(obj,map) computes the average or mean value of map
-            % within the telescope
-            
-            if nargin==1
-                out = mean(obj.pupilPhase(obj.pupilLogical));
-            else
-                out = mean(map(obj.pupilLogical));
-            end
-        end
-        
-        function out = var(obj,map)
-            % VAR Variance within the telescope
-            %
-            % out = mean(obj) computes the variance of the phase within the
-            % telescope
-            %
-            % out = var(obj,map) computes the variance of map within the
-            % telescope
-            
-            if nargin==1
-                out = var(obj.pupilPhase(obj.pupilLogical));
-            else
-                out = var(map(obj.pupilLogical));
-            end
-        end
-        
-        function out = std(obj,map)
-            % STD Standard deviation within the telescope
-            %
-            % out = mean(obj) computes the standard deviation of the phase
-            % within the telescope
-            %
-            % out = var(obj,map) computes the standard deviation of map
-            % within the telescope
-            
-            if nargin==1
-                out = std(obj.pupilPhase(obj.pupilLogical));
-            else
-                out = std(map(obj.pupilLogical));
-            end
-        end
-        
+                
     end
     
 end

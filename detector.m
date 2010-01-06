@@ -124,7 +124,6 @@ classdef detector < handle
             
             switch class(obj.frameGrabber)
                 case 'lensletArray'
-                    propagateThrough(obj.frameGrabber);
                     readOut(obj,obj.frameGrabber.imagelets)
                 case 'function_handle'
                     buffer = obj.frameGrabber();
@@ -152,15 +151,15 @@ classdef detector < handle
             % photonNoiseLess property is false and readout noise if
             % readOutNoise property is greater than 0
             
-%             image = image.*obj.exposureTime; % flux integration
-%             if license('checkout','statistics_toolbox')
-%                 if ~obj.photonNoiseLess
-%                     image = obj.quantumEfficiency*poissrnd(image);
-%                 end
-%                 if obj.readOutNoise>0
-%                     image = normrnd(image,obj.readOutNoise);
-%                 end
-%             else
+            image = image.*obj.exposureTime; % flux integration
+            if license('checkout','statistics_toolbox')
+                if ~obj.photonNoiseLess
+                    image = obj.quantumEfficiency*poissrnd(image);
+                end
+                if obj.readOutNoise>0
+                    image = normrnd(image,obj.readOutNoise);
+                end
+            else
                 if ~obj.photonNoiseLess
                     buffer    = image;
                     image = image + randn(size(image)).*image;
@@ -171,7 +170,7 @@ classdef detector < handle
                 if obj.readOutNoise>0
                     image = image + randn(size(image)).*obj.readOutNoise;
                 end
-%             end
+            end
             obj.frame = image;
         end
         

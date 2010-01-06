@@ -90,11 +90,8 @@ classdef shackHartmann < handle
     methods
         
         % Constructor
-        function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio,guideStars)
+        function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
             error(nargchk(1, 4, nargin))
-            if nargin<4
-                guideStars   = source;
-            end
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
             obj.lenslets.nLensletWavePx = ...
@@ -104,7 +101,6 @@ classdef shackHartmann < handle
             else
                 obj.validLenslet = true(nLenslet);
             end
-            obj.lenslets.lightSource = guideStars;
             obj.camera.frameGrabber ...
                 = obj.lenslets;
             obj.referenceSlopes = zeros(obj.nValidLenslet*2,1);
