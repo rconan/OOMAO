@@ -131,18 +131,18 @@ classdef source < stochasticWave
         end
 
         
-        function bool = eq(obj1,obj2)
-            % == (EQ) Sources comparison
-            % src1==src2 returns true if both objects have the same zenith
-            % and azimuth angles and the same height
-            
-            bool = false;
-            if obj1.zenith==obj2.zenith && ...
-                    obj1.azimuth==obj2.azimuth && ...
-                    obj1.height==obj2.height
-                bool = true;
-            end
-        end
+%         function bool = eq(obj1,obj2)
+%             % == (EQ) Sources comparison
+%             % src1==src2 returns true if both objects have the same zenith
+%             % and azimuth angles and the same height
+%             
+%             bool = false;
+%             if obj1.zenith==obj2.zenith && ...
+%                     obj1.azimuth==obj2.azimuth && ...
+%                     obj1.height==obj2.height
+%                 bool = true;
+%             end
+%         end
         
         function bool = isNgs(obj)
             % ISNGS NGS check
@@ -177,16 +177,15 @@ classdef source < stochasticWave
         function val = get.waveNumber(obj)
             val = 2*pi/obj.wavelength;
         end        
-                
-        function varargout = mtimes(obj,otherObj)
-            % MTIMES Source object multiplication
+
+        function varargout = ge(obj,otherObj)
+            % >= Source object propagation operator
             %
-            % src*otherObj implements obj1*obj2 for source objects
-            % respecting Matlab left-most precedence meaning that the
-            % source object must always be on the left side of the
-            % expression.
+            % src>=otherObj propagate src through otherObj multiplying the
+            % source amplitude by the otherObj transmitance and adding the
+            % otherObj phase to the source phase
             %
-            % src = src*otherObj returns the source object
+            % src = src>=otherObj returns the source object
             
             nOut = nargout;
             if isa(otherObj,'shackHartmann')
@@ -206,7 +205,7 @@ classdef source < stochasticWave
                 nObj = numel(obj);
                 if nObj>1 % if the source is an array, recursive self-calls
                     for kObj = 1:nObj
-                        mtimes(obj(kObj),otherObj);
+                        ge(obj(kObj),otherObj);
                     end
                 else
                     if isobject(otherObj)
@@ -220,6 +219,21 @@ classdef source < stochasticWave
             if nOut>0
                 varargout{1} = obj;
             end
+        end
+        
+        function varargout = eq(obj,otherObj)
+            % == Source object propagation operator
+            %
+            % src==otherObj propagate src through otherObj setting the
+            % source amplitude to the otherObj transmitance and the source
+            % phase to the otherObj phase
+            %
+            % src = src==otherObj returns the source object
+            
+             ge(reset(obj),otherObj);
+             if nargout>0
+                varargout{1} = obj;
+             end           
         end
 
         function out = fresnelPropagation(obj,tel)

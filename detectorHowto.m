@@ -18,7 +18,7 @@ cfht = telescope(3.6,'resolution',res);
 % the camera
 cam = detector(res)
 cam.frameGrabber = la;
-source*cfht*la;
+source==cfht>=la;
 grab(cam)
 imagesc(cam)
 cam.frameListener.Enabled = true;

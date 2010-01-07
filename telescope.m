@@ -157,6 +157,18 @@ classdef telescope < telescopeCore
             end
             
         end
+        function varargout = uplus(obj)
+            % UPLUS + Update operator
+            %
+            % +obj updates the atmosphere phase screens
+            %
+            % obj = +obj returns the telescope object
+            
+            update(obj)
+            if nargout>0
+                varargout{1} = obj;
+            end
+        end
         
         function relay(obj,srcs)
             % RELAY Telescope to source relay

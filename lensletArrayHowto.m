@@ -6,7 +6,7 @@ nlenslet = 10;
 nPx = 60;
 la = lensletArray(nlenslet)
 % a circular pupil
-ngs = source*utilities.piston(nPx);
+ngs = source==utilities.piston(nPx);
 % a circular pupil propagated throught the lenslet array
 propagateThrough(la,ngs)
 % and displayed
@@ -34,19 +34,19 @@ propagateThrough(la,ngs)
 %% a random aberration
 zern = zernike(5:6,'resolution',nPx);
 zern.c = 4*rand(2,1);
-propagateThrough(la,ngs*zern)
+propagateThrough(la,ngs==zern)
 
 %% a random aberration function
 for k=1:100
     o = (k-1).*2*pi/99;
     zern.c = 4.*[cos(o);sin(o)];
-    propagateThrough(la,reset(ngs)*zern)
+    propagateThrough(la,ngs==zern)
     drawnow
 end
 
 %% stacked waves
 zern.lex = false;
-ngs = source*cat(3,utilities.piston(nPx),zern.wave);
+ngs = source==cat(3,utilities.piston(nPx),zern.wave);
 la.imageletsListener.Enabled = false;
 propagateThrough(la,ngs)
 imagesc( [la.imagelets(:,:,1) , la.imagelets(:,:,2)] )
@@ -60,7 +60,7 @@ zern.c = 6*rand;
 wave1  = zern.wave;
 zern.c = -6*rand;
 wave2  = zern.wave;
-ngs = source*cat(3,wave1,wave2);
+ngs = source==cat(3,wave1,wave2);
 la.sumStack = true;
 propagateThrough(la,ngs)
 imagesc( la )
@@ -80,21 +80,21 @@ sys = telescope(30,...
 update(sys)
 imagesc(sys)
 %%
-ngs = source*sys;
+ngs = source==sys;
 propagateThrough(la,ngs)
 imagesc( la )
 la.imageletsListener.Enabled = true;
 for k=1:50
-    reset(ngs)*update(sys)*la;
+    ngs==update(sys)>=la;
     drawnow
 end
 %%
 % a simple Laser Guide Star
 lgs = source('height',[89.6,90,90.4].*1e3,'wavelength',589e-9); 
 sys.focalDistance = 90e3;
-propagateThrough(la,lgs*sys)
+propagateThrough(la,lgs==sys)
 for k=1:50
-    reset(lgs)*update(sys)*la;
+    lgs==update(sys)>=la;
     drawnow
 end
 
