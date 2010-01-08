@@ -67,8 +67,8 @@ classdef telescope < telescopeCore
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin,...
                 'resolution',p.Results.resolution);
             obj.samplingTime = p.Results.samplingTime;
-            obj.opticalAberration = p.Results.opticalAberration;
             obj.log = logBook.checkIn(obj);
+            obj.opticalAberration = p.Results.opticalAberration;
         end
         
         % Destructor
@@ -293,6 +293,8 @@ classdef telescope < telescopeCore
         function obj = init(obj)
             nInner = 2;
             obj.sampler = linspace(-1,1,obj.resolution);
+            add(obj.log,obj,'Initializing phase screens making parameters:')
+            obj.log.verbose = false;
             for kLayer=1:obj.atm.nLayer
                 if isempty(obj.atm.layer(kLayer).phase)
                     D = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
@@ -301,7 +303,8 @@ classdef telescope < telescopeCore
                     obj.atm.layer(kLayer).nPixel = nPixel;
                     obj.layerSampling{kLayer}  = D*0.5*linspace(-1,1,nPixel);
                     % ---------
-                    fprintf(' @(telescope)> Computing phase screen for layer %d (D=%3.2fm,n=%dpx) ...',kLayer,D,nPixel)
+                    fprintf('   Layer %d:\n',kLayer)
+                    fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',D,nPixel)
                     m_atm = slab(obj.atm,kLayer);
                     obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,D,nPixel);
                     fprintf('  Done \n')
@@ -313,9 +316,9 @@ classdef telescope < telescopeCore
                         ~( obj.outerMask{kLayer} | ...
                         utilities.piston(nPixel-2*nInner,nPixel+2,...
                         'shape','square','type','logical') );
-                    fprintf(' (@telescope)> # of elements for the outer maks: %d and for the inner mask %d\n',...
+                    fprintf('            -> # of elements for the outer maks: %d and for the inner mask %d\n',...
                         sum(obj.outerMask{kLayer}(:)),sum(obj.innerMask{kLayer}(:)));
-                    fprintf(' @(telescope)> Computing matrix A and B for layer %d: ',kLayer)
+                    fprintf('            -> Computing matrix A and B for layer %d: ',kLayer)
                     [u,v] = meshgrid( (0:nPixel+1).*D/(nPixel-1) );
                     % ---------
                     innerZ = complex(u(obj.innerMask{kLayer}),v(obj.innerMask{kLayer}));
@@ -351,6 +354,7 @@ classdef telescope < telescopeCore
                     obj.y{kLayer} = u;%v;
                 end
             end
+            obj.log.verbose = true;
         end
         
     end

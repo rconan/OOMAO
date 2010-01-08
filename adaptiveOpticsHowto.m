@@ -125,6 +125,7 @@ h = imagesc([turbPhase,ngs.meanRmPhase,dm.phase]);
 axis equal tight
 colorbar
 pause
+ngs.bufSeq = true(1,2);
 while true
     ngs==+tel; %#ok<*EQEFF>
     turbPhase = ngs.meanRmPhase;

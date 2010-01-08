@@ -39,28 +39,25 @@ sys.opticalAberration.layer
 % object
 %%
 % * a natural guide star on axis
-src = source;
-relay(sys,src)
+src = source == sys;
 figure
 imagesc(src.meanRmPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
-src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4);
-relay(sys,src)
+src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) == sys;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
-src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]});
-relay(sys,src)
+src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) == sys;
 imagesc(src.catPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
 sys.focalDistance = 90e3;
-relay(sys,src)
+src == sys
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 
@@ -80,27 +77,24 @@ sys.opticalAberration.layer(2)
 sys.opticalAberration.layer(3)
 %%
 % * a natural guide star on axis
-src = source;
-relay(sys,src)
+src = source == sys;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
-src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4);
-relay(sys,src)
+src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) == sys;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
-src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]});
-relay(sys,src)
+src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) == sys;
 imagesc([src.meanRmPhase])
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
 sys.focalDistance = 90e3;
-relay(sys,src)
+src == sys
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 

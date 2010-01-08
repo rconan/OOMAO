@@ -89,10 +89,10 @@ classdef (Sealed) logBook < handle
             obj = localObj;
             if nargin>0 && isvalid(src)
                 obj.nCougarObj = obj.nCougarObj + 1;
+                if obj.nCougarObj==1
+                    fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF COUGAR!\n~~~~~~~~~~~~~~~~~~~\n')
+                end
                 add(obj,src,'Created!')
-            end
-            if obj.nCougarObj==1
-                fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF COUGAR!\n~~~~~~~~~~~~~~~~~~~\n')
             end
         end
       

@@ -9,13 +9,17 @@ classdef stochasticWave < handle
         stochasticPhase = true;
         % true if the amplitude is a stochastic property
         stochasticAmplitude = false;
+        nSample;
+        samples
     end
     
     properties (Dependent)
         % wave amplitude
         amplitude;
         % wave phase        
-        phase;        
+        phase;   
+        % buffer sequence
+        bufSeq
     end
     
     properties (Dependent,SetAccess=private)
@@ -28,12 +32,26 @@ classdef stochasticWave < handle
     properties (Access=private)
         p_amplitude = 1;
         p_phase = 0;
+        p_bufSeq;
+        bufferLength = 1000;
+        kBufSeq;
     end
     
     methods
         
         % Constructor
         function obj = stochasticWave
+        end
+        
+        % Get/Set bufSeq
+        function out = get.bufSeq(obj)
+            out = obj.p_bufSeq;
+        end
+        function set.bufSeq(obj,val)
+            obj.p_bufSeq = val;
+            obj.kBufSeq = 1;
+            obj.samples  = zeros(sum(obj.p_bufSeq),obj.bufferLength);
+            obj.nSample  = 0;
         end
         
         % Get/Set amplitude
@@ -51,6 +69,16 @@ classdef stochasticWave < handle
         end
         function set.phase(obj,val)
             obj.p_phase = bsxfun( @plus, obj.p_phase , val);
+            if ~isempty(obj.p_bufSeq)
+                if obj.p_bufSeq(obj.kBufSeq)
+                    obj.nSample = obj.nSample + 1;
+                    obj.samples(obj.nSample) = std(obj);
+                end
+                obj.kBufSeq = obj.kBufSeq + 1;
+                if obj.kBufSeq>length(obj.p_bufSeq)
+                    obj.kBufSeq = 1;
+                end
+            end
         end
         
         % Get the wave

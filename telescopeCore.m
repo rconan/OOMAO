@@ -163,7 +163,7 @@ classdef telescopeCore < handle
             % out = psf(obj, f) computes the telescope point spread function
             
             out   = ones(size(f)).*pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4;
-            index = find(f);
+            index = f~=0;
             u = pi.*obj.D.*f(index);
             surface = pi.*obj.D.^2./4;
             out(index) = surface.*2.*besselj(1,u)./u;
@@ -171,11 +171,28 @@ classdef telescopeCore < handle
                 u = pi.*obj.D.*obj.obstructionRatio.*f(index);
                 surface = surface.*obj.obstructionRatio.^2;
                 out(index) = out(index) - surface.*2.*besselj(1,u)./u;
-                
             end
             out = abs(out).^2./(pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4);
         end
         
+        function out = FT(obj,f)
+            % FT Fourier transform
+            %
+            % out = FT(obj,f) computes the Fourier transform of the
+            % telescope pupil
+            
+            out   = ones(size(f)).*pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4;
+            index = f~=0;
+            u = pi.*obj.D.*f(index);
+            surface = pi.*obj.D.^2./4;
+            out(index) = surface.*2.*besselj(1,u)./u;
+            if obj.obstructionRatio>0
+                u = pi.*obj.D.*obj.obstructionRatio.*f(index);
+                surface = surface.*obj.obstructionRatio.^2;
+                out(index) = out(index) - surface.*2.*besselj(1,u)./u;
+            end
+            out = out./(pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4);
+      end
         
         function out = fullWidthHalfMax(obj)
             % FULLWIDTHHALFMAX Full Width at Half the Maximum evaluation

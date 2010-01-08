@@ -97,6 +97,11 @@ classdef atmosphere < handle
             obj.log = logBook.checkIn(obj);
         end
         
+        % Destructor
+        function delete(obj)
+            checkOut(obj.log,obj)
+        end
+        
         function newObj = slab(obj,layerIndex)
             % SLAB Create a single turbulence layer atmosphere object
             %
@@ -107,7 +112,6 @@ classdef atmosphere < handle
                 obj.r0,...
                 obj.L0);
             newObj.layer = obj.layer(layerIndex);
-            checkOut(obj.log,obj)
         end
         
         function val = get.wavelength(obj)
