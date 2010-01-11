@@ -4,13 +4,12 @@ classdef phaseStats
     methods (Static)
         
         function  out = variance(atm)
-            % VARIANCE Phase variance
+            %% VARIANCE Phase variance
             %
             % out = phaseStats.variance(atm) computes the phase variance
             % from an atmosphere object
             %
             % See also atmosphere
-            
             L0r0ratio= (atm.L0./atm.r0).^(5./3);
             out   = (24.*gamma(6./5)./5).^(5./6).*...
                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
@@ -18,13 +17,13 @@ classdef phaseStats
         end
         
         function out = covariance(rho,atm)
-            % COVARIANCE Phase covariance
+            %% COVARIANCE Phase covariance
             %
             % out = phaseStats.covariance(rho,atm) computes the phase covariance from
             % the baseline rho and an atmosphere object
             %
             % See also atmosphere
-            
+             
             L0r0ratio= (atm.L0./atm.r0).^(5./3);
             cst      = (24.*gamma(6./5)./5).^(5./6).*...
                 (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
@@ -37,8 +36,72 @@ classdef phaseStats
             out = sum([atm.layer.fractionnalR0]).*out;
         end
         
-        function out = strctureFunction(rho,atm)
-            % STRUCTUREFUNCTION Phase structure function
+        function out = angularCovariance(theta,atm)
+            %% ANGULARCOVARIANCE Phase angular covariance
+            %
+            % out = phaseStats.angularCovariance(rho,atm) computes the
+            % phase angular covariance from the zenith angle theta and an
+            % atmosphere object
+            %
+            % See also atmosphere
+           
+            out = zeros(size(theta));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab);
+            end
+        end        
+        function out = angularStructureFunction(theta,atm)
+            %% ANGULARSTRUCTUREFUNCTION Phase angular structure function
+            %
+            % out = phaseStats.angularStructureFunction(rho,atm) computes the
+            % phase angular structure function from the zenith angle theta
+            % and an atmosphere object
+            %
+            % See also atmosphere
+           
+            out = zeros(size(theta));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + 2.*( phaseStats.variance(atmSlab) - ...
+                    phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab) );
+            end
+       end        
+        
+        function out = temporalCovariance(tau,atm)
+            %% TEMPORALCOVARIANCE Phase temporal covariance
+            %
+            % out = phaseStats.temporalCovariance(rho,atm) computes the
+            % phase temporal covariance from the delay tau and an
+            % atmosphere object
+            %
+            % See also atmosphere
+           
+            out = zeros(size(tau));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab);
+            end
+        end        
+        function out = temporalStructureFunction(tau,atm)
+            %% TEMPORALSTRUCTUREFUNCTION Phase temporal structure function
+            %
+            % out = phaseStats.temporalStructureFunction(rho,atm) computes
+            % the phase temporal structure function from the delay tau and
+            % an atmosphere object
+            %
+            % See also atmosphere
+           
+            out = zeros(size(tau));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + 2.*( phaseStats.variance(atmSlab) - ...
+                    phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab) );
+            end
+        end
+        
+        function out = structureFunction(rho,atm)
+            %% STRUCTUREFUNCTION Phase structure function
             %
             % out = phaseStats.structureFunction(rho,atm) computes the
             % phase structure function from the baseline rho and an
@@ -46,11 +109,17 @@ classdef phaseStats
             %
             % See also atmosphere
             
-            out = 2.*(variance(atm)-covariance(rho,atm));
+            if isinf(atm.L0)
+                out   = zeros(size(rho));
+                index = rho~=0;
+                out(index) = 2.*(24.*gamma(6./5)./5).^(5./6).*(rho(index)./atm.r0).^(5./3);
+            else
+                out = 2.*(phaseStats.variance(atm)-phaseStats.covariance(rho,atm));
+            end
         end
         
         function out = spectrum(f,atm)
-            % SPECTRUM Phase power spectrum density
+            %% SPECTRUM Phase power spectrum density
             %
             % out = phaseStats.spectrum(f,atm) computes the phase power
             % spectrum density from the spatial frequency f and an
@@ -63,6 +132,35 @@ classdef phaseStats
                 atm.r0.^(-5./3);
             out = out.*(f.^2 + 1./atm.L0.^2).^(-11./6);
             out = sum([atm.layer.fractionnalR0]).*out;
+        end
+        
+        function out = symSpectrum(symf)
+            syms r0 L0
+            out = (24*gamma(sym(6/5))/5)^(5./6)*...
+                (gamma(sym(11/6))^2/(2*pi^(11/3)))*r0^(5/3);
+            out = out*L0^(11/3)*( (symf*L0)^2 + 1 )^(-11/6);
+        end
+        
+        function out = otf(rho,atm)
+            %% OTF Phase optical transfert function
+            %
+            % out = phaseStats.otf(rho) compute the phase optical transfert function
+            % from the baseline rho and an atmosphere object
+            
+            out = exp(-0.5*phaseStats.structureFunction(rho,atm));
+        end
+        
+        function out = psf(f,atm)
+            %% PSF Phase point spread function
+            %
+            % out = phaseStats.psf(f,atm) compute the phase point spread
+            % from the frequency f and an atmosphere object
+
+            fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,Inf);
+            out = arrayfun( fun, f);
+            function y = psfHankelIntegrandNested(x,freq)
+                y = x.*besselj(0,2.*pi.*x.*freq).*phaseStats.otf(x,atm);
+            end
         end
         
         function out = covarianceMatrix(varargin)

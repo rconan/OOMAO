@@ -115,66 +115,6 @@ classdef telescopeCore < handle
                 'UniformOutput',false) ) ) );
         end
         
-        function out = otf(obj, r)
-            % OTF Telescope optical transfert function
-            %
-            % out = otf(obj, r) Computes the telescope optical transfert function
-            
-%             out = zeros(size(r));
-            if obj.obstructionRatio ~= 0
-                out = pupAutoCorr(obj.D) + pupAutoCorr(obj.obstructionRatio*obj.D) - ...
-                    2.*pupCrossCorr(obj.D./2,obj.obstructionRatio*obj.D./2);
-            else
-                out = pupAutoCorr(obj.D);
-            end
-            out = out./(pi*obj.D*obj.D.*(1-obj.obstructionRatio*obj.obstructionRatio)./4);
-            
-            function out1 = pupAutoCorr(D)
-                
-                index       = r <= D;
-                red         = r(index)./D;
-                out1        = zeros(size(r));
-                out1(index) = D.*D.*(acos(red)-red.*sqrt((1-red.*red)))./2;
-                
-            end
-            
-            
-            function out2 = pupCrossCorr(R1,R2)
-                
-                out2 = zeros(size(r));
-                
-                index       = r <= abs(R1-R2);
-                out2(index) = pi*min([R1,R2]).^2;
-                
-                index       = (r > abs(R1-R2)) & (r < (R1+R2));
-                rho         = r(index);
-                red         = (R1*R1-R2*R2+rho.*rho)./(2.*rho)/(R1);
-                out2(index) = out2(index) + R1.*R1.*(acos(red)-red.*sqrt((1-red.*red)));
-                red         = (R2*R2-R1*R1+rho.*rho)./(2.*rho)/(R2);
-                out2(index) = out2(index) + R2.*R2.*(acos(red)-red.*sqrt((1-red.*red)));
-                
-            end
-            
-        end
-        
-        function out = psf(obj,f)
-            % PSF Telescope point spread function
-            %
-            % out = psf(obj, f) computes the telescope point spread function
-            
-            out   = ones(size(f)).*pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4;
-            index = f~=0;
-            u = pi.*obj.D.*f(index);
-            surface = pi.*obj.D.^2./4;
-            out(index) = surface.*2.*besselj(1,u)./u;
-            if obj.obstructionRatio>0
-                u = pi.*obj.D.*obj.obstructionRatio.*f(index);
-                surface = surface.*obj.obstructionRatio.^2;
-                out(index) = out(index) - surface.*2.*besselj(1,u)./u;
-            end
-            out = abs(out).^2./(pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4);
-        end
-        
         function out = FT(obj,f)
             % FT Fourier transform
             %
@@ -192,22 +132,6 @@ classdef telescopeCore < handle
                 out(index) = out(index) - surface.*2.*besselj(1,u)./u;
             end
             out = out./(pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4);
-      end
-        
-        function out = fullWidthHalfMax(obj)
-            % FULLWIDTHHALFMAX Full Width at Half the Maximum evaluation
-            %
-            % out = fullWidthHalfMax(a) computes the FWHM of a telescope
-            % object. Units are m^{-1}. To convert it in arcsecond,
-            % multiply by the wavelength then by radian2arcsec.
-            
-            x0 = [0,2/obj.D];
-            [x,fval,exitflag] = fzero(@(x) psf(obj,abs(x)./2) - psf(obj,0)./2,x0,optimset('TolX',1e-9));
-            if exitflag<0
-                warning('cougar:telescope:fullWidthHalfMax',...
-                    'No interval was found with a sign change, or a NaN or Inf function value was encountered during search for an interval containing a sign change, or a complex function value was encountered during the search for an interval containing a sign change.')
-            end
-            out = abs(x);
         end
         
         function out = entrappedEnergy(obj,eHalfSize,trap,psfOrOtf)
@@ -253,6 +177,21 @@ classdef telescopeCore < handle
             end
         end
                 
+    end
+    
+    methods (Static)
+                
+        function out = symFT(symf)
+            syms D ri s
+            u = pi*D*symf;
+            s = pi*D^2/4;
+            out = 2*s*besselj(1,u)/u;
+            u = pi*D*ri*symf;
+            s = s*ri^2;
+            out = out - 2*s*besselj(1,u)/u;
+            out = out/(pi*D^2*(1-ri^2)/4);
+        end
+        
     end
     
 end

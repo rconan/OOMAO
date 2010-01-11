@@ -67,7 +67,9 @@ classdef (Sealed) logBook < handle
         end 
         
         function checkOut(obj,src)
-            add(obj,src,'Terminated!')
+            if obj.verbose
+                add(obj,src,'Terminated!')
+            end
             obj.nCougarObj = obj.nCougarObj - 1;
             if obj.nCougarObj==0
                 wait(obj.queue)

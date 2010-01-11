@@ -36,7 +36,7 @@ classdef atmosphere < handle
 %     atm = atmosphere(photometry.V,0.15,30,...
 %     'altitude',4e3,...
 %     'fractionnalR0',1,...
-%     'windSpeed',5,...
+%     'windSpeed',15,...
 %     'windDirection',0);
 % atm.wavelength = photometry.R;
 
@@ -59,11 +59,15 @@ classdef atmosphere < handle
     properties (Dependent, SetAccess=private)
         % seeing
         seeingInArcsec;
+        % theta0
+        theta0InArcsec;
+        % tau0
+        tau0InMs;
     end
     
     properties (Access=private)
         p_wavelength;
-        log;
+%         log;
     end
     
     methods
@@ -94,13 +98,13 @@ classdef atmosphere < handle
                     p.Results.windSpeed,...
                     p.Results.windDirection);
             end
-            obj.log = logBook.checkIn(obj);
+%             obj.log = logBook.checkIn(obj);
         end
         
-        % Destructor
-        function delete(obj)
-            checkOut(obj.log,obj)
-        end
+%         % Destructor
+%         function delete(obj)
+%             checkOut(obj.log,obj)
+%         end
         
         function newObj = slab(obj,layerIndex)
             % SLAB Create a single turbulence layer atmosphere object
@@ -126,6 +130,40 @@ classdef atmosphere < handle
         function out = get.seeingInArcsec(obj)
             out = cougarConstants.radian2arcsec.*...
                 0.98.*obj.wavelength./obj.r0;
+        end
+        
+        function out = get.theta0InArcsec(obj)
+            z = [obj.layer.altitude];
+            if numel(z)==1 && z==0
+               out  = Inf;
+            else
+                if isinf(obj.L0)
+                    cst = (24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
+                    out= ( cst./sum( [obj.layer.fractionnalR0].*z.^(5./3) ) ).^(3/5);
+                else
+                    fun = @(x) phaseStats.angularStructureFunction(abs(x),obj) + 2.*log(exp(-1));
+                    out = abs(fzero(fun,0));
+                end
+            end
+            out = out*cougarConstants.radian2arcsec;
+        end
+        
+        function out = get.tau0InMs(obj)
+            v = [obj.layer.windSpeed];
+            if isempty(v)
+                out = [];
+            elseif numel(v)==1 && v==0
+               out  = Inf;
+            else
+                if isinf(obj.L0)
+                    cst = (24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
+                    out= ( cst./sum( [obj.layer.fractionnalR0].*v.^(5./3) ) ).^(3/5);
+                else
+                    fun = @(x) phaseStats.temporalStructureFunction(abs(x),obj) + 2.*log(exp(-1));
+                    out = abs(fzero(fun,0));
+                end
+            end
+            out = out*1e3;
         end
         
         function map = fourierPhaseScreen(atm,D,nPixel)
