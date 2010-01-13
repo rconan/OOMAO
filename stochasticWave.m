@@ -30,11 +30,13 @@ classdef stochasticWave < handle
     end
     
     properties (Access=private)
-        p_amplitude = 1;
-        p_phase = 0;
         p_bufSeq;
         bufferLength = 1000;
         kBufSeq;
+    end
+    properties (Access=protected)
+        p_amplitude = 1;
+        p_phase = 0;
     end
     
     methods

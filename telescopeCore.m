@@ -43,7 +43,7 @@ classdef telescopeCore < handle
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = telescopeCore(D,varargin)
             p = inputParser;
             p.addRequired('D', @isnumeric);
@@ -68,7 +68,7 @@ classdef telescopeCore < handle
             obj.resolution       = p.Results.resolution;
         end
 
-        % Get and Set the pupil
+        %% Get and Set the pupil
         function pupil = get.pupil(obj)
             pupil = obj.p_pupil;
             if isempty(pupil) && ~isempty(obj.resolution)
@@ -101,22 +101,8 @@ classdef telescopeCore < handle
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
         end
         
-        function out = getWave(obj,src)
-            % GETWAVE Wave propagation to the telescope
-            %
-            % out = getWave(obj,src) computes the propagation from the
-            % source to the telescope pupil
-            
-            srcDims = size(src);
-            
-            out = bsxfun( @times , repmat( obj.pupil ,[1 srcDims(2)/srcDims(1)] ) ,...
-                exp( 1i.*cell2mat( ...
-                cellfun(@(x) fresnelPropagation(x,obj),num2cell(src),...
-                'UniformOutput',false) ) ) );
-        end
-        
         function out = FT(obj,f)
-            % FT Fourier transform
+            %$ FT Fourier transform
             %
             % out = FT(obj,f) computes the Fourier transform of the
             % telescope pupil
@@ -135,7 +121,7 @@ classdef telescopeCore < handle
         end
         
         function out = entrappedEnergy(obj,eHalfSize,trap,psfOrOtf)
-            % ENTRAPPEDENERGY Encircled of ensquared energy
+            %$ ENTRAPPEDENERGY Encircled of ensquared energy
             %
             % out = entrappedEnergy(obj,eHalfSize,trap) computes the
             % entraped energy in a circle of radius eHalfSize if trap is
@@ -177,6 +163,12 @@ classdef telescopeCore < handle
             end
         end
                 
+    end
+    
+    methods (Abstract)
+        out = otf(obj, r)
+        out = psf(obj,f)  
+        out = fullWidthHalfMax(obj)
     end
     
     methods (Static)

@@ -45,6 +45,8 @@ classdef shackHartmann < handle
         slopesDisplayHandle;
         % slope listener
         slopesListener;
+        % source listener
+        srcQuery;
         % intensity display handle
         intensityDisplayHandle;
         % intensity listener
@@ -55,7 +57,7 @@ classdef shackHartmann < handle
         slopesUnits = 1;
     end
     
-    properties (SetObservable=true)
+    properties (Dependent,SetObservable=true,GetObservable=true)
         % measurements
         slopes = 0;
     end
@@ -76,6 +78,7 @@ classdef shackHartmann < handle
     end
     
     properties (Access=private)
+        p_slopes;
         p_referenceSlopes = 0;
         p_validLenslet;
         % index array to reshape a detector frame into a matrix with one
@@ -84,12 +87,12 @@ classdef shackHartmann < handle
         % lenslet centers
         lensletCenterX;
         lensletCenterY;
+        log;
     end
     
-    %% Methods
     methods
         
-        % Constructor
+        %% Constructor
         function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
             error(nargchk(1, 4, nargin))
             obj.lenslets = lensletArray(nLenslet);
@@ -110,32 +113,42 @@ classdef shackHartmann < handle
             obj.slopesListener = addlistener(obj,'slopes','PostSet',...
                 @(src,evnt) slopesDisplay(obj) );
             obj.slopesListener.Enabled = false;
-            % intensity listener
-            obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
-                @(src,evnt) intensityDisplay(obj) );
-            obj.intensityListener.Enabled = false;
+%             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
+%             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
+%                 @(src,evnt) intensityDisplay(obj) );
+% %             obj.intensityListener.Enabled = false;
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Shack-Hartmann Wavefront Sensor';
-            obj.paceMaker.TimerFcn = {@timerCallBack, obj};
+%             obj.paceMaker.TimerFcn = {@timerCallBack, obj};(BROKEN: shackhartmann is not deleted after a clear)
             obj.paceMaker.ExecutionMode = 'FixedSpacing';
             obj.paceMaker.BusyMode = 'drop';
             obj.paceMaker.Period = 1e-1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
-            function timerCallBack( timerObj, event, a)
-                %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
-                grabAndProcess(a)
-            end
+            obj.log = logBook.checkIn(obj);
+%             function timerCallBack( timerObj, event, a)
+%                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
+%                 a.grabAndProcess
+%             end
         end
         
         % Destructor
         function delete(obj)
-            if isvalid(obj.paceMaker)
-                if strcmp(obj.paceMaker.Running,'on')
-                    stop(obj.paceMaker)
-                end
-                delete(obj.paceMaker)
-            end
+%             if isvalid(obj.slopesListener)
+%                 delete(obj.slopesListener)
+%             end
+%             if isvalid(obj.intensityListener)
+%                 delete(obj.intensityListener)
+%             end
+%             if ~isempty(obj.srcQuery) && isvalid(obj.srcQuery)
+%                 delete(obj.srcQuery)
+%             end
+%             if isvalid(obj.paceMaker)
+%                 if strcmp(obj.paceMaker.Running,'on')
+%                     stop(obj.paceMaker)
+%                 end
+%                 delete(obj.paceMaker)
+%             end
             if ishandle(obj.slopesDisplayHandle)
                 delete(obj.slopesDisplayHandle)
             end
@@ -144,9 +157,18 @@ classdef shackHartmann < handle
             end
             delete(obj.lenslets)
             delete(obj.camera)
+            checkOut(obj.log,obj)
         end
         
         %% GETS AND SETS 
+        
+        % Get and Set slopes
+        function slopes = get.slopes(obj)
+            slopes = obj.p_slopes;
+        end
+        function set.slopes(obj,val)
+            obj.p_slopes = val;
+        end
         
         % Get and Set valid lenslets
         function validLenslet = get.validLenslet(obj)
@@ -315,13 +337,12 @@ classdef shackHartmann < handle
 %                 size(xyBuffer)
                 xBuffer = reshape(xBuffer,obj.nValidLenslet,nLensletArray*nFrame);
                 yBuffer = reshape(yBuffer,obj.nValidLenslet,nLensletArray*nFrame);
-                obj.slopes = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes);
+                obj.p_slopes = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes).*obj.slopesUnits;
             elseif obj.matchedFilter
             elseif obj.correlation
             end
-            obj.slopes = obj.slopes.*obj.slopesUnits;
             if nargout>0
-                varargout{1} = obj.slopes;
+                varargout{1} = obj.p_slopes;
             end
         end
         
@@ -330,8 +351,8 @@ classdef shackHartmann < handle
                 'resolution',obj.lenslets.nLenslet,...
                 'pupil',double(obj.validLenslet));
             dzdxy = [zern.xDerivative(obj.validLenslet,:);zern.yDerivative(obj.validLenslet,:)];
-            zern.c = dzdxy\obj.slopes;
-%             zern.c = dzdxy'*obj.slopes;
+            zern.c = dzdxy\obj.p_slopes;
+%             zern.c = dzdxy'*obj.p_slopes;
         end
         
         function varargout = grabAndProcess(obj)
@@ -345,7 +366,7 @@ classdef shackHartmann < handle
             grab(obj.camera)
             dataProcessing(obj);
             if nargout>0
-                varargout{1} = obj.slopes;
+                varargout{1} = obj.p_slopes;
             end
         end
         
@@ -368,9 +389,9 @@ classdef shackHartmann < handle
                 end
                 hc = get(obj.slopesDisplayHandle,'children');
                 u = obj.referenceSlopes(1:end/2)+...
-                    obj.slopes(1:end/2)+obj.lensletCenterX;
+                    obj.p_slopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
+                    obj.p_slopes(1+end/2:end)+obj.lensletCenterY;
                 set(hc(1),'xData',u,'yData',v)
             else
                 obj.slopesDisplayHandle = hgtransform(varargin{:});
@@ -407,9 +428,9 @@ classdef shackHartmann < handle
                     'parent',obj.slopesDisplayHandle)
                 % Display slopes
                 u = obj.referenceSlopes(1:end/2)+...
-                    obj.slopes(1:end/2)+obj.lensletCenterX;
+                    obj.p_slopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
+                    obj.p_slopes(1+end/2:end)+obj.lensletCenterY;
                 line(u,v,'color','r','marker','+',...
                     'linestyle','none',...
                     'parent',obj.slopesDisplayHandle)

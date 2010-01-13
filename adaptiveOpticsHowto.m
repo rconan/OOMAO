@@ -7,7 +7,7 @@ atm = atmosphere(photometry.V,0.15,30,...
     'fractionnalR0',[0.7,0.25,0.05],...
     'windSpeed',[5,10,20],...
     'windDirection',[0,pi/4,pi]);
-atm.wavelength = photometry.R;
+atm.wavelength = photometry.R
 
 %% Telescope
 nPx = 60;
@@ -20,6 +20,8 @@ tel = telescope(3.6,...
 nLenslet = 10;
 wfs = shackHartmann(nLenslet,nPx,0.75);
 setValidLenslet(wfs,utilities.piston(nPx))
+
+%% Source
 ngs = source;
 
 %% Deformable mirror
@@ -32,7 +34,7 @@ dm = deformableMirror(nActuator,...
 
 
 %% Building the system
-ngs==tel>=wfs;
+ngs==tel>=dm>=wfs;
 wfs.referenceSlopes = wfs.slopes;
 grabAndProcess(wfs)
 slopesAndFrameDisplay(wfs)
@@ -51,14 +53,15 @@ figure
 % slopesDisplay(wfs,'parent',subplot(1,2,1))
 imagesc(dm)%,'parent',subplot(1,2,2))
 dm.surfaceListener.Enabled = true;
+dm.srcQuery.Enabled = true;
 for k=1:97;
     dm.coefs(k)=10;
-    ngs==tel>=dm>=wfs;
+%     ngs==tel>=dm>=wfs;
 %     pause(0.5);
     drawnow
     dm.coefs(k)=0;
 end
-reset(ngs)*tel*dm*wfs;
+dm.srcQuery.Enabled = false;
 
 % stop(wfs.paceMaker)
 
@@ -69,8 +72,9 @@ dm.surfaceListener.Enabled = false;
 dm.coefsDefault = 0;
 stroke = 3;
 dm.coefs = eye(dm.nValidActuator)*stroke;
-ngs==tel>=dm>=wfs;
+wfs.srcQuery.Enabled = true;
 calibrationMatrix = wfs.slopes./stroke;
+wfs.srcQuery.Enabled = false;
 figure(10)
 subplot(1,2,1)
 imagesc(calibrationMatrix)

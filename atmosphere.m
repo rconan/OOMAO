@@ -118,6 +118,39 @@ classdef atmosphere < handle
             newObj.layer = obj.layer(layerIndex);
         end
         
+        function disp(obj)
+            % DISP Display object information
+            %
+            % disp(obj) prints information regarding the atmosphere object
+            
+            if isinf(obj.L0)
+                fprintf(' Kolmogorov-Tatarski atmospheric turbulence:\n')
+                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, seeing=%.2farcsec',...
+                obj.wavelength*1e6,obj.r0*1e2,obj.seeingInArcsec)
+            else
+                fprintf(' Von Karman atmospheric turbulence\n')
+                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, L0=%.2fm, seeing=%.2farcsec',...
+                obj.wavelength*1e6,obj.r0*1e2,obj.L0,obj.seeingInArcsec)
+            end
+            if ~isinf(obj.theta0InArcsec) 
+                fprintf(', theta0=%.2farcsec',obj.theta0InArcsec)
+            end
+            if ~isempty(obj.tau0InMs)
+                 fprintf(', tau0=%.2fmillisec',obj.tau0InMs)
+            end
+            fprintf('\n')
+                fprintf('  Layer   Altitude[m]   fr0    wind([m/s] [deg])   D[m]    res[px]\n')
+            for kLayer=1:obj.nLayer
+                fprintf('  %2d      %8.2f      %4.2f    (%5.2f %6.2f)     %5.2f    %3d\n',...
+                    kLayer,...
+                    obj.layer(kLayer).altitude,...
+                    obj.layer(kLayer).fractionnalR0,...
+                    obj.layer(kLayer).windSpeed,...
+                    obj.layer(kLayer).windDirection*180/pi,...
+                    obj.layer(kLayer).D,...
+                    obj.layer(kLayer).nPixel)
+            end
+       end
         function val = get.wavelength(obj)
             val = obj.p_wavelength;
         end

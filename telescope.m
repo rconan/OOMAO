@@ -22,6 +22,7 @@ classdef telescope < telescopeCore
         samplingTime;
         % phase listener
         phaseListener;
+        srcQuery;
     end
     
     properties (Dependent)
@@ -50,7 +51,7 @@ classdef telescope < telescopeCore
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = telescope(D,varargin)
             p = inputParser;
             p.addRequired('D', @isnumeric);
@@ -71,7 +72,7 @@ classdef telescope < telescopeCore
             obj.opticalAberration = p.Results.opticalAberration;
         end
         
-        % Destructor
+        %% Destructor
         function delete(obj)
             if isa(obj.opticalAberration,'atmosphere')
                 add(obj.log,obj,'Deleting atmosphere layer slabs!')
@@ -82,7 +83,7 @@ classdef telescope < telescopeCore
             checkOut(obj.log,obj)
         end
         
-        % Set/Get for opticalAberration property
+        %% Set/Get for opticalAberration property
         function set.opticalAberration(obj,val)
             obj.atm = val;
             if ~isempty(val) && isa(val,'atmosphere')

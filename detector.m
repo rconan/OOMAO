@@ -35,13 +35,14 @@ classdef detector < handle
         frame;
     end
     
-    properties (GetAccess=private,SetAccess=private)
+    properties (Access=private)
         frameHandle;
+        log;
     end
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = detector(resolution,pixelScale)
             error(nargchk(1, 2, nargin))
             if numel(resolution)==1
@@ -61,19 +62,20 @@ classdef detector < handle
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Detector';
-            obj.paceMaker.TimerFcn = {@timerCallBack, obj};
+%             obj.paceMaker.TimerFcn = @(src,evnt) obj.grab;% {@timerCallBack, obj};
             obj.paceMaker.ExecutionMode = 'FixedSpacing';
             %             obj.paceMaker.BusyMode = 'error';
             obj.paceMaker.Period = 1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
-            function timerCallBack( timerObj, event, a)
-                %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
-                a.grab;
-            end
+%             function timerCallBack( timerObj, event, a)
+%                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
+%                 a.grab;
+%             end
             %             obj.frameRate = 1;
+            obj.log = logBook.checkIn(obj);
         end
         
-        % Destructor
+        %% Destructor
         function delete(obj)
             if ishandle(obj.frameHandle)
                 delete(get(obj.frameHandle,'Parent'));
@@ -84,10 +86,11 @@ classdef detector < handle
                 end
                 delete(obj.paceMaker)
             end
+            checkOut(obj.log,obj)
         end
         
         function imagesc(obj,varargin)
-            % IMAGESC Display the detector frame
+            %% IMAGESC Display the detector frame
             %
             % imagesc(obj) displays the frame of the detector object
             %
@@ -116,7 +119,7 @@ classdef detector < handle
         end
         
         function varargout = grab(obj)
-            % GRAB Frame grabber
+            %% GRAB Frame grabber
             %
             % grab(obj) grabs a frame
             %
@@ -145,7 +148,7 @@ classdef detector < handle
     methods (Access=protected)
         
         function readOut(obj,image)
-            % READOUT Detector readout
+            %% READOUT Detector readout
             %
             % readOut(obj,image) adds noise to the image: photon noise if
             % photonNoiseLess property is false and readout noise if

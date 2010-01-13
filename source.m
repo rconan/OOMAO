@@ -24,7 +24,9 @@ classdef source < stochasticWave
         wavelength;
         width;
         viewPoint;
-        magnitude;
+        % # of photon [m^{-2}.s^{-1}] 
+        nPhoton;
+        opticalPath;
     end
     
     properties (SetAccess=private)
@@ -33,19 +35,20 @@ classdef source < stochasticWave
     end
     
     properties (Dependent)
-        % # of photon [m^{-2}.s^{-1}] 
-        nPhoton;
         waveNumber;
+        magnitude;
     end
     
     properties (Access=private)
-        p_nPhoton;
+%         p_nPhoton;
+        p_magnitude;
         tel;
+        log;
     end
         
     methods
         
-        % Constructor
+        %% Constructor
         function obj = source(varargin)
             obj = obj@stochasticWave;
             p = inputParser;
@@ -109,25 +112,39 @@ classdef source < stochasticWave
                 obj.viewPoint  = p.Results.viewPoint;
                 setDirectionVector(obj)
             end
+            obj.log = logBook.checkIn(obj);
         end
         
-        % Get and Set magnitude
-        function set.nPhoton(obj,val)
-            obj.p_nPhoton = val;
+        %% Destructor
+        function delete(obj)
+            checkOut(obj.log,obj)
         end
+        
+        %% Get and Set nPhoton
+%         function set.nPhoton(obj,val)
+%             obj.p_nPhoton = val;
+%         end
         function out = get.nPhoton(obj)
-            if isempty(obj.p_nPhoton)
-                if ~isempty(obj.magnitude)
+            if isempty(obj.nPhoton)
+                if ~isempty(obj.p_magnitude)
                     index = abs(photometry.wavelengths-photometry.R)<=eps(max(photometry.wavelengths));
                     out = photometry.deltaWavelengths(index).*...
                         1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                        10.^(-0.4*obj.magnitude)./(cougarConstants.plank*cougarConstants.c);
+                        10.^(-0.4*obj.p_magnitude)./(cougarConstants.plank*cougarConstants.c);
                 else
                     out = [];
                 end
             else
-                out = obj.p_nPhoton;
+                out = obj.nPhoton;
             end
+        end
+        %% Get and Set magnitude
+        function out = get.magnitude(obj)
+            out = obj.p_magnitude;
+        end
+        function set.magnitude(obj,val)
+            obj.nPhoton = [];
+            obj.p_magnitude = val;
         end
 
         
@@ -145,7 +162,7 @@ classdef source < stochasticWave
 %         end
         
         function bool = isNgs(obj)
-            % ISNGS NGS check
+            %% ISNGS NGS check
             % bool = isNgs(obj) returns true if the height of the source
             % object is infinite
             
@@ -153,7 +170,7 @@ classdef source < stochasticWave
         end
         
         function bool = isLgs(obj)
-            % ISNGS LGS check
+            %% ISLGS LGS check
             % bool = isLgs(obj) returns true if the height of the source
             % object is finite
             
@@ -161,7 +178,7 @@ classdef source < stochasticWave
         end
         
         function bool = isOnAxis(obj)
-            % ISONAXIS On-axis check
+            %% ISONAXIS On-axis check
             % bool = isOnAxis(obj) returns true if both zenith and azimuth
             % angles are zero
             
@@ -177,9 +194,32 @@ classdef source < stochasticWave
         function val = get.waveNumber(obj)
             val = 2*pi/obj.wavelength;
         end        
+        
+        function varargout = reset(obj)
+            %% RESET Reset wave properties
+            %
+            % reset(obj) resets the mask to [], the amplitude to 1, the
+            % phase to 0 and the optical path to [];
+            %
+            % obj = reset(obj) resets and returns the reset object
+            
+            for kObj = 1:numel(obj);
+                obj(kObj).mask        = [];
+                obj(kObj).p_amplitude = 1;
+                obj(kObj).p_phase     = 0;
+                for k=1:length(obj(kObj).opticalPath)
+                    delete(obj(kObj).opticalPath{k}.srcQuery)
+                    obj(kObj).opticalPath{k}.srcQuery = [];
+                end
+                obj(kObj).opticalPath = [];
+            end
+            if nargout>0
+                varargout{1} = obj;
+            end
+        end
 
         function varargout = ge(obj,otherObj)
-            % >= Source object propagation operator
+            %% >= Source object propagation operator
             %
             % src>=otherObj propagate src through otherObj multiplying the
             % source amplitude by the otherObj transmitance and adding the
@@ -191,10 +231,16 @@ classdef source < stochasticWave
             if isa(otherObj,'shackHartmann')
                 propagateThrough(otherObj.lenslets,obj)
                 grabAndProcess(otherObj)
-                if nOut>0
-                    varargout{1} = otherObj;
-                    nOut = 0;
+                if isempty(otherObj.srcQuery)
+                    otherObj.srcQuery = addlistener(otherObj,'slopes','PreGet',...
+                        @obj.launch);
+                    otherObj.srcQuery.Enabled = false;
+                    obj.opticalPath{ length(obj.opticalPath)+1 } = otherObj;
                 end
+%                 if nOut>0
+%                     varargout{1} = otherObj;
+%                     nOut = 0;
+%                 end
             elseif isa(otherObj,'lensletArray')
                 propagateThrough(otherObj,obj)
                 if nOut>0
@@ -221,8 +267,17 @@ classdef source < stochasticWave
             end
         end
         
+        function launch(obj,src,event)
+            obj.mask        = [];
+            obj.p_amplitude = 1;
+            obj.p_phase     = 0;
+            for k=1:length(obj.opticalPath)
+                ge(obj,obj.opticalPath{k});
+            end
+        end
+        
         function varargout = eq(obj,otherObj)
-            % == Source object propagation operator
+            %% == Source object propagation operator
             %
             % src==otherObj propagate src through otherObj setting the
             % source amplitude to the otherObj transmitance and the source
@@ -231,13 +286,14 @@ classdef source < stochasticWave
             % src = src==otherObj returns the source object
             
              ge(reset(obj),otherObj);
+             obj.opticalPath = {otherObj};
              if nargout>0
                 varargout{1} = obj;
              end           
         end
 
         function out = fresnelPropagation(obj,tel)
-            % FRESNELPROPAGATION Source propagation to the light collector
+            %% FRESNELPROPAGATION Source propagation to the light collector
             % fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the telescope primary mirror
             % out fresnelPropagation(a,tel) propagates the source seen
@@ -245,7 +301,7 @@ classdef source < stochasticWave
             % returns the wavefront in radian
 
             if isempty(obj.tel) || ~isequal(obj.tel,tel)
-                fprintf(' (@source)> Computing the wavefront ...\n')
+                fprintf(' @(source)> Computing the wavefront ...\n')
                 obj.tel = tel;
                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
                         ( numel(obj.height)==1 && obj.height==obj.tel.focalDistance )                  
@@ -269,6 +325,27 @@ classdef source < stochasticWave
             end
             if nargout>0
                 out = obj.wavefront;
+            end
+        end
+        
+        function copy = clone(obj)
+            %% CLONE Create an object clone
+            %
+            % copy = clone(obj) clones the source object to another object
+            % with a different handle
+            
+            copy = eval(class(obj));
+            meta = eval(['?',class(obj)]);
+            for p = 1: size(meta.Properties,1)
+                pname = meta.Properties{p}.Name;
+                try
+                    if ~meta.Properties{p}.Dependent
+                        eval(['copy.',pname,' = obj.',pname,';']);
+                    end
+                catch ME
+                    fprintf(['\nCould not copy ',pname,'.\n']);
+                    rethrow(ME)
+                end
             end
         end
         

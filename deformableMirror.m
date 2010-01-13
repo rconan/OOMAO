@@ -15,6 +15,7 @@ classdef deformableMirror < handle
         surfaceListener;
         % lexicographic ordering of DM surface map (default: false)
         lex = false;
+        srcQuery;
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -25,12 +26,11 @@ classdef deformableMirror < handle
     properties (Dependent,SetAccess=private)
         % the DM phase
         phase;
-    end
-    
-    
-    properties (Dependent)
-        % # of actuators in the pupil
+         % # of actuators in the pupil
         nValidActuator;
+   end
+    
+    properties (Dependent, SetObservable=true)
         % coefficients
         coefs;
     end
@@ -39,11 +39,12 @@ classdef deformableMirror < handle
         p_coefs; 
         p_surface;
         imageHandle;
+        log;
     end
         
     methods
         
-        % Constructor
+        %% Constructor
         function obj = deformableMirror(nActuator,varargin)
             p = inputParser;
             p.addRequired('nActuator', @isnumeric);
@@ -62,20 +63,23 @@ classdef deformableMirror < handle
             if isa(obj.modes,'influenceFunction')
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator);
             end
+            obj.log = logBook.checkIn(obj);
         end
         
-%         % Destructor
-%         function delete(obj)
+        %% Destructor
+        function delete(obj)
 %             if isa(obj.modes,'influenceFunction')
 %                 delete(obj.modes)
 %             end
-%         end
+            checkOut(obj.log,obj)
+        end
         
+        %% Get nValidActuator
         function out = get.nValidActuator(obj)
             out = sum(obj.validActuator(:));
         end
         
-        % Set and Get coefs
+        %% Set and Get coefs
         function out = get.coefs(obj)
             out = obj.p_coefs;
         end
@@ -90,7 +94,7 @@ classdef deformableMirror < handle
             end
         end
         
-        % Get the dm shape
+        %% Get the dm shape
         function dmShape = get.surface(obj)
             obj.p_surface = obj.modes*obj.coefs;
             if obj.lex
@@ -99,23 +103,30 @@ classdef deformableMirror < handle
                 dmShape = utilities.toggleFrame(obj.p_surface,3);
             end
         end
-        % Get the dm phase
+        %% Get the dm phase
         function phase = get.phase(obj)
             phase = -2*obj.surface;
         end
         
         function relay(obj,src)
-            % RELAY deformable mirror to source relay
+            %% RELAY deformable mirror to source relay
             %
             % relay(obj,srcs) writes the deformableMirror amplitude and
             % phase into the properties of the source object(s)
             
             src.phase = obj.phase;
             src.amplitude = 1;
+            if isempty(obj.srcQuery)
+                fprintf(' @(deformableMirror)> source listener creation!\n')
+                obj.srcQuery = addlistener(obj,'coefs','PostSet',...
+                    @src.launch);
+                obj.srcQuery.Enabled = false;
+                src.opticalPath{ length(src.opticalPath)+1 } = obj;
+            end
         end
         
         function varargout = imagesc(obj,varargin)
-            % IMAGESC Display the lenslet imagelets
+            %% IMAGESC Display the lenslet imagelets
             %
             % imagesc(obj) displays the imagelets of the lenslet array object
             %

@@ -74,6 +74,7 @@ classdef (Sealed) logBook < handle
             if obj.nCougarObj==0
                 wait(obj.queue)
                 delete(obj)
+                fprintf(' @(logBook)> Closing the log book!\n')
                 fprintf('~~~~~~~~~~~~~~~~~~~\n COUGAR''S GONE!\n~~~~~~~~~~~~~~~~~~~\n')
             end
         end
@@ -85,15 +86,13 @@ classdef (Sealed) logBook < handle
         function obj = checkIn(src)
             persistent localObj
             if isempty(localObj) || ~isvalid(localObj)
-                disp(' @(logBook)> logBook instanciation!')
+                fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF COUGAR!\n~~~~~~~~~~~~~~~~~~~\n')
+                fprintf(' @(logBook)> Opening the log book!\n')
                 localObj = logBook;
             end
             obj = localObj;
             if nargin>0 && isvalid(src)
                 obj.nCougarObj = obj.nCougarObj + 1;
-                if obj.nCougarObj==1
-                    fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF COUGAR!\n~~~~~~~~~~~~~~~~~~~\n')
-                end
                 add(obj,src,'Created!')
             end
         end

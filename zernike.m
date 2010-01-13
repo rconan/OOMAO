@@ -36,6 +36,7 @@ classdef zernike < handle
         %         % Projection matrix of a Zernike portion on the same basis defined
         %         % on the portion
         %         P
+        srcQuery;
     end
     
     properties (Dependent, SetAccess=private)
@@ -105,7 +106,7 @@ classdef zernike < handle
             out = obj.p_p\utilities.toggleFrame(phaseMap,2);
         end
         
-        % get p
+        %% get p
         function out = get.p(obj)
             out = obj.p_p;
             if ~obj.lex
@@ -113,12 +114,12 @@ classdef zernike < handle
             end
         end
         
-        % nMode
+        %% nMode
         function out = get.nMode(obj)
             out = length(obj.j);
         end
         
-        % get phase
+        %% get phase
         function out = get.phase(obj)
             out = obj.p_p*obj.c;
             if ~obj.lex
@@ -126,7 +127,7 @@ classdef zernike < handle
             end
         end
         
-        % get wave
+        %% get wave
         function out = get.wave(obj)
             out = bsxfun(@times,double(obj.r(:)<=1),exp(1i.*obj.p_p*obj.c));
             if ~obj.lex
@@ -135,7 +136,7 @@ classdef zernike < handle
         end
         
         function relay(obj,src)
-            % RELAY zernike to source relay
+            %% RELAY zernike to source relay
             %
             % relay(obj,srcs) writes the zernike amplitude and phase into
             % the properties of the source object(s)
@@ -143,6 +144,12 @@ classdef zernike < handle
             src.mask      = obj.pupil;
             src.amplitude = double(obj.pupil);
             src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
+            if isempty(obj.srcQuery)
+                obj.srcQuery = addlistener(obj,'c','PostSet',...
+                    @src.launch);
+                obj.srcQuery.Enabled = false;
+                src.opticalPath{ length(src.opticalPath)+1 } = obj;
+           end
         end
         
         % fourier transform
