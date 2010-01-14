@@ -171,6 +171,30 @@ classdef telescope < telescopeCore
             end
         end
         
+        function obj = plus(obj,otherObj)
+            %% + Add a component to the telescope
+            %
+            % obj = obj + otherObj adds an other object to the telescope
+            % object 
+            
+            obj.opticalAberration = otherObj;
+        end
+        
+        function obj = minus(obj,otherObj)
+            %% - Remove a component from the telescope
+            %
+            % obj = obj - otherObj removes an other object to the telescope
+            % object 
+            
+            if isa(obj.opticalAberration,class(otherObj))
+            obj.opticalAberration = [];
+            else
+                error('cougar:telescope:minus',...
+                    'The current and new objet must be from the same class (current: %s ~= new: %s',...
+                    class(obj.opticalAberration),class(otherObj))
+            end
+        end
+        
         function relay(obj,srcs)
             %% RELAY Telescope to source relay
             %
