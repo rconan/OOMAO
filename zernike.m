@@ -36,7 +36,6 @@ classdef zernike < handle
         %         % Projection matrix of a Zernike portion on the same basis defined
         %         % on the portion
         %         P
-        srcQuery;
     end
     
     properties (Dependent, SetAccess=private)
@@ -60,11 +59,12 @@ classdef zernike < handle
     
     properties (Access=private)
         p_p;
+        log;
     end
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = zernike(j,varargin)
             error(nargchk(1,5,nargin));
             p = inputParser;
@@ -85,10 +85,15 @@ classdef zernike < handle
             end
             obj.p_p = polynomials(obj);
             obj.c = ones(length(obj.j),1);
+            obj.log = logBook.checkIn(obj);
         end
-        
-        function obj = projection(obj,phaseMap)
-            % PROJECTION Orthogonal projection onto the Zernike polynomials
+        %% Destructor
+        function delete(obj)
+            checkOut(obj.log,obj)
+        end
+
+        function obj = ldivide(obj,phaseMap)
+            %% .\ Orthogonal projection onto the Zernike polynomials
             %
             % obj = projection(obj,phaseMap) projects the 2D phase map onto
             % the polynomials of the zernike object and store the
@@ -97,13 +102,22 @@ classdef zernike < handle
             obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
         end
         
-        function out = mldivide(obj,phaseMap) 
-            % MLDIVIDE Least square fit to the Zernike polynomials
+        function obj = mldivide(obj,phaseMap) 
+            %% \ Least square fit to the Zernike polynomials
             %
-            % out = obj/phaseMap projects the 2D phase map onto
+            % out = obj\phaseMap projects the 2D phase map onto
             % the polynomials of the zernike object
             
-            out = obj.p_p\utilities.toggleFrame(phaseMap,2);
+            if isa(phaseMap,'shackHartmann')
+                u = phaseMap.validLenslet;
+                obj = zernike(obj.j,...
+                    'resolution',phaseMap.lenslets.nLenslet,...
+                    'pupil',double(u));
+                dzdxy = [obj.xDerivative(u,:);obj.yDerivative(u,:)];
+                obj.c = dzdxy\phaseMap.slopes;
+            else
+                obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
+            end
         end
         
         %% get p
@@ -144,15 +158,9 @@ classdef zernike < handle
             src.mask      = obj.pupil;
             src.amplitude = double(obj.pupil);
             src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
-            if isempty(obj.srcQuery)
-                obj.srcQuery = addlistener(obj,'c','PostSet',...
-                    @src.launch);
-                obj.srcQuery.Enabled = false;
-                src.opticalPath{ length(src.opticalPath)+1 } = obj;
-           end
         end
         
-        % fourier transform
+        %% fourier transform
         function out = fourier(obj,f,o,D)
             out = zeros(size(f,1),size(f,2),obj.nMode);
             for kMode = 1:obj.nMode
@@ -166,7 +174,7 @@ classdef zernike < handle
                     g.*cos(m.*o+p);
             end
         end
-        % fourier transform azimuth average
+        %% fourier transform azimuth average
         function out = fourierAzimSum(obj,f,D)
             out = zeros(size(f,1),obj.nMode);
             for kMode = 1:obj.nMode
@@ -182,12 +190,12 @@ classdef zernike < handle
                 end
             end
         end
-        % fourier transform peak frequency
+        %% fourier transform peak frequency
         function out = fourierPeakFreq(obj,D)
             out = (obj.n+1)/(pi*D);
         end
         
-        % get Zernike x derivative coefficients
+        %% get Zernike x derivative coefficients
         function out = get.xDerivativeMatrix(obj)
             i = []; j = []; s = [];
             nModes = length(obj.j);
@@ -212,7 +220,7 @@ classdef zernike < handle
             out = sparse(i,j,s,nModes,nModes);
         end
         
-        % get Zernike y derivative coefficients
+        %% get Zernike y derivative coefficients
         function out = get.yDerivativeMatrix(obj)
             i = []; j = []; s = [];
             nModes = length(obj.j);
@@ -245,7 +253,7 @@ classdef zernike < handle
             out = sparse(i,j,s,nModes,nModes);
         end
         
-        % get Zernike x derivative
+        %% get Zernike x derivative
         function out = get.xDerivative(obj)
             out = obj.p_p*obj.xDerivativeMatrix;
             if ~obj.lex
@@ -253,7 +261,7 @@ classdef zernike < handle
             end
         end
         
-        % get Zernike y derivative
+        %% get Zernike y derivative
         function out = get.yDerivative(obj)
             out = obj.p_p*obj.yDerivativeMatrix;
             if ~obj.lex
@@ -276,7 +284,7 @@ classdef zernike < handle
         end
         
         function P = smallFootprintExpansion(obj,delta,largeSmallRadiusRatio)
-            % SMALLFOOTPRINTEXPANSION Portion of Zernike expansion onto
+            %% SMALLFOOTPRINTEXPANSION Portion of Zernike expansion onto
             % zernikes
             %
             % obj =

@@ -15,7 +15,6 @@ classdef deformableMirror < handle
         surfaceListener;
         % lexicographic ordering of DM surface map (default: false)
         lex = false;
-        srcQuery;
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -116,13 +115,6 @@ classdef deformableMirror < handle
             
             src.phase = obj.phase;
             src.amplitude = 1;
-            if isempty(obj.srcQuery)
-                fprintf(' @(deformableMirror)> source listener creation!\n')
-                obj.srcQuery = addlistener(obj,'coefs','PostSet',...
-                    @src.launch);
-                obj.srcQuery.Enabled = false;
-                src.opticalPath{ length(src.opticalPath)+1 } = obj;
-            end
         end
         
         function varargout = imagesc(obj,varargin)

@@ -34,7 +34,7 @@ dm = deformableMirror(nActuator,...
 
 
 %% Building the system
-ngs==tel>=dm>=wfs;
+ngs=ngs==tel>=dm>=wfs;
 wfs.referenceSlopes = wfs.slopes;
 grabAndProcess(wfs)
 slopesAndFrameDisplay(wfs)
@@ -53,15 +53,13 @@ figure
 % slopesDisplay(wfs,'parent',subplot(1,2,1))
 imagesc(dm)%,'parent',subplot(1,2,2))
 dm.surfaceListener.Enabled = true;
-dm.srcQuery.Enabled = true;
 for k=1:97;
     dm.coefs(k)=10;
-%     ngs==tel>=dm>=wfs;
+    ngs=ngs==tel>=dm>=wfs;
 %     pause(0.5);
     drawnow
     dm.coefs(k)=0;
 end
-dm.srcQuery.Enabled = false;
 
 % stop(wfs.paceMaker)
 
@@ -72,9 +70,8 @@ dm.surfaceListener.Enabled = false;
 dm.coefsDefault = 0;
 stroke = 3;
 dm.coefs = eye(dm.nValidActuator)*stroke;
-wfs.srcQuery.Enabled = true;
+ngs==tel>=dm>=wfs;
 calibrationMatrix = wfs.slopes./stroke;
-wfs.srcQuery.Enabled = false;
 figure(10)
 subplot(1,2,1)
 imagesc(calibrationMatrix)
@@ -119,11 +116,11 @@ commandMatrix = V*iS*U';
 wfs.slopesListener.Enabled = false;
 wfs.camera.frameListener.Enabled = false;
 gain = 0.5;
-tel.opticalAberration = atm;
+tel = tel+atm;
 dm.coefs = zeros(dm.nValidActuator,1);
-ngs==tel;
+ngs=ngs==tel;
 turbPhase = ngs.meanRmPhase;
-ngs>=dm>=wfs;
+ngs=ngs>=dm>=wfs;
 figure(11)
 h = imagesc([turbPhase,ngs.meanRmPhase,dm.phase]);
 axis equal tight
@@ -131,9 +128,9 @@ colorbar
 pause
 ngs.bufSeq = true(1,2);
 while true
-    ngs==+tel; %#ok<*EQEFF>
+    ngs=ngs==+tel; 
     turbPhase = ngs.meanRmPhase;
-    ngs>=dm>=wfs; %#ok<*VUNUS>
+    ngs=ngs>=dm>=wfs; 
     residualDmCoefs = commandMatrix*wfs.slopes;
     dm.coefs = dm.coefs - gain*residualDmCoefs;
     set(h,'Cdata',[turbPhase,ngs.meanRmPhase,-dm.phase])
@@ -150,9 +147,10 @@ imagesc(zern.phase)
 zern.c = eye(zern.nMode);
 % wfs.lenslets.wave = zern.wave;
 % grabAndProcess(wfs)
-ngs==zern>=wfs
+ngs=ngs==zern>=wfs;
 % slopesAndFrameDisplay(wfs)
-z = getZernike(wfs,maxRadialDegree);
+% z = getZernike(wfs,maxRadialDegree);
+z = zernike(1:zernike.nModeFromRadialOrder(maxRadialDegree))\wfs;
 Dz = z.c(2:end,:);
 
 %% With noise
@@ -162,11 +160,11 @@ onAxis.magnitude = 16;
 % wfs.lenslets.lightSource = onAxis;
 wfs.camera.readOutNoise = 10;
 wfs.camera.photonNoiseLess = false;
-tel.opticalAberration = [];
+tel=tel-atm;
 % wfs.lenslets.wave = tel;
 wfs.framePixelThreshold = 0;
 % grabAndProcess(wfs)
-onAxis==tel>=wfs
+onAxis=onAxis==tel>=wfs;
 slopesAndFrameDisplay(wfs)
 
 %% noise convariance matrix
@@ -174,7 +172,7 @@ nMeas = 1000;
 slopes = zeros(wfs.nSlope,nMeas);
 for kMeas=1:nMeas
 %     grabAndProcess(wfs)
-    onAxis==tel>=wfs
+    onAxis=onAxis==tel>=wfs;
     slopes(:,kMeas) = wfs.slopes;
 end
 Cn = slopes*slopes'/nMeas;
@@ -184,7 +182,8 @@ imagesc(Cn)
 axis equal tight
 colorbar
 wfs.slopes = slopes;
-z = getZernike(wfs,maxRadialDegree);
+% z = getZernike(wfs,maxRadialDegree);
+z = z\wfs;
 Czn = z.c(2:end,:)*z.c(2:end,:)'/nMeas;
 subplot(1,2,2)
 imagesc(Czn)
@@ -192,16 +191,17 @@ axis equal tight
 colorbar
 
 %% Phase reconstruction
-tel.opticalAberration = atm;
+tel = tel+atm;
 %% wavefront reconstruction least square fit
 offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
-offAxis==tel;
+offAxis=offAxis==tel;
 ps = offAxis.meanRmPhase;
 % wfs.lenslets.wave     = tel;
 % wfs.camera.readOutNoise = 1;
 % grabAndProcess(wfs)
-offAxis>=wfs;
-z = getZernike(wfs,maxRadialDegree);
+offAxis=offAxis>=wfs;
+% z = getZernike(wfs,maxRadialDegree);
+z = z\wfs;
 zern.c = Dz\z.c(2:end);
 phaseLS = zern.phase;
 

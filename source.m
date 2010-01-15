@@ -18,14 +18,21 @@ classdef source < stochasticWave
     % radius shifted of 30 degrees
     
     properties
+        % source zenith angle
         zenith;
+        % source azimuth angle
         azimuth;
+        % source height
         height;
+        % source wavelength
         wavelength;
+        % source full-width-half-max
         width;
+        % source view point
         viewPoint;
         % # of photon [m^{-2}.s^{-1}] 
         nPhoton;
+        % cell array of handles of objects the source is propagating through  
         opticalPath;
     end
     
@@ -207,10 +214,6 @@ classdef source < stochasticWave
                 obj(kObj).mask        = [];
                 obj(kObj).p_amplitude = 1;
                 obj(kObj).p_phase     = 0;
-                for k=1:length(obj(kObj).opticalPath)
-                    delete(obj(kObj).opticalPath{k}.srcQuery)
-                    obj(kObj).opticalPath{k}.srcQuery = [];
-                end
                 obj(kObj).opticalPath = [];
             end
             if nargout>0
@@ -218,35 +221,18 @@ classdef source < stochasticWave
             end
         end
 
-        function varargout = ge(obj,otherObj)
+        function obj = ge(obj,otherObj)
             %% >= Source object propagation operator
             %
-            % src>=otherObj propagate src through otherObj multiplying the
-            % source amplitude by the otherObj transmitance and adding the
-            % otherObj phase to the source phase
-            %
-            % src = src>=otherObj returns the source object
+            % src = src>=otherObj propagate src through otherObj
+            % multiplying the source amplitude by the otherObj transmitance
+            % and adding the otherObj phase to the source phase
             
-            nOut = nargout;
             if isa(otherObj,'shackHartmann')
                 propagateThrough(otherObj.lenslets,obj)
                 grabAndProcess(otherObj)
-                if isempty(otherObj.srcQuery)
-                    otherObj.srcQuery = addlistener(otherObj,'slopes','PreGet',...
-                        @obj.launch);
-                    otherObj.srcQuery.Enabled = false;
-                    obj.opticalPath{ length(obj.opticalPath)+1 } = otherObj;
-                end
-%                 if nOut>0
-%                     varargout{1} = otherObj;
-%                     nOut = 0;
-%                 end
             elseif isa(otherObj,'lensletArray')
                 propagateThrough(otherObj,obj)
-                if nOut>0
-                    varargout{1} = otherObj;
-                    nOut = 0;
-                end
             elseif ~isempty(otherObj) % do nothing if the other object is empty
                 nObj = numel(obj);
                 if nObj>1 % if the source is an array, recursive self-calls
@@ -262,21 +248,10 @@ classdef source < stochasticWave
                     end
                 end
             end
-            if nOut>0
-                varargout{1} = obj;
-            end
+            obj.opticalPath{ length(obj.opticalPath)+1 } = otherObj;
         end
         
-        function launch(obj,src,event)
-            obj.mask        = [];
-            obj.p_amplitude = 1;
-            obj.p_phase     = 0;
-            for k=1:length(obj.opticalPath)
-                ge(obj,obj.opticalPath{k});
-            end
-        end
-        
-        function varargout = eq(obj,otherObj)
+        function obj = eq(obj,otherObj)
             %% == Source object propagation operator
             %
             % src==otherObj propagate src through otherObj setting the
@@ -286,10 +261,6 @@ classdef source < stochasticWave
             % src = src==otherObj returns the source object
             
              ge(reset(obj),otherObj);
-             obj.opticalPath = {otherObj};
-             if nargout>0
-                varargout{1} = obj;
-             end           
         end
 
         function out = fresnelPropagation(obj,tel)

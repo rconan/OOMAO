@@ -21,8 +21,6 @@ classdef shackHartmann < handle
     % detectorHowto
     
     properties
-        % logbook id
-        logsId=-1;
         % lenslet array object
         lenslets;
         % detector object
@@ -45,8 +43,6 @@ classdef shackHartmann < handle
         slopesDisplayHandle;
         % slope listener
         slopesListener;
-        % source listener
-        srcQuery;
         % intensity display handle
         intensityDisplayHandle;
         % intensity listener
@@ -132,16 +128,13 @@ classdef shackHartmann < handle
 %             end
         end
         
-        % Destructor
+        %% Destructor
         function delete(obj)
 %             if isvalid(obj.slopesListener)
 %                 delete(obj.slopesListener)
 %             end
 %             if isvalid(obj.intensityListener)
 %                 delete(obj.intensityListener)
-%             end
-%             if ~isempty(obj.srcQuery) && isvalid(obj.srcQuery)
-%                 delete(obj.srcQuery)
 %             end
 %             if isvalid(obj.paceMaker)
 %                 if strcmp(obj.paceMaker.Running,'on')
@@ -160,9 +153,7 @@ classdef shackHartmann < handle
             checkOut(obj.log,obj)
         end
         
-        %% GETS AND SETS 
-        
-        % Get and Set slopes
+        %% Get and Set slopes
         function slopes = get.slopes(obj)
             slopes = obj.p_slopes;
         end
@@ -170,7 +161,7 @@ classdef shackHartmann < handle
             obj.p_slopes = val;
         end
         
-        % Get and Set valid lenslets
+        %% Get and Set valid lenslets
         function validLenslet = get.validLenslet(obj)
             validLenslet = obj.p_validLenslet;
         end
@@ -179,17 +170,17 @@ classdef shackHartmann < handle
             obj.referenceSlopes(~[obj.validLenslet(:);obj.validLenslet(:)]) = [];
         end
         
-        % Number of valid lenslet
+        %% Get number of valid lenslet
         function nValidLenslet = get.nValidLenslet(obj)
             nValidLenslet = sum(obj.validLenslet(:));
         end
         
-        % Number of slopes
+        %% Get number of slopes
         function nSlope = get.nSlope(obj)
             nSlope = obj.nValidLenslet*2;
         end
         
-        % valid actuators
+        %% Get valid actuators
         function val = get.validActuator(obj)
             nElements            = 2*obj.lenslets.nLenslet+1; % Linear number of lenslet+actuator
             validLensletActuator = zeros(nElements);
@@ -210,8 +201,8 @@ classdef shackHartmann < handle
             val   = logical(validLensletActuator(index,index));
         end
         
-        % set the reference spots and update spots location display if
-        % there is one
+        %% set the reference spots and update spots location display if
+        %% there is one
         function val = get.referenceSlopes(obj)
             val = obj.p_referenceSlopes;
         end
@@ -225,7 +216,7 @@ classdef shackHartmann < handle
             end
         end
         
-        % Computes the intensity in each lenslet
+        %% Computes the intensity in each lenslet
         function lensletIntensity = get.lensletIntensity(obj)
             if isempty(obj.camera.frame)
                 lensletIntensity = [];
@@ -252,7 +243,7 @@ classdef shackHartmann < handle
         %% 
         
         function setValidLenslet(obj,pupilIntensity)
-            % SETVALIDLENSLET Valid lenslet mask
+            %% SETVALIDLENSLET Valid lenslet mask
             %
             % setValidLenslet(obj,pupilIntensity) sets the mask of valid
             % lenslet based on the value of minLightRatio in the lenslets
@@ -277,7 +268,7 @@ classdef shackHartmann < handle
 
         
         function varargout = dataProcessing(obj)
-            % DATAPROCESSING Processing a SH-WFS detector frame
+            %% DATAPROCESSING Processing a SH-WFS detector frame
             %
             % dataProcessing(obj) computes the WFS slopes
             %
@@ -356,7 +347,7 @@ classdef shackHartmann < handle
         end
         
         function varargout = grabAndProcess(obj)
-            % GRABANDPROCESS Frame grabbing and processing
+            %% GRABANDPROCESS Frame grabbing and processing
             %
             % grabAndProcess(obj) grabs a frame and computes the slopes
             %
@@ -371,7 +362,7 @@ classdef shackHartmann < handle
         end
         
         function varargout = slopesDisplay(obj,varargin)
-            % SLOPESDISPLAY WFS slopes display
+            %% SLOPESDISPLAY WFS slopes display
             %
             % slopesDisplay(obj) displays quiver plot of the slopes
             %
@@ -441,7 +432,7 @@ classdef shackHartmann < handle
         end
         
         function varargout = intensityDisplay(obj,varargin)
-            % INTENSITYDISPLAY WFS lenslet intensity display
+            %% INTENSITYDISPLAY WFS lenslet intensity display
             %
             % intensityDisplay(obj) displays the intensity of the lenslets
             %

@@ -22,7 +22,6 @@ classdef telescope < telescopeCore
         samplingTime;
         % phase listener
         phaseListener;
-        srcQuery;
     end
     
     properties (Dependent)
@@ -189,8 +188,8 @@ classdef telescope < telescopeCore
             if isa(obj.opticalAberration,class(otherObj))
             obj.opticalAberration = [];
             else
-                error('cougar:telescope:minus',...
-                    'The current and new objet must be from the same class (current: %s ~= new: %s',...
+                warning('cougar:telescope:minus',...
+                    'The current and new objet must be from the same class (current: %s ~= new: %s)',...
                     class(obj.opticalAberration),class(otherObj))
             end
         end
