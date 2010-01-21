@@ -164,7 +164,7 @@ classdef phaseStats
         end
         
         function out = covarianceMatrix(varargin)
-            % COVARIANCEMATRIX Phase covariance matrix
+            %% COVARIANCEMATRIX Phase covariance matrix
             %
             % out = phaseStats.covarianceMatrix(rho1,atm) Computes the phase
             % auto-covariance matrix from the vector rho1 and an atmosphere
@@ -225,7 +225,7 @@ classdef phaseStats
         end
         
         function out = zernikeVariance(zern,atm,tel)
-            % VARIANCE Zernike coefficients variance
+            %% VARIANCE Zernike coefficients variance
             %
             % out = variance(modes,atmosphere,telescope) computes the
             % variance of Zernike coefficients from the modes, the
@@ -396,7 +396,7 @@ classdef phaseStats
         end
         
         function out = zernikeCovariance(zern,atm,tel)
-            % COVARIANCE Zernike coefficients covariance
+            %% COVARIANCE Zernike coefficients covariance
             %
             % out = phaseStats.covariance(modes,atmosphere,telescope)
             % computes the covariance matrix of Zernike coefficients from
@@ -591,18 +591,15 @@ classdef phaseStats
         end
         
         function out = zernikeResidualVariance(N,atm,tel)
+            %% ZERNIKERESIDUALVARIANCE
+            %
+            % out = zernikeResidualVariance(N,atm,tel)
+            
             zern = zernike(1:N);
-            if nargin<3
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = atm.D;
-                aiVar = phaseStats.zernikeVariance(zern,atm);
-            else
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = tel.D;
-                aiVar = phaseStats.zernikeVariance(zern,atm,tel);
-            end
+            r0 = atm.r0;
+            L0 = atm.L0;
+            D  = tel.D;
+            aiVar = phaseStats.zernikeVariance(zern,atm,tel);
             
             if isinf(L0)
                 Delta1 = -(2.*gamma(11./6).^2./pi.^1.5).*(24.*gamma(6./5)./5).^(5./6).*...
@@ -613,9 +610,8 @@ classdef phaseStats
             end
         end
         
-        function aiaj = zernikeAngularCovariance(zern,atm,tel,src)
-            % ZERNIKEANGULARCOVARIANCE Zernike coefficients angular
-            % covariance
+        function aiaj = zernikeAngularCovariance(zern,atm,tel,src,optSrc)
+            %% ZERNIKEANGULARCOVARIANCE Zernike coefficients angular covariance
             %
             % aiaj = zernikeAngularCovariance(zern,atm,tel,src) computes
             % the covariance matrix between Zernike coefficients of Zernike
@@ -624,32 +620,69 @@ classdef phaseStats
             % to the telescope tel
             %
             % See also zernikepolynomials, atmosphere, telescope, source
-            
-            if src(1)==src(2)
-                aiaj = phaseStats.zernikeCovariance(zern,atm,tel);
+            nGs = numel(src);
+            if nGs>2 % then its a meta-matrix
+                if nargin<5 % a correlation meta-matrix
+                    iSrc = src;
+                    jSrc = src;
+                    mGs = nGs;
+                    aiaj = cell(nGs,mGs);
+                    for iGs = 1:nGs
+                        fprintf(' @(Data covariance)> ');
+                        gsCurrent = iSrc(iGs);
+                        for jGs = iGs:mGs
+                            fprintf('gs#%d/gs#%d - ',iGs,jGs)
+                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,tel,[gsCurrent,jSrc(jGs)]);
+                        end
+                        fprintf('\b\b\b\n')
+                    end
+                    index = cellfun(@isempty,aiaj);
+                    aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
+                else % a cross-correlation meta-matrix
+                    iSrc = src;
+                    jSrc = optSrc;
+                    mGs = numel(jSrc);
+                    aiaj = cell(nGs,mGs);
+                    for iGs = 1:nGs
+                        fprintf(' @(Data covariance)> ');
+                        gsCurrent = iSrc(iGs);
+                        for jGs = 1:mGs
+                            fprintf('gs#%d/gs#%d - ',iGs,jGs);
+                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,tel,[gsCurrent,jSrc(jGs)]);
+                        end
+                        fprintf('\b\b\b\n')
+                    end
+                    index = cellfun(@isempty,aiaj);
+                    aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
+                end
+%                 aiaj = cell2mat(aiaj);
             else
-                R   = tel.R;
-                zs1 = src(1).height;
-                zs2 = src(2).height;
-                xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
-                    tan(src(2).zenith).*cos(src(2).azimuth);
-                ySrc = tan(src(1).zenith).*sin(src(1).azimuth) - ...
-                    tan(src(2).zenith).*sin(src(2).azimuth);
-                rhoSrcLayer = hypot(xSrc,ySrc);
-                thetaSrcLayer = atan2(ySrc,xSrc);
-                nMode = length(zern.j);
-                znmj = mat2cell([zern.j;zern.n;zern.m],3,ones(1,nMode));
-                znmj = repmat(znmj,nMode,1);
-                znmi = znmj';
-                index = triu(true(nMode));
-                aiajFun = @ (znmi,znmj) ...
-                    quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), 0, Inf);
-                aiaj = zeros(nMode);
-                %                 tic
-                aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
-                %                 toc
-                aiaj = aiaj + triu(aiaj,1)';
-                aiaj = bsxfun(@times,aiaj,(-1).^zern.m');
+                if src(1)==src(2)
+                    aiaj = phaseStats.zernikeCovariance(zern,atm,tel);
+                else
+                    R   = tel.R;
+                    zs1 = src(1).height;
+                    zs2 = src(2).height;
+                    xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
+                        tan(src(2).zenith).*cos(src(2).azimuth);
+                    ySrc = tan(src(1).zenith).*sin(src(1).azimuth) - ...
+                        tan(src(2).zenith).*sin(src(2).azimuth);
+                    rhoSrcLayer = hypot(xSrc,ySrc);
+                    thetaSrcLayer = atan2(ySrc,xSrc);
+                    nMode = length(zern.j);
+                    znmj = mat2cell([zern.j;zern.n;zern.m],3,ones(1,nMode));
+                    znmj = repmat(znmj,nMode,1);
+                    znmi = znmj';
+                    index = triu(true(nMode));
+                    aiajFun = @ (znmi,znmj) ...
+                        quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), 0, Inf);
+                    aiaj = zeros(nMode);
+                    %                 tic
+                    aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
+                    %                 toc
+                    aiaj = aiaj + triu(aiaj,1)';
+                    aiaj = bsxfun(@times,aiaj,(-1).^zern.m');
+                end
             end
             function out = integrand(x,zi,ni,mi,zj,nj,mj)
                 krkr_mi = mi==0;

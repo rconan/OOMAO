@@ -328,6 +328,7 @@ classdef telescope < telescopeCore
         function varargout = footprintProjection(obj,zernModeMax,src)
             nSource = length(src);
             P = cell(obj.atm.nLayer,nSource);
+            obj.log.verbose = false;
             for kSource = 1:nSource
                 fprintf(' @(telescope) > Source #%2d - Layer #00',kSource)
                 for kLayer = 1:obj.atm.nLayer
@@ -345,6 +346,7 @@ classdef telescope < telescopeCore
                 end
                 fprintf('\n')
             end
+            obj.log.verbose = true;
 %             if nargout>1
 %                 o = linspace(0,2*pi,101);
 %                 varargout{2} = cos(o)./alpha + delta(1);
@@ -353,7 +355,7 @@ classdef telescope < telescopeCore
         end
 
         function varargout = imagesc(obj,varargin)
-            % IMAGESC Phase screens display
+            %% IMAGESC Phase screens display
             %
             % imagesc(obj) displays the phase screens of all the layers
             %
@@ -370,16 +372,29 @@ classdef telescope < telescopeCore
                     set(obj.imageHandle(kLayer),'Cdata',map);
                 end
             else
+                src = [];
+                if nargin>1 && isa(varargin{1},'source')
+                    src = varargin{1};
+                    varargin(1) = [];
+                end
                 [n1,m1] = size(obj.atm.layer(1).phase);
                 pupil = utilities.piston(n1,'type','logical');
                 map = (obj.atm.layer(1).phase - mean(obj.atm.layer(1).phase(pupil))).*pupil;
                 obj.imageHandle(1) = image([1,m1],[1,n1],map,...
                     'CDataMApping','Scaled',varargin{:});
                 hold on
-                o = linspace(0,2*pi,101);
+                o = linspace(0,2*pi,101)';
                 xP = obj.resolution*cos(o)/2;
                 yP = obj.resolution*sin(o)/2;
-                plot(xP+(n1+1)/2,yP+(n1+1)/2,'k:')
+                plot(xP+(n1+1)/2,yP+(n1+1)/2,'color',ones(1,3)*0.8)
+                text(m1/2,n1+0.5,...
+                    sprintf('%.1fkm: %.1f%%\n%.2fm - %dpx',...
+                    obj.atm.layer(1).altitude*1e-3,...
+                    obj.atm.layer(1).fractionnalR0*100,...
+                    obj.atm.layer(1).D,...
+                    obj.atm.layer(1).nPixel),...
+                    'HorizontalAlignment','Center',...
+                    'VerticalAlignment','Bottom')
                 n = n1;
                 offset = 0;
                 for kLayer=2:obj.atm.nLayer
@@ -388,7 +403,29 @@ classdef telescope < telescopeCore
                     offset = (n1-n)/2;
                     map = (obj.atm.layer(kLayer).phase - mean(obj.atm.layer(kLayer).phase(pupil))).*pupil;
                     obj.imageHandle(kLayer) = imagesc([1,m]+m1,[1+offset,n1-offset],map);
-                    plot(xP+(m1+1)/2,yP+(n1+1)/2+offset/2,'k:')
+                    if ~isempty(src)
+                        for kSrc=1:numel(src)
+                            xSrc = src(kSrc).directionVector.x.*...
+                                obj.atm.layer(kLayer).altitude.*...
+                                obj.atm.layer(kLayer).nPixel/...
+                                obj.atm.layer(kLayer).D;
+                            ySrc = src(kSrc).directionVector.y.*...
+                                obj.atm.layer(kLayer).altitude.*...
+                                obj.atm.layer(kLayer).nPixel/...
+                                obj.atm.layer(kLayer).D;
+                            plot(xSrc+xP+m1+m/2,ySrc+yP+(n1+1)/2,'color',ones(1,3)*0.8)
+                        end
+                    else
+                        plot(xP+m1+m/2,yP+(n1+1)/2,'k:')
+                    end
+                    text(m1+m/2,(n1+1+m)/2,...
+                        sprintf('%.1fkm: %.1f%%\n%.2fm - %dpx',...
+                        obj.atm.layer(kLayer).altitude*1e-3,...
+                        obj.atm.layer(kLayer).fractionnalR0*100,...
+                        obj.atm.layer(kLayer).D,...
+                        obj.atm.layer(kLayer).nPixel),...
+                        'HorizontalAlignment','Center',...
+                        'VerticalAlignment','Bottom')
                     m1 = m + m1;
                 end
                 hold off
@@ -415,7 +452,7 @@ classdef telescope < telescopeCore
                 if isempty(obj.atm.layer(kLayer).phase)
                     D = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
                     obj.atm.layer(kLayer).D = D;
-                    nPixel = ceil(1 + (obj.resolution-1)*D./obj.D);
+                    nPixel = round(1 + (obj.resolution-1)*D./obj.D);
                     obj.atm.layer(kLayer).nPixel = nPixel;
                     obj.layerSampling{kLayer}  = D*0.5*linspace(-1,1,nPixel);
                     % ---------

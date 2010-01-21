@@ -26,11 +26,12 @@ classdef influenceFunction < handle
         p_P;
         % influence function display handle;
         displayHandle
+        log
     end
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = influenceFunction(points,mech)
             obj.p_P = zeros(7,2);
             obj.p_P(1,:) = [0,1];
@@ -50,16 +51,18 @@ classdef influenceFunction < handle
             obj.bezierListener = addlistener(obj,'bezier','PostSet',...
                 @(src,evnt) obj.show );
             obj.bezierListener.Enabled = false;
+            obj.log = logBook.checkIn(obj);
         end
         
-        % Destructor
+        %% Destructor
         function delete(obj)
             if ishandle(obj.displayHandle)
                 delete(get(obj.displayHandle,'parent'));
             end
+            checkOut(obj.log,obj)
         end
         
-        % Set and Get P properties
+        %% Set and Get P properties
         function out = get.P(obj)
             out = obj.p_P;
         end
@@ -91,6 +94,9 @@ classdef influenceFunction < handle
         
         function out = mtimes(obj,c)
             out = obj.modes*c;
+        end
+        function out = mldivide(obj,c)
+            out = obj.modes\c;
         end
         
         function show(obj)

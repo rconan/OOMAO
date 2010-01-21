@@ -92,6 +92,17 @@ classdef zernike < handle
             checkOut(obj.log,obj)
         end
 
+        function obj = minus(obj,val)
+            index = obj.j==val;
+            obj.j(index) = [];
+            obj.n(index) = [];            
+            obj.m(index) = [];            
+            obj.c(index,:) = [];     
+            if ~isempty(obj.p_p)
+                obj.p_p(:,index) = [];
+            end
+        end
+        
         function obj = ldivide(obj,phaseMap)
             %% .\ Orthogonal projection onto the Zernike polynomials
             %
@@ -110,11 +121,12 @@ classdef zernike < handle
             
             if isa(phaseMap,'shackHartmann')
                 u = phaseMap.validLenslet;
-                obj = zernike(obj.j,...
+                obj = zernike(1:obj.j(end),...
                     'resolution',phaseMap.lenslets.nLenslet,...
                     'pupil',double(u));
-                dzdxy = [obj.xDerivative(u,:);obj.yDerivative(u,:)];
-                obj.c = dzdxy\phaseMap.slopes;
+                phaseMap.zern2slopes = [obj.xDerivative(u,:);obj.yDerivative(u,:)];
+                obj.c = phaseMap.zern2slopes\phaseMap.slopes;
+                obj = obj - 1;
             else
                 obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
             end

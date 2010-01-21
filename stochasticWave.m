@@ -10,7 +10,12 @@ classdef stochasticWave < handle
         % true if the amplitude is a stochastic property
         stochasticAmplitude = false;
         nSample;
-        samples
+        samples;
+        saveImage;
+        % image 
+        image
+        % integratedImage
+        cumImage=0;
     end
     
     properties (Dependent)
@@ -41,11 +46,11 @@ classdef stochasticWave < handle
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = stochasticWave
         end
         
-        % Get/Set bufSeq
+        %% Get/Set bufSeq
         function out = get.bufSeq(obj)
             out = obj.p_bufSeq;
         end
@@ -56,7 +61,7 @@ classdef stochasticWave < handle
             obj.nSample  = 0;
         end
         
-        % Get/Set amplitude
+        %% Get/Set amplitude
         function out = get.amplitude(obj)
             out = obj.p_amplitude;
             out(~obj.mask) = 0;
@@ -64,7 +69,7 @@ classdef stochasticWave < handle
         function set.amplitude(obj,val)
             obj.p_amplitude = bsxfun( @times, obj.p_amplitude , val);
         end
-        % Get/Set phase
+        %% Get/Set phase
         function out = get.phase(obj)
             out = obj.p_phase;
             out(~obj.mask) = 0;
@@ -81,14 +86,20 @@ classdef stochasticWave < handle
                     obj.kBufSeq = 1;
                 end
             end
+            if obj.saveImage
+                a = obj.wave;
+                [n,m] = size(a);
+                obj.image = abs( fft2( a , 2*n , 2*m ) ).^2;
+                obj.cumImage = obj.cumImage + obj.image;
+            end
         end
         
-        % Get the wave
+        %% Get the wave
         function out = get.wave(obj)
             out = bsxfun( @times , obj.amplitude , exp(1i.*obj.phase) );
         end
         
-        % Get the meanRmPhase propertye
+        %% Get the meanRmPhase propertye
         function meanRmPhase = get.meanRmPhase(obj)
             buffer = obj.stochasticAmplitude;
             obj.stochasticAmplitude = false; % Set to false in order for the mean method to return only phase value
@@ -100,7 +111,7 @@ classdef stochasticWave < handle
         end
         
         function varargout = reset(obj)
-            % RESET Reset wave properties
+            %% RESET Reset wave properties
             %
             % reset(obj) resets the mask to [], the amplitude to 1 and the
             % phase to 0
@@ -118,7 +129,7 @@ classdef stochasticWave < handle
         end
         
         function out = catAmplitude(obj)
-            % CATAMPLITUDE Concatenate amplitudes
+            %% CATAMPLITUDE Concatenate amplitudes
             %
             % out = catAmplitude(obj) concatenates the amplitudes of an
             % array of stochasticWave objects
@@ -126,7 +137,7 @@ classdef stochasticWave < handle
             out = cat( ndims(obj) , obj.amplitude);
         end
         function out = catPhase(obj)
-            % CATPHASE Concatenate phases
+            %% CATPHASE Concatenate phases
             %
             % out = catPhase(obj) concatenates the phases of an array of
             % stochasticWave objects
@@ -134,7 +145,7 @@ classdef stochasticWave < handle
             out = cat( ndims(obj) , obj.phase);
         end
         function out = catWave(obj)
-            % CATWAVE Concatenate waves
+            %% CATWAVE Concatenate waves
             %
             % out = catWave(obj) concatenates the waves of an array of
             % stochasticWave objects
@@ -142,7 +153,7 @@ classdef stochasticWave < handle
         end
         
         function out = mean(obj)
-            % MEAN Average or mean value
+            %% MEAN Average or mean value
             %
             % out = mean(obj) computes the average or mean value of the
             % amplitude and/or the phase within the mask. If either
@@ -154,7 +165,7 @@ classdef stochasticWave < handle
         end
         
         function out = var(obj)
-            % VAR Variance
+            %% VAR Variance
             %
             % out = var(obj) computes the variance of the amplitude and/or
             % the phase within the mask. If either amplitude or phase is a
@@ -166,7 +177,7 @@ classdef stochasticWave < handle
        end
         
         function out = std(obj)
-            % STD Standard deviation
+            %% STD Standard deviation
             %
             % out = std(obj) computes the standard deviation of the
             % amplitude and/or the phase within the mask. If either

@@ -72,7 +72,7 @@ classdef atmosphere < handle
     
     methods
         
-        % Constructor
+        %% Constructor
         function obj = atmosphere(lambda,r0,varargin)
             p = inputParser;
             p.addRequired('wavelength', @isnumeric);
@@ -107,7 +107,7 @@ classdef atmosphere < handle
 %         end
         
         function newObj = slab(obj,layerIndex)
-            % SLAB Create a single turbulence layer atmosphere object
+            %% SLAB Create a single turbulence layer atmosphere object
             %
             % singledAtm = slab(atm,k) creates an atmosphere object from
             % the old atm object and the k-th turbulent layer
@@ -118,25 +118,27 @@ classdef atmosphere < handle
             newObj.layer = obj.layer(layerIndex);
         end
         
-        function disp(obj)
-            % DISP Display object information
+        function display(obj)
+            %% DISP Display object information
             %
-            % disp(obj) prints information regarding the atmosphere object
+            % disp(obj) prints information about the atmosphere object
             
             if isinf(obj.L0)
                 fprintf(' Kolmogorov-Tatarski atmospheric turbulence:\n')
-                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, seeing=%.2farcsec',...
+                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, seeing=%.2farcsec,\n  ',...
                 obj.wavelength*1e6,obj.r0*1e2,obj.seeingInArcsec)
             else
                 fprintf(' Von Karman atmospheric turbulence\n')
-                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, L0=%.2fm, seeing=%.2farcsec',...
+                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, L0=%.2fm, seeing=%.2farcsec,\n  ',...
                 obj.wavelength*1e6,obj.r0*1e2,obj.L0,obj.seeingInArcsec)
             end
             if ~isinf(obj.theta0InArcsec) 
-                fprintf(', theta0=%.2farcsec',obj.theta0InArcsec)
+                fprintf('theta0=%.2farcsec, ',obj.theta0InArcsec)
             end
             if ~isempty(obj.tau0InMs)
-                 fprintf(', tau0=%.2fmillisec',obj.tau0InMs)
+                 fprintf('tau0=%.2fmillisec',obj.tau0InMs)
+            else
+                fprintf('\b\b')
             end
             fprintf('\n')
                 fprintf('  Layer   Altitude[m]   fr0    wind([m/s] [deg])   D[m]    res[px]\n')

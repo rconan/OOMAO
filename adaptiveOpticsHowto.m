@@ -1,4 +1,4 @@
-%% ADAPTIVE OPTICS HOWTO
+%% ADAPTIVE OPTICS M0DELING WITH OOMAO
 % Demonstrate how to build a simple adaptive optics system
 
 %% Atmosphere 
@@ -34,7 +34,7 @@ dm = deformableMirror(nActuator,...
 
 
 %% Building the system
-ngs=ngs==tel>=dm>=wfs;
+ngs=ngs.*tel*dm*wfs;
 wfs.referenceSlopes = wfs.slopes;
 grabAndProcess(wfs)
 slopesAndFrameDisplay(wfs)
@@ -55,7 +55,7 @@ imagesc(dm)%,'parent',subplot(1,2,2))
 dm.surfaceListener.Enabled = true;
 for k=1:97;
     dm.coefs(k)=10;
-    ngs=ngs==tel>=dm>=wfs;
+    ngs=ngs.*tel*dm*wfs;
 %     pause(0.5);
     drawnow
     dm.coefs(k)=0;
@@ -70,7 +70,7 @@ dm.surfaceListener.Enabled = false;
 dm.coefsDefault = 0;
 stroke = 3;
 dm.coefs = eye(dm.nValidActuator)*stroke;
-ngs==tel>=dm>=wfs;
+ngs=ngs.*tel*dm*wfs;
 calibrationMatrix = wfs.slopes./stroke;
 figure(10)
 subplot(1,2,1)
@@ -118,9 +118,9 @@ wfs.camera.frameListener.Enabled = false;
 gain = 0.5;
 tel = tel+atm;
 dm.coefs = zeros(dm.nValidActuator,1);
-ngs=ngs==tel;
+ngs=ngs.*tel;
 turbPhase = ngs.meanRmPhase;
-ngs=ngs>=dm>=wfs;
+ngs=ngs*dm*wfs;
 figure(11)
 h = imagesc([turbPhase,ngs.meanRmPhase,dm.phase]);
 axis equal tight
@@ -128,9 +128,9 @@ colorbar
 pause
 ngs.bufSeq = true(1,2);
 while true
-    ngs=ngs==+tel; 
+    ngs=ngs.*+tel; 
     turbPhase = ngs.meanRmPhase;
-    ngs=ngs>=dm>=wfs; 
+    ngs=ngs*dm*wfs; 
     residualDmCoefs = commandMatrix*wfs.slopes;
     dm.coefs = dm.coefs - gain*residualDmCoefs;
     set(h,'Cdata',[turbPhase,ngs.meanRmPhase,-dm.phase])
@@ -147,7 +147,7 @@ imagesc(zern.phase)
 zern.c = eye(zern.nMode);
 % wfs.lenslets.wave = zern.wave;
 % grabAndProcess(wfs)
-ngs=ngs==zern>=wfs;
+ngs=ngs.*zern*wfs;
 % slopesAndFrameDisplay(wfs)
 % z = getZernike(wfs,maxRadialDegree);
 z = zernike(1:zernike.nModeFromRadialOrder(maxRadialDegree))\wfs;
@@ -164,7 +164,7 @@ tel=tel-atm;
 % wfs.lenslets.wave = tel;
 wfs.framePixelThreshold = 0;
 % grabAndProcess(wfs)
-onAxis=onAxis==tel>=wfs;
+onAxis=onAxis.*tel*wfs;
 slopesAndFrameDisplay(wfs)
 
 %% noise convariance matrix
@@ -172,7 +172,7 @@ nMeas = 1000;
 slopes = zeros(wfs.nSlope,nMeas);
 for kMeas=1:nMeas
 %     grabAndProcess(wfs)
-    onAxis=onAxis==tel>=wfs;
+    onAxis=onAxis.*tel*wfs;
     slopes(:,kMeas) = wfs.slopes;
 end
 Cn = slopes*slopes'/nMeas;
@@ -194,12 +194,12 @@ colorbar
 tel = tel+atm;
 %% wavefront reconstruction least square fit
 offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
-offAxis=offAxis==tel;
+offAxis=offAxis.*tel;
 ps = offAxis.meanRmPhase;
 % wfs.lenslets.wave     = tel;
 % wfs.camera.readOutNoise = 1;
 % grabAndProcess(wfs)
-offAxis=offAxis>=wfs;
+offAxis=offAxis*wfs;
 % z = getZernike(wfs,maxRadialDegree);
 z = z\wfs;
 zern.c = Dz\z.c(2:end);

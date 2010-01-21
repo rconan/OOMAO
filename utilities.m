@@ -4,7 +4,7 @@ classdef utilities
     methods (Static)
         
         function out = piston(Npx,varargin)
-            % PISTON piston mode
+            %% PISTON piston mode
             %
             % out = piston(Npx) Computes a piston on Npx pixel across the diameter
             %
@@ -53,7 +53,7 @@ classdef utilities
         end
         
         function varargout = cartAndPol(u,varargin)
-            % CARTANDPOL Cartesian and polar coordinate arrays
+            %% CARTANDPOL Cartesian and polar coordinate arrays
             %
             % [x,y,r,o] = cartAndPol(n) Shortcuts to u = linspace(-1,1,n);
             % [x,y] = meshgrid(u);[o,r] = cart2pol(x,y);
@@ -132,8 +132,8 @@ classdef utilities
             
         end
         
-        function out = toggleFrame(frame,toggle)
-            %TOGGLEFRAME 2D to 3D array reshaping
+        function frame = toggleFrame(frame,toggle)
+            %% TOGGLEFRAME 2D to 3D array reshaping
             %
             % out = toggleFrame(frame) reshapes a 2D array into a 3D array or a
             % 3d array into a 2D array
@@ -162,11 +162,11 @@ classdef utilities
                 switch toggle
                     case 2
                         %                         fprintf(' @(toggleFrame)> 2D: [%d,%d] !\n',dims(1)*dims(2),dims(3))
-                        out = reshape(frame,dims(1)*dims(2),dims(3));
+                        frame = reshape(frame,dims(1)*dims(2),dims(3));
                     case 3
                         m = sqrt(dims(1));
                         %                         fprintf(' @(toggleFrame)> 3D: [%d,%d,%d] !\n',m,m,dims(2))
-                        out = reshape(frame,[m,m,dims(2)]);
+                        frame = reshape(frame,[m,m,dims(2)]);
                 end
 %             else
 %                 out = frame;
@@ -176,7 +176,7 @@ classdef utilities
         
         
         function index = rearrange(sizeArray,sizeSubArray,overlap,columnMajor)
-            % REARRANGE Array linear index scrambling
+            %5 REARRANGE Array linear index scrambling
             %
             % index = rearrange(sizeArray,sizeSubArray) Rearrange the linear index of
             % an array of size sizeArray in a 2D matrix where each row contains the
@@ -306,7 +306,7 @@ classdef utilities
         end
         
         function out = sombrero(n,x)
-            %SOMBRERO Order n sombrero function
+            %5 SOMBRERO Order n sombrero function
             %
             % out = sombrero(n,x) computes besselj(n,x)/x
             
@@ -318,6 +318,18 @@ classdef utilities
                 x = x(u);
                 out(u) = besselj(n,x)./x;
             end
+        end
+        
+        function out = fittingError(tel,atm,dm)
+            %% FITTING ERROR Deformable mirror fitting error variance
+            %
+            % out = fittingError(telAtm,dm) computes the fitting error
+            % variance of a a deformableMirror object for given telescope
+            % and atmosphere objects
+            
+            c = (3/5)*(gamma(11/6)^2/pi^(8/3))*(24*gamma(6/5)/5)^(5/6);
+            out = c*(tel.D/atm.r0)^(5/3)*...
+                (dm.nValidActuator/pi + (tel.D/atm.L0)^2)^(-5/6);
         end
         
     end

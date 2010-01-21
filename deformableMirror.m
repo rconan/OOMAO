@@ -1,6 +1,8 @@
 classdef deformableMirror < handle
    
     properties
+        % conjugation altitude
+        zLocation = 0;
         % # of actuator
         nActuator;
         % influence functions
@@ -50,10 +52,12 @@ classdef deformableMirror < handle
             p.addParamValue('modes', [], @(x) isnumeric(x) || isa(x,'influenceFunction') );
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('validActuator', ones(nActuator), @islogical);
+            p.addParamValue('zLocation', 0, @isnumeric);
             p.parse(nActuator, varargin{:});
             obj.nActuator         = p.Results.nActuator;
             obj.validActuator     = p.Results.validActuator;
             obj.modes             = p.Results.modes;
+            obj.zLocation             = p.Results.zLocation;
             obj.surfaceListener = addlistener(obj,'surface','PostSet',...
                 @(src,evnt) obj.imagesc );
             obj.surfaceListener.Enabled = false;
@@ -83,7 +87,10 @@ classdef deformableMirror < handle
             out = obj.p_coefs;
         end
         function set.coefs(obj,val)
-            obj.p_coefs = val + obj.coefsDefault;
+            if isscalar(val)
+                val = ones(obj.nValidActuator,1)*val;
+            end
+            obj.p_coefs = bsxfun(@plus,val,obj.coefsDefault);
             if isa(obj.driver,'function_handle')
                 obj.driver(obj.p_coefs);
                 return
@@ -113,8 +120,12 @@ classdef deformableMirror < handle
             % relay(obj,srcs) writes the deformableMirror amplitude and
             % phase into the properties of the source object(s)
             
-            src.phase = obj.phase;
-            src.amplitude = 1;
+            nSrc = numel(src);
+            nPhase = size(obj.phase,3);
+            for kSrc = 1:nSrc
+                src(kSrc).phase = obj.phase(:,:,min(kSrc,nPhase));
+                src(kSrc).amplitude = 1;
+            end
         end
         
         function varargout = imagesc(obj,varargin)

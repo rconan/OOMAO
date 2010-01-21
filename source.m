@@ -1,21 +1,19 @@
 classdef source < stochasticWave
-    % SOURCE Create a source object
-    %
-    % src = source creates an on-axis star at infinity
-    %
-    % src = source('parameter',value) creates a source object from
-    % parameter-value pair arguments. The parameters are zenith, azimuth,
-    % height, wavelength, magnitude, nPhoton, width and asterism.
-    %
-    % Example:
-    % src = source;
-    % creates an on-axis source
-    % src =
-    % source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
-    % creates an off-axis source at 30 arcsec zenith and 45degree azimuth
+    % The source class represents celestial objects. It inherits from
+    % stochasticWave which contains the phase and amplitude of the wave
+    % emitted by the source object. The source propagates from one object
+    % to another object on the optical path by using the propagation
+    % operator ".*" and "*". The proppagation through a pre-set optical
+    % path can be re-played with the unary plus operator.
+    % Example :
+    % To create an on-axis source: src = source; 
+    % src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
+    % To create an off-axis source at 30 arcsec zenith and 45degree
+    % azimuth: 
+    % src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
+    % To set an asterism with one star on-axis and five star on a 60 arcsec
+    % radius shifted of 30 degrees : 
     % src = source('asterism',{[0,0],[5,60*cougarConstants.arcsec2radian,pi/3]})
-    % set an asterism with one star on-axis and five star on a 60 arcsec
-    % radius shifted of 30 degrees
     
     properties
         % source zenith angle
@@ -34,6 +32,7 @@ classdef source < stochasticWave
         nPhoton;
         % cell array of handles of objects the source is propagating through  
         opticalPath;
+        log;
     end
     
     properties (SetAccess=private)
@@ -50,13 +49,19 @@ classdef source < stochasticWave
 %         p_nPhoton;
         p_magnitude;
         tel;
-        log;
     end
         
     methods
         
-        %% Constructor
         function obj = source(varargin)
+            %% SOURCE Create a source object
+            %
+            % src = source creates an on-axis star at infinity
+            %
+            % src = source('parameter',value) creates a source object from
+            % parameter-value pair arguments. The parameters are zenith, azimuth,
+            % height, wavelength, magnitude, nPhoton, width and asterism.
+
             obj = obj@stochasticWave;
             p = inputParser;
             p.addParamValue('asterism',[],@iscell);
@@ -77,7 +82,7 @@ classdef source < stochasticWave
                     ast = p.Results.asterism;
                 else
                     ast = {[p.Results.zenith,p.Results.azimuth]};
-                nAst = nAst + 1;
+                    nAst = nAst + 1;
                 end
                 z = zeros(1,nAst);
                 a = zeros(1,nAst);
@@ -106,7 +111,11 @@ classdef source < stochasticWave
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
                         setDirectionVector(obj(1,kObj,kHeight))
-                    end
+                        if ~isempty(obj(1,kObj,kHeight).log)
+                            checkOut(obj(1,kObj,kHeight).log,obj(1,kObj,kHeight))
+                        end
+                       obj(1,kObj,kHeight).log = logBook.checkIn(obj(1,kObj,kHeight));
+                   end
                 end
             else
                 obj.zenith     = p.Results.zenith;
@@ -118,9 +127,12 @@ classdef source < stochasticWave
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
                 setDirectionVector(obj)
+                if ~isempty(obj.log)
+                    checkOut(obj.log,obj)
+                end
+                obj.log = logBook.checkIn(obj);
             end
-            obj.log = logBook.checkIn(obj);
-        end
+         end
         
         %% Destructor
         function delete(obj)
@@ -153,20 +165,39 @@ classdef source < stochasticWave
             obj.nPhoton = [];
             obj.p_magnitude = val;
         end
-
         
-%         function bool = eq(obj1,obj2)
-%             % == (EQ) Sources comparison
-%             % src1==src2 returns true if both objects have the same zenith
-%             % and azimuth angles and the same height
-%             
-%             bool = false;
-%             if obj1.zenith==obj2.zenith && ...
-%                     obj1.azimuth==obj2.azimuth && ...
-%                     obj1.height==obj2.height
-%                 bool = true;
-%             end
-%         end
+        
+        %         function bool = eq(obj1,obj2)
+        %             % == (EQ) Sources comparison
+        %             % src1==src2 returns true if both objects have the same zenith
+        %             % and azimuth angles and the same height
+        %
+        %             bool = false;
+        %             if obj1.zenith==obj2.zenith && ...
+        %                     obj1.azimuth==obj2.azimuth && ...
+        %                     obj1.height==obj2.height
+        %                 bool = true;
+        %             end
+        %         end
+        
+        function display(obj)
+            %% DISP Display object information
+            %
+            % disp(obj) prints information about the source object
+            nObj = numel(obj);
+                fprintf(' Obj   zen[arcsec] azim[deg]  height[m]  lambda[micron] magnitude\n')
+            for kObj=1:nObj
+                fprintf(' %2d     %5.2f      %6.2f    %8.2f     %5.2f          %5.2f\n',...
+                    kObj,obj(kObj).zenith*cougarConstants.radian2arcsec,...
+                    obj(kObj).azimuth*180/pi,obj(kObj).height,...
+                    obj(kObj).wavelength*1e6,obj(kObj).magnitude)
+            end
+            if ~isempty(obj(1).opticalPath)
+                fprintf(' Optical path: ')
+                cellfun(@(x) fprintf('~>~%s',class(x)), obj(1).opticalPath,'uniformOutput',false);
+                fprintf('\n')
+            end
+        end
         
         function bool = isNgs(obj)
             %% ISNGS NGS check
@@ -221,46 +252,44 @@ classdef source < stochasticWave
             end
         end
 
-        function obj = ge(obj,otherObj)
-            %% >= Source object propagation operator
+        function obj = mtimes(obj,otherObj)
+            %% * Source object propagation operator
             %
-            % src = src>=otherObj propagate src through otherObj
+            % src = src*otherObj propagate src through otherObj
             % multiplying the source amplitude by the otherObj transmitance
             % and adding the otherObj phase to the source phase
             
-            if isa(otherObj,'shackHartmann')
-                propagateThrough(otherObj.lenslets,obj)
-                grabAndProcess(otherObj)
-            elseif isa(otherObj,'lensletArray')
-                propagateThrough(otherObj,obj)
-            elseif ~isempty(otherObj) % do nothing if the other object is empty
-                nObj = numel(obj);
-                if nObj>1 % if the source is an array, recursive self-calls
-                    for kObj = 1:nObj
-                        ge(obj(kObj),otherObj);
-                    end
-                else
-                    if isobject(otherObj)
-                        relay(otherObj,obj);
-                    else
-                        obj.amplitude = abs(otherObj);
-                        obj.phase     = angle(otherObj);
-                    end
-                end
+            relay(otherObj,obj);
+            nObj = numel(obj);
+            for kObj = 1:nObj
+                obj(kObj).opticalPath{ length(obj(kObj).opticalPath)+1 } = otherObj;
             end
-            obj.opticalPath{ length(obj.opticalPath)+1 } = otherObj;
         end
         
-        function obj = eq(obj,otherObj)
-            %% == Source object propagation operator
+         function uplus(obj)
+            %% UPLUS Source update/stream operator
             %
-            % src==otherObj propagate src through otherObj setting the
+            % +obj streams the source object through its optical path 
+            
+            nObj = numel(obj);
+            for kObj = 1:nObj
+                obj(kObj).mask        = [];
+                obj(kObj).p_amplitude = 1;
+                obj(kObj).p_phase     = 0;
+            end
+            cellfun(@(x)relay(x,obj),obj(1).opticalPath,'uniformOutput',false)
+        end
+              
+        function obj = times(obj,otherObj)
+            %% .* Source object reset and propagation operator
+            %
+            % src = src.*otherObj propagate src through otherObj setting the
             % source amplitude to the otherObj transmitance and the source
             % phase to the otherObj phase
             %
             % src = src==otherObj returns the source object
             
-             ge(reset(obj),otherObj);
+             mtimes(reset(obj),otherObj);
         end
 
         function out = fresnelPropagation(obj,tel)

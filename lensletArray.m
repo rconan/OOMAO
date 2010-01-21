@@ -58,7 +58,7 @@ classdef lensletArray < handle
 
     methods
 
-        % Constructor
+        %% Constructor
         function obj = lensletArray(nLenslet)
             error(nargchk(1, 3, nargin))
             obj.nLenslet        = nLenslet;
@@ -70,7 +70,7 @@ classdef lensletArray < handle
             obj.log = logBook.checkIn(obj);
         end
 
-        % Destructor
+        %% Destructor
         function delete(obj)
             if ishandle(obj.imageHandle)
                 delete(get(obj.imageHandle,'parent'));
@@ -78,17 +78,17 @@ classdef lensletArray < handle
             checkOut(obj.log,obj)
         end
 
-        % Lenslet image sampling
+        %% Lenslet image sampling
         function nLensletImagePx = get.nLensletImagePx(obj)
             nLensletImagePx = ceil(obj.fieldStopSize.*obj.nyquistSampling*2);
         end
 
-        % Whole lenslet array image sampling
+        %% Whole lenslet array image sampling
         function nLensletsImagePx = get.nLensletsImagePx(obj)
             nLensletsImagePx = obj.nLenslet.*obj.nLensletImagePx;
         end
 
-        % Nyquist sampling
+        %% Nyquist sampling
         function out = get.nyquistSampling(obj)
             out = obj.p_nyquistSampling;
         end
@@ -100,7 +100,7 @@ classdef lensletArray < handle
             end
         end
         
-        % Field stop
+        %% Field stop
         function out = get.fieldStopSize(obj)
             out = obj.p_fieldStopSize;
         end
@@ -111,7 +111,7 @@ classdef lensletArray < handle
             end
         end
 
-        % Number of wave pixel per lenslet
+        %% Number of wave pixel per lenslet
         function out = get.nLensletWavePx(obj)
             out = obj.p_nLensletWavePx;
         end
@@ -124,7 +124,7 @@ classdef lensletArray < handle
         end  
 
         function propagateThrough(obj,src)
-            % PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane
+            %% PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane
             %
             % propagateThrough(obj) progates the object wave throught the
             % lenslet array and computes the imagelets
@@ -244,9 +244,13 @@ classdef lensletArray < handle
             end
             obj.imagelets = wavePrgted;
         end
+        
+        function relay(obj,src)
+            propagateThrough(obj,src)
+        end
 
         function varargout = imagesc(obj,varargin)
-        % IMAGESC Display the lenslet imagelets
+        %% IMAGESC Display the lenslet imagelets
         %
         % imagesc(obj) displays the imagelets of the lenslet array object 
         %

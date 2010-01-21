@@ -51,6 +51,8 @@ classdef shackHartmann < handle
         framePixelThreshold = -inf;
         % slopes units (default:1 is pixel)
         slopesUnits = 1;
+        % zernike to slopes conversion matrix
+        zern2slopes;
     end
     
     properties (Dependent,SetObservable=true,GetObservable=true)
@@ -61,16 +63,21 @@ classdef shackHartmann < handle
     properties (Dependent)
         % valid lenslet mask
         validLenslet;
+        % measurements reference
+        referenceSlopes;
+    end
+    
+    properties (Dependent, SetAccess=private)
         % number of valid lenslet
         nValidLenslet;
         % number of slopes
         nSlope;
         % intensity in each lenslet
         lensletIntensity;
-        % measurements reference
-        referenceSlopes;
         % valid actuatord
         validActuator;
+        % zernike coefficients
+        zernCoefs;
     end
     
     properties (Access=private)
@@ -201,7 +208,7 @@ classdef shackHartmann < handle
             val   = logical(validLensletActuator(index,index));
         end
         
-        %% set the reference spots and update spots location display if
+        %% Get/Set the reference spots and update spots location display if
         %% there is one
         function val = get.referenceSlopes(obj)
             val = obj.p_referenceSlopes;
@@ -214,6 +221,12 @@ classdef shackHartmann < handle
                 v = obj.p_referenceSlopes(1+end/2:end)+obj.lensletCenterY;
                 set(hc(2),'xData',u,'yData',v)
             end
+        end
+        
+        % Get the zernike coeficients
+        function val = get.zernCoefs(obj)
+            val = obj.zern2slopes\obj.slopes;
+            val(1,:) = []; % piston=0 removed
         end
         
         %% Computes the intensity in each lenslet
@@ -240,7 +253,6 @@ classdef shackHartmann < handle
             end
         end
         
-        %% 
         
         function setValidLenslet(obj,pupilIntensity)
             %% SETVALIDLENSLET Valid lenslet mask
@@ -287,8 +299,10 @@ classdef shackHartmann < handle
                 %                 buffer     = obj.camera.frame(obj.indexRasterLenslet);
                 %             catch ME
                 fprintf( '@(shackHartmann)> Setting the raster index \n')
+                % get lenslet index
                 obj.indexRasterLenslet ...
-                    = utilities.rearrange([nPx,mPx,nLensletArray*nFrame],[nPxLenslet,mPxLenslet]);
+                    = utilities.rearrange([nPx,mPx/nLensletArray,nLensletArray*nFrame],[nPxLenslet,mPxLenslet]);
+                % remove index from non-valid lenslets
                 v = ~obj.validLenslet(:);
                 v = repmat(v,nLensletArray,1);
                 v = repmat(v,nFrame,1);
@@ -359,6 +373,12 @@ classdef shackHartmann < handle
             if nargout>0
                 varargout{1} = obj.p_slopes;
             end
+        end
+  
+        function relay(obj,src)
+            %% RELAY
+            propagateThrough(obj.lenslets,src)
+            grabAndProcess(obj)
         end
         
         function varargout = slopesDisplay(obj,varargin)

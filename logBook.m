@@ -75,7 +75,7 @@ classdef (Sealed) logBook < handle
                 wait(obj.queue)
                 delete(obj)
                 fprintf(' @(logBook)> Closing the log book!\n')
-                fprintf('~~~~~~~~~~~~~~~~~~~\n COUGAR''S GONE!\n~~~~~~~~~~~~~~~~~~~\n')
+                fprintf('~~~~~~~~~~~~~~~~~~~\n OOMAO''S GONE!\n~~~~~~~~~~~~~~~~~~~\n')
             end
         end
 
@@ -86,7 +86,7 @@ classdef (Sealed) logBook < handle
         function obj = checkIn(src)
             persistent localObj
             if isempty(localObj) || ~isvalid(localObj)
-                fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF COUGAR!\n~~~~~~~~~~~~~~~~~~~\n')
+                fprintf('~~~~~~~~~~~~~~~~~~~\n BEWARE OF OOMAO!\n~~~~~~~~~~~~~~~~~~~\n')
                 fprintf(' @(logBook)> Opening the log book!\n')
                 localObj = logBook;
             end
