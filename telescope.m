@@ -1,4 +1,4 @@
-classdef telescope < telescopeCore
+classdef telescope < telescopeAbstract
     % TELESCOPE Create a telescope object
     %
     % sys = telescope(D) creates a telescope object from the telescope diameter D
@@ -61,7 +61,7 @@ classdef telescope < telescopeCore
             p.addParamValue('samplingTime', [], @isnumeric);
             p.addParamValue('opticalAberration', [], @(x) isa(x,'atmosphere'));
             p.parse(D,varargin{:});
-            obj = obj@telescopeCore(D,...
+            obj = obj@telescopeAbstract(D,...
                 'obstructionRatio',p.Results.obstructionRatio,...
                 'fieldOfViewInArcsec',p.Results.fieldOfViewInArcsec,...
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin,...
@@ -209,7 +209,7 @@ classdef telescope < telescopeCore
                 else
                     src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
                 end
-                out = fresnelPropagation(src,obj);
+                out = 0;
                 if ~isempty(obj.atm)
                     if obj.fieldOfView==0 && isNgs(src)
                         out = out + sum(cat(3,obj.atm.layer.phase),3);
@@ -228,8 +228,9 @@ classdef telescope < telescopeCore
                             end
                         end
                     end
+                    out = (obj.atm.wavelength/src.wavelength)*out;
                 end
-                src.phase = out;
+                src.phase = fresnelPropagation(src,obj) + out;
             end
         end
                  

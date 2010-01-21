@@ -349,6 +349,27 @@ classdef source < stochasticWave
             end
         end
         
+        function varargout = polar(obj,varargin)
+            %% POLAR Display the sources location
+            %
+            % polar(srcs) plots the sources location around the zenith in
+            % arcsec
+            %
+            % polar(srcs,linespecs) plots the sources location around the
+            % zenith in arcsec with given line specification
+            %
+            % h = polar(...) plots and returns the graphic handle
+            
+            if nargin>1
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,varargin{:});
+            else
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'*');
+            end
+            if nargout>0
+                varargout{1} = h;
+            end
+        end
+        
     end
     
 end
