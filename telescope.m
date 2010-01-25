@@ -117,7 +117,7 @@ classdef telescope < telescopeAbstract
                     u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
 
                     % phase displacement in meter
-                    leap = [obj.windVx obj.windVy].*(obj.count(kLayer)+1).*obj.samplingTime;
+                    leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
                     % phase displacement im pixel
                     pixelLeap = leap/pixelLength;
                     
@@ -228,7 +228,9 @@ classdef telescope < telescopeAbstract
                             end
                         end
                     end
-                    out = (obj.atm.wavelength/src.wavelength)*out;
+                    if ~isempty(src.wavelength)
+                        out = (obj.atm.wavelength/src.wavelength)*out;
+                    end
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
             end

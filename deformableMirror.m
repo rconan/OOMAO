@@ -17,6 +17,8 @@ classdef deformableMirror < handle
         surfaceListener;
         % lexicographic ordering of DM surface map (default: false)
         lex = false;
+        % units of dm coefficients [default: micron]
+        coefsUnit = 1;%e-6;
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -90,7 +92,7 @@ classdef deformableMirror < handle
             if isscalar(val)
                 val = ones(obj.nValidActuator,1)*val;
             end
-            obj.p_coefs = bsxfun(@plus,val,obj.coefsDefault);
+            obj.p_coefs = obj.coefsUnit*bsxfun(@plus,val,obj.coefsDefault);
             if isa(obj.driver,'function_handle')
                 obj.driver(obj.p_coefs);
                 return
@@ -122,9 +124,18 @@ classdef deformableMirror < handle
             
             nSrc = numel(src);
             nPhase = size(obj.phase,3);
-            for kSrc = 1:nSrc
-                src(kSrc).phase = obj.phase(:,:,min(kSrc,nPhase));
-                src(kSrc).amplitude = 1;
+            if nPhase>nSrc
+                for kSrc = 1:nSrc
+                    kLambda = 1;%2*pi/src(kSrc).wavelength;
+                    src(kSrc).phase = -2*obj.surface*kLambda;
+                    src(kSrc).amplitude = 1;
+                end
+            else
+                for kSrc = 1:nSrc
+                    kLambda = 1;%2*pi/src(kSrc).wavelength;
+                    src(kSrc).phase = -2*obj.surface(:,:,min(kSrc,nPhase))*kLambda;
+                    src(kSrc).amplitude = 1;
+                end
             end
         end
         

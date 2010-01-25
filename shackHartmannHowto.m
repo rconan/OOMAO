@@ -8,7 +8,7 @@ tel = telescope(8,'resolution',120);
 ngs = source;
 % wfs.lenslets.lightSource = ngs;
 % relay(tel,ngs);
-ngs==tel>=wfs.lenslets;
+ngs = ngs.*tel*wfs.lenslets;
 grabAndProcess(wfs)
 wfs.referenceSlopes = wfs.slopes;
 dataProcessing(wfs)
@@ -23,13 +23,13 @@ zern = zernike(5:6,'resolution',120,'pupil',tel.pupil);
 zern.c = 20*(2*rand(zern.nMode,1)-1);
 % reset(ngs)*tel*zern*wfs.lenslets;
 % grabAndProcess(wfs)
-ngs==tel>=zern>=wfs;
+ngs = ngs.*tel*zern*wfs;
 
 %% a random aberration function
 for k=1:100
     o = (k-1).*2*pi/99;
     zern.c = 10.*[cos(o);sin(o)];
-    ngs==tel>=zern>=wfs;
+    +ngs;
     drawnow
 end
 
