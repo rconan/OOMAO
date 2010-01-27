@@ -644,7 +644,8 @@ classdef phaseStats
                     znmi = znmj';
                     index = triu(true(nMode));
                     aiajFun = @ (znmi,znmj) ...
-                        quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), 0, Inf);
+                        quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                        0, Inf, 'AbsTol',0, 'RelTol',1e-2);
                     aiaj = zeros(nMode);
                     %                 tic
                     aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
@@ -689,7 +690,7 @@ classdef phaseStats
                 out = real(out);
             end
         end
-        
+                
         function out = zern_aiaj(zi,ni,mi,zj,nj,mj,atm,tel)
             out = 0;
             if (ni==0) && (nj==0)

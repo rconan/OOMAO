@@ -1,4 +1,4 @@
-classdef source < stochasticWave
+classdef source < stochasticWave & hgsetget
     % The source class represents celestial objects. It inherits from
     % stochasticWave which contains the phase and amplitude of the wave
     % emitted by the source object. The source propagates from one object
@@ -370,6 +370,27 @@ classdef source < stochasticWave
             end
         end
         
+    end
+    
+    methods (Static)
+    
+        function [rhoSrcLayer,thetaSrcLayer] = separationMatrix(src1,src2)
+            zen1 = [src1.zenith];
+            az1  = [src1.azimuth];
+            if nargin>1
+                zen2 = [src2.zenith];
+                az2  = [src2.zenith];
+            else
+                zen2 = zen1;
+                az2 = az1;
+            end
+            [xSrc1,xSrc2] = meshgrid(tan(zen1).*cos(az1),tan(zen2).*cos(az2));
+            [ySrc1,ySrc2] = meshgrid(tan(zen1).*sin(az1),tan(zen2).*sin(az2));
+            xSrc = xSrc1 - xSrc2;
+            ySrc = ySrc1 - ySrc2;
+            rhoSrcLayer = hypot(xSrc,ySrc)*cougarConstants.radian2arcsec;
+            thetaSrcLayer = atan2(ySrc,xSrc)*180/pi;
+        end
     end
     
 end

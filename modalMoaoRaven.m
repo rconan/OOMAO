@@ -158,10 +158,14 @@ polar(gs,'ro')
 hold off
 % Zernike section expansion
 %% Turbulence covariance matrix
-S = phaseStats.zernikeAngularCovariance(zern,atm,gs);
-S = cell2mat(S);
+% tic
+% S = phaseStats.zernikeAngularCovariance(zern,atm,gs);
+% toc
+% S = cell2mat(S);
+load('S12')
 %% Data/Target covariance
-C = phaseStats.zernikeAngularCovariance(zern,atm,gs,scs);
+% C = phaseStats.zernikeAngularCovariance(zern,atm,gs,scs);
+load('C12')
 %% tomographic matrices
 CznAst = blkdiag( Czn , Czn , Czn );
 DzAst = blkdiag( Dz , Dz , Dz );
@@ -200,7 +204,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =100;
+nIt =500;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -277,16 +281,15 @@ ylabel('Variance [rd^2]')
 atm.wavelength = atmWavelength;
 
 %%
-turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
-turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
-%%
-residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
 % Optical transfer function
 normTel = sum(tel.pupil(:));
 nOtf = 2*nPx;
 otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
 bigRam = false;
 if bigRam
+    turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
+    turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
+    residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
     tic
     otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normgTel,residualWave,'UniformOutput',false);
     toc
@@ -301,9 +304,9 @@ else
     h = waitbar(0,'Computing OTFs ...');
     tic
     for kScs = 1:nScs
-        otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normTel,...
-            residualWave((nScs+kScs):nScs:end),'UniformOutput',false);
-        meanOtfPd{kScs} = mean(reshape(cell2mat(otfPd),nOtf,nOtf,nIt-1),3);
+        otfPd = bsxfun(@times,tel.pupil,exp(1i.*turbRes(:,:,(nScs+kScs):nScs:end)));
+        otfPd = mean( abs(fft( fft( otfPd, nOtf, 1) , nOtf, 2)).^2 , 3);
+        meanOtfPd{kScs} = fftshift(ifft2( otfPd, nOtf, nOtf)/normTel);
         waitbar(kScs/nScs)
     end
     toc
@@ -328,10 +331,11 @@ eNrg = cellfun(eNrgFun,meanOtfPd);
 
 %%
 [x,y] = pol2cart([scs.azimuth],[scs.zenith]*cougarConstants.radian2arcsec);
+z = zeros(size(x));
 tri = delaunay(x,y);
 figure
 subplot(1,2,1)
-trisurf(tri,x,y,strehlRatio)
+trisurf(tri,x,y,z,strehlRatio)
 view(2)
 shading interp
 axis square
@@ -340,8 +344,12 @@ hold on
 polar(scs,'k*')
 polar(gs,'wo')
 hold off
+title('Strehl ratio')
+set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
+xlabel('arcsec')
+ylabel('arcsec')
 subplot(1,2,2)
-trisurf(tri,x,y,eNrg)
+trisurf(tri,x,y,z,eNrg)
 view(2)
 shading interp
 axis square
@@ -350,12 +358,16 @@ hold on
 polar(scs,'k*')
 polar(gs,'wo')
 hold off
-[o,r] = meshgrid([0:12]*pi/6,[0 30 60]);
-[x,y] = pol2cart(o,r);
-u = reshape(strehlRatio(2:end),[],2)';
-u = [repmat(strehlRatio(1),1,13); u, u(:,1)];
-v = reshape(eNrg(2:end),[],2)';
-v = [repmat(eNrg(1),1,13); v, v(:,1)];
+title('entrapped energy')
+set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
+xlabel('arcsec')
+ylabel('arcsec')
+% [o,r] = meshgrid([0:12]*pi/6,[0 30 60]);
+% [x,y] = pol2cart(o,r);
+% u = reshape(strehlRatio(2:end),[],2)';
+% u = [repmat(strehlRatio(1),1,13); u, u(:,1)];
+% v = reshape(eNrg(2:end),[],2)';
+% v = [repmat(eNrg(1),1,13); v, v(:,1)];
 % figure
 % subplot(1,2,1)
 % pcolor(x,y,u)

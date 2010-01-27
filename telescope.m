@@ -104,15 +104,15 @@ classdef telescope < telescopeAbstract
             %
             % obj = update(obj) moves the phase screens and returns the
             % object
-            
 %             disp(' (@telescope) > Layer translation')
             if ~isempty(obj.atm)
 %                 disp('HERE')
                 for kLayer=1:obj.atm.nLayer
                     
-                    pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
+                   pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                     % 1 pixel increased phase sampling vector                    
                     u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength; 
+                    [xu0,yu0] = meshgrid(u0);
                     % phase sampling vector
                     u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
 
@@ -121,10 +121,10 @@ classdef telescope < telescopeAbstract
                     % phase displacement im pixel
                     pixelLeap = leap/pixelLength;
                     
-                    notDoneOnce = true;
+                   notDoneOnce = true;
                     while any(pixelLeap>1) || notDoneOnce
-                        notDoneOnce = false;
-                        
+                       notDoneOnce = false;
+                       
                         if obj.count(kLayer)==0
                             % 1 pixel around phase increase
                             Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
@@ -137,8 +137,10 @@ classdef telescope < telescopeAbstract
                         step   = min(leap,pixelLength);
                         xShift = u - step(1);
                         yShift = u - step(2);
+%                         obj.atm.layer(kLayer).phase ...
+%                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
                         obj.atm.layer(kLayer).phase ...
-                               = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                               = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
                         
                         leap = leap - step;
                         pixelLeap = leap/pixelLength;
@@ -146,7 +148,7 @@ classdef telescope < telescopeAbstract
                     end
                         
                     obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
-                    
+                   
                 end
                 
                 
@@ -155,7 +157,6 @@ classdef telescope < telescopeAbstract
             if nargout>0
                 varargout{1} = obj;
             end
-            
         end
         function varargout = uplus(obj)
             %% UPLUS + Update operator
@@ -201,7 +202,7 @@ classdef telescope < telescopeAbstract
             % the properties of the source object(s)
             
             nSrc = numel(srcs);
-            for kSrc=1:nSrc
+            parfor kSrc=1:nSrc
                 src = srcs(kSrc);
                 src.mask      = obj.pupilLogical;
                 if isempty(src.nPhoton)
@@ -447,7 +448,7 @@ classdef telescope < telescopeAbstract
     methods (Access=private)
         
         function obj = init(obj)
-            nInner = 2;
+            nInner = 1;
             obj.sampler = linspace(-1,1,obj.resolution);
             add(obj.log,obj,'Initializing phase screens making parameters:')
             obj.log.verbose = false;
