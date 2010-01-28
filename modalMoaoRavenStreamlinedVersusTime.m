@@ -1,7 +1,7 @@
 %% ADAPTIVE OPTICS TOMOGRAPHY HOWTO
 % Demonstrate how to build a tomographic adaptive optics system
 
-mosave = true;
+mosave = false;
 %% Atmosphere 
 Cn2 = [6.39 3.94 1.46 1.73 3.11 2.69 2.81];
 fr0 = Cn2/sum(Cn2);
@@ -50,7 +50,12 @@ gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
 % scs = source('asterism',{[0,0],...
 %     [12, 30*cougarConstants.arcsec2radian, 0],...
 %     [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H);
-scs = source('asterism',{[0,0]},'wavelength',photometry.H);
+scs = source('asterism',{[0,0],...
+    [30*constants.arcsec2radian,0],...
+    [60*constants.arcsec2radian,0],...
+    [30*constants.arcsec2radian,pi/3],...
+    [60*constants.arcsec2radian,pi/3]},...
+    'wavelength',photometry.H);
 nScs = length(scs);
 nGs = length(gs);
 
@@ -209,7 +214,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =100;
+nIt =6000;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -239,14 +244,14 @@ log.verbose=false;
 normTel = sum(tel.pupil(:));
 nOtf = 2*nPx;
 otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
-otfItStep = 100;
+otfItStep = 50;
 nOtfItStep = nIt/otfItStep;
 kItStep = 0;
 uScs = 1:nScs;
 meanOtfPdBuf = 0;
 meanOtfPd = zeros(nOtf,nOtf,nScs*nOtfItStep);
 warning off MATLAB:rankDeficientMatrix
-fprintf(' --> Open-loop started at %s\n, %d iterations\n',datestr(now),nIt);
+fprintf(' --> Open-loop started at %s, %d iterations\n',datestr(now),nIt);
 tic
 while k<nIt
     

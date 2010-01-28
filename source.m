@@ -73,7 +73,6 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);
-            p.addParamValue('logging',true,@islogical);
             p.parse(varargin{:});
             persistent nCall
             if nargin>0 || isempty(nCall)
@@ -121,7 +120,6 @@ classdef source < stochasticWave & hgsetget
                 end
                 nCall = [];
             else
-                nargout
                 obj.zenith     = p.Results.zenith;
                 obj.azimuth    = p.Results.azimuth;
                 obj.height     = p.Results.height;
