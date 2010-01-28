@@ -464,7 +464,7 @@ classdef shackHartmann < handle
             %
             % See also: imagesc
             
-            intensity = zeros(obj.lenslets.nLenslet,obj.lenslets.nLenslet*obj.lenslets.nArray);
+            intensity = nan(obj.lenslets.nLenslet,obj.lenslets.nLenslet*obj.lenslets.nArray);
             v = obj.validLenslet(:);
             v = repmat(v,obj.lenslets.nArray,1);
             intensity(v) = obj.lensletIntensity;
@@ -474,7 +474,7 @@ classdef shackHartmann < handle
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
                 axis equal tight xy
-                set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
+%                 set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
                 colorbar
             end
             if nargout>0

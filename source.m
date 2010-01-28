@@ -73,17 +73,19 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);
+            p.addParamValue('logging',true,@islogical);
             p.parse(varargin{:});
-            nAst    = numel(p.Results.asterism);
-            nHeight = numel(p.Results.height);
-            nObj = nAst + nHeight;
-            if nObj>1
+            persistent nCall
+            if nargin>0 || isempty(nCall)
+                nCall = 1;
+                nAst    = numel(p.Results.asterism);
                 if nAst>0
                     ast = p.Results.asterism;
                 else
                     ast = {[p.Results.zenith,p.Results.azimuth]};
                     nAst = nAst + 1;
                 end
+                nHeight = numel(p.Results.height);
                 z = zeros(1,nAst);
                 a = zeros(1,nAst);
                 nObj = 0;
@@ -117,7 +119,9 @@ classdef source < stochasticWave & hgsetget
                        obj(1,kObj,kHeight).log = logBook.checkIn(obj(1,kObj,kHeight));
                    end
                 end
+                nCall = [];
             else
+                nargout
                 obj.zenith     = p.Results.zenith;
                 obj.azimuth    = p.Results.azimuth;
                 obj.height     = p.Results.height;
@@ -127,10 +131,6 @@ classdef source < stochasticWave & hgsetget
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
                 setDirectionVector(obj)
-                if ~isempty(obj.log)
-                    checkOut(obj.log,obj)
-                end
-                obj.log = logBook.checkIn(obj);
             end
          end
         
@@ -149,7 +149,7 @@ classdef source < stochasticWave & hgsetget
                     index = abs(photometry.wavelengths-photometry.R)<=eps(max(photometry.wavelengths));
                     out = photometry.deltaWavelengths(index).*...
                         1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                        10.^(-0.4*obj.p_magnitude)./(cougarConstants.plank*cougarConstants.c);
+                        10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
                 else
                     out = [];
                 end
