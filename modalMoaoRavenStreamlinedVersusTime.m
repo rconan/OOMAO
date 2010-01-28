@@ -1,7 +1,7 @@
 %% ADAPTIVE OPTICS TOMOGRAPHY HOWTO
 % Demonstrate how to build a tomographic adaptive optics system
 
-mosave = false;
+nosave = false;
 %% Atmosphere 
 Cn2 = [6.39 3.94 1.46 1.73 3.11 2.69 2.81];
 fr0 = Cn2/sum(Cn2);
