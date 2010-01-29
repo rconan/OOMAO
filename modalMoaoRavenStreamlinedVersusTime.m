@@ -216,7 +216,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt = 6000;
+nIt = 2500;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -281,7 +281,7 @@ while k<nIt
     if ~rem(k,otfItStep)
         kItStep = kItStep + 1;
         fprintf(' >> Logging OTF %d/%d\n',kItStep,nOtfItStep)
-        meanOtfPd(:,:,uScs+(kItStep-1)*nScs) = meanOtfPdBuf/(nIt-1);
+        meanOtfPd(:,:,uScs+(kItStep-1)*nScs) = meanOtfPdBuf/(k-1);
     end
 
 %     set(h,'Ydata',[turbPhaseStd,turbResStd])
