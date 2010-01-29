@@ -242,7 +242,7 @@ nOtf = 2*nPx;
 otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
 meanOtfPd = 0;
 warning off MATLAB:rankDeficientMatrix
-fprintf(' --> Open-loop started at %s\n',datestr(now));
+fprintf(' --> Open-loop started at %s, %d iterations\n',datestr(now),nIt);
 tic
 while k<nIt
     
@@ -396,6 +396,6 @@ ylabel('arcsec')
 % colorbar
 
 %%
-filename = sprintf('raven-%s',datestr(now,30));
+filename = sprintf('raven-%s-%dscs-%dgs%dMag-#it%d',datestr(now,30),nScs,nGs,gs(1).magnitude,nIt);
 save(filename)
 fprintf(' >> Run saved in %s\n',filename)

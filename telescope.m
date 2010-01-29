@@ -81,7 +81,7 @@ classdef telescope < telescopeAbstract
             end
             checkOut(obj.log,obj)
         end
-        
+
         %% Set/Get for opticalAberration property
         function set.opticalAberration(obj,val)
             obj.atm = val;

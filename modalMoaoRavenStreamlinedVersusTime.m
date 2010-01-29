@@ -56,6 +56,7 @@ scs = source('asterism',{[0,0],...
     [30*constants.arcsec2radian,pi/3],...
     [60*constants.arcsec2radian,pi/3]},...
     'wavelength',photometry.H);
+scsIndex = [1 2 14 4 16];
 nScs = length(scs);
 nGs = length(gs);
 
@@ -176,6 +177,7 @@ load('S12')
 %% Data/Target covariance
 % C = phaseStats.zernikeAngularCovariance(zern,atm,gs,scs);
 load('C12')
+C = C(:,scsIndex);
 %% tomographic matrices
 CznAst = blkdiag( Czn , Czn , Czn );
 DzAst = blkdiag( Dz , Dz , Dz );
@@ -214,7 +216,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =6000;
+nIt = 500;%6000;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -359,42 +361,29 @@ tel = tel + atm;
 eNrg = cellfun(eNrgFun,meanOtfPd);
 
 %%
-% [x,y] = pol2cart([scs.azimuth],[scs.zenith]*cougarConstants.radian2arcsec);
-% z = zeros(size(x));
-% tri = delaunay(x,y);
-% figure
-% subplot(1,2,1)
-% trisurf(tri,x,y,z,strehlRatio)
-% view(2)
-% shading interp
-% axis square
-% colorbar
-% hold on
-% polar(scs,'k*')
-% polar(gs,'wo')
-% hold off
-% title('Strehl ratio')
-% set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
-% xlabel('arcsec')
-% ylabel('arcsec')
-% subplot(1,2,2)
-% trisurf(tri,x,y,z,eNrg)
-% view(2)
-% shading interp
-% axis square
-% colorbar
-% hold on
-% polar(scs,'k*')
-% polar(gs,'wo')
-% hold off
-% title('entrapped energy')
-% set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
-% xlabel('arcsec')
-% ylabel('arcsec')
-
+legs = [...
+    repmat('( ',nScs,1),...
+    num2str([[scs.zenith]'*constants.radian2arcsec],'%2.0f'),...
+    repmat(' , ',nScs,1),...
+    num2str([[scs.azimuth]'*180/pi],'%2.0f'),...
+    repmat(' )',nScs,1),...
+    ];
+figure
+time = (1:nOtfItStep)*otfItStep/500;
+subplot(1,2,1)
+plot(time,reshape(strehlRatio,nScs,nOtfItStep)','.--')
+grid
+xlabel('Time [s]')
+ylabel('Strehl ratio')
+legend(legs,0)
+subplot(1,2,2)
+plot(time,reshape(eNrg,nScs,nOtfItStep)','.--')
+grid
+xlabel('Time [s]')
+ylabel('Entr. Energy')
 %%
 if ~nosave
-    filename = sprintf('raven-%s',datestr(now,30));
+    filename = sprintf('raven-%s-%dscs-%dgs%dMag-#it%d',datestr(now,30),nScs,nGs,gs(1).magnitude,nIt);
     save(filename)
     fprintf(' >> Run saved in %s\n',filename)
 end

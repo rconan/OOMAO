@@ -134,7 +134,9 @@ classdef source < stochasticWave & hgsetget
         
         %% Destructor
         function delete(obj)
-            checkOut(obj.log,obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj)
+            end
         end
         
         %% Get and Set nPhoton
