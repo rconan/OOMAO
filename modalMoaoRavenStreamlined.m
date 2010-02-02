@@ -101,7 +101,7 @@ withNoise = true;
 ngs.magnitude = gs(1).magnitude;
 wfs.camera.readOutNoise = 3;
 wfs.camera.photonNoiseLess = false;
-wfs.framePixelThreshold = 0;
+wfs.framePixelThreshold = 6;
 ngs=ngs.*tel*wfs;
 slopesAndFrameDisplay(wfs)
 

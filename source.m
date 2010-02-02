@@ -81,8 +81,9 @@ classdef source < stochasticWave & hgsetget
                 if nAst>0
                     ast = p.Results.asterism;
                 else
-                    ast = {[p.Results.zenith,p.Results.azimuth]};
-                    nAst = nAst + 1;
+                    n = length(p.Results.zenith);
+                    ast = mat2cell([p.Results.zenith(:),p.Results.azimuth(:)],ones(n,1),2);
+                    nAst = nAst + n;
                 end
                 nHeight = numel(p.Results.height);
                 z = zeros(1,nAst);
@@ -100,6 +101,8 @@ classdef source < stochasticWave & hgsetget
                         nObj = nObj + 1;
                     end
                 end
+                magnitude = p.Results.magnitude;
+                nMag = length(magnitude);
                 obj( 1 , nObj , nHeight ) = source;
                 for kObj = 1:nObj
                     for kHeight = 1:nHeight
@@ -108,7 +111,9 @@ classdef source < stochasticWave & hgsetget
                         obj(1,kObj,kHeight).height     = p.Results.height(kHeight);
                         obj(1,kObj,kHeight).wavelength = p.Results.wavelength;
                         obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
-                        obj(1,kObj,kHeight).magnitude  = p.Results.magnitude;
+                        if ~isempty(magnitude)
+                            obj(1,kObj,kHeight).magnitude  = p.Results.magnitude(min(nMag,kObj));
+                        end
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
                         setDirectionVector(obj(1,kObj,kHeight))
@@ -363,7 +368,20 @@ classdef source < stochasticWave & hgsetget
             if nargin>1
                 h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,varargin{:});
             else
-                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'*');
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'.');
+                delete(h)
+                nObj = numel(obj);
+                a = max([obj.magnitude]);
+                b = min([obj.magnitude]);
+                d = 6*a/b;
+                hold on
+                for kObj = 1:nObj
+                    h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,'o');
+                    set(h(kObj),...
+                        'MarkerSize',d*obj(kObj).magnitude/a,...
+                        'MarkerFaceColor','b');
+                end
+                hold off
             end
             if nargout>0
                 varargout{1} = h;

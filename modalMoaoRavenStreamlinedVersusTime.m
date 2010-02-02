@@ -45,7 +45,7 @@ zern = zernike(2:zernModeMax,tel.D,'resolution',nPx);
  % Calibration source
 ngs = source('wavelength',photometry.R);
 gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
-    'wavelength',photometry.R,'magnitude',0);
+    'wavelength',photometry.R,'magnitude',12);
 % scs = source('asterism',{[0,0],[30*cougarConstants.arcsec2radian,pi/4]},'wavelength',photometry.H);
 % scs = source('asterism',{[0,0],...
 %     [12, 30*cougarConstants.arcsec2radian, 0],...
@@ -106,7 +106,7 @@ Dz = z.c;
 
 %% With noise
 ngs.magnitude = gs(1).magnitude;
-wfs.camera.readOutNoise = 0;
+wfs.camera.readOutNoise = 3;
 wfs.camera.photonNoiseLess = false;
 wfs.framePixelThreshold = 0;
 ngs=ngs.*tel*wfs;
@@ -216,7 +216,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt = 2500;
+nIt = 500;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -373,13 +373,13 @@ time = (1:nOtfItStep)*otfItStep/500;
 subplot(1,2,1)
 plot(time,reshape(strehlRatio,nScs,nOtfItStep)','.--')
 grid
-xlabel('Time [s]')
+xlabel('Exposure time [s]')
 ylabel('Strehl ratio')
 legend(legs,0)
 subplot(1,2,2)
 plot(time,reshape(eNrg,nScs,nOtfItStep)','.--')
 grid
-xlabel('Time [s]')
+xlabel('Exposure time [s]')
 ylabel('Entr. Energy')
 %%
 if ~nosave
