@@ -139,9 +139,8 @@ classdef source < stochasticWave & hgsetget
         
         %% Destructor
         function delete(obj)
-            if ~isempty(obj.log)
+            disp('Delete')
                 checkOut(obj.log,obj)
-            end
         end
         
         %% Get and Set nPhoton
@@ -354,7 +353,7 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
-        function varargout = polar(obj,varargin)
+        function varargout = polar(obj,lineSpec)
             %% POLAR Display the sources location
             %
             % polar(srcs) plots the sources location around the zenith in
@@ -365,21 +364,25 @@ classdef source < stochasticWave & hgsetget
             %
             % h = polar(...) plots and returns the graphic handle
             
-            if nargin>1
-                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,varargin{:});
+            if nargin<2
+                lineSpec = 'o';
+            end
+            if any(isempty([obj.magnitude]))
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,lineSpec);
             else
                 h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'.');
                 delete(h)
                 nObj = numel(obj);
                 a = max([obj.magnitude]);
-                b = min([obj.magnitude]);
-                d = 6*a/b;
                 hold on
                 for kObj = 1:nObj
-                    h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,'o');
-                    set(h(kObj),...
-                        'MarkerSize',d*obj(kObj).magnitude/a,...
-                        'MarkerFaceColor','b');
+                    h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,lineSpec);
+                  hcmenu = uicontextmenu;
+                  uimenu(hcmenu, 'Label', sprintf('mag=%5.2f',obj(kObj).magnitude))
+                  set(h(kObj),...
+                        'MarkerSize',6*a/obj(kObj).magnitude,...
+                        'MarkerFaceColor',get(h(kObj),'Color'),...
+                        'uicontextmenu',hcmenu);
                 end
                 hold off
             end
