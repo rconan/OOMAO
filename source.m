@@ -1,4 +1,4 @@
-classdef source < stochasticWave
+classdef source < stochasticWave & hgsetget
     % The source class represents celestial objects. It inherits from
     % stochasticWave which contains the phase and amplitude of the wave
     % emitted by the source object. The source propagates from one object
@@ -74,16 +74,18 @@ classdef source < stochasticWave
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);
             p.parse(varargin{:});
-            nAst    = numel(p.Results.asterism);
-            nHeight = numel(p.Results.height);
-            nObj = nAst + nHeight;
-            if nObj>1
+            persistent nCall
+            if nargin>0 || isempty(nCall)
+                nCall = 1;
+                nAst    = numel(p.Results.asterism);
                 if nAst>0
                     ast = p.Results.asterism;
                 else
-                    ast = {[p.Results.zenith,p.Results.azimuth]};
-                    nAst = nAst + 1;
+                    n = length(p.Results.zenith);
+                    ast = mat2cell([p.Results.zenith(:),p.Results.azimuth(:)],ones(n,1),2);
+                    nAst = nAst + n;
                 end
+                nHeight = numel(p.Results.height);
                 z = zeros(1,nAst);
                 a = zeros(1,nAst);
                 nObj = 0;
@@ -99,6 +101,8 @@ classdef source < stochasticWave
                         nObj = nObj + 1;
                     end
                 end
+                magnitude = p.Results.magnitude;
+                nMag = length(magnitude);
                 obj( 1 , nObj , nHeight ) = source;
                 for kObj = 1:nObj
                     for kHeight = 1:nHeight
@@ -107,7 +111,9 @@ classdef source < stochasticWave
                         obj(1,kObj,kHeight).height     = p.Results.height(kHeight);
                         obj(1,kObj,kHeight).wavelength = p.Results.wavelength;
                         obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
-                        obj(1,kObj,kHeight).magnitude  = p.Results.magnitude;
+                        if ~isempty(magnitude)
+                            obj(1,kObj,kHeight).magnitude  = p.Results.magnitude(min(nMag,kObj));
+                        end
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
                         setDirectionVector(obj(1,kObj,kHeight))
@@ -117,6 +123,7 @@ classdef source < stochasticWave
                        obj(1,kObj,kHeight).log = logBook.checkIn(obj(1,kObj,kHeight));
                    end
                 end
+                nCall = [];
             else
                 obj.zenith     = p.Results.zenith;
                 obj.azimuth    = p.Results.azimuth;
@@ -127,16 +134,13 @@ classdef source < stochasticWave
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
                 setDirectionVector(obj)
-                if ~isempty(obj.log)
-                    checkOut(obj.log,obj)
-                end
-                obj.log = logBook.checkIn(obj);
             end
          end
         
         %% Destructor
         function delete(obj)
-            checkOut(obj.log,obj)
+            disp('Delete')
+                checkOut(obj.log,obj)
         end
         
         %% Get and Set nPhoton
@@ -149,7 +153,7 @@ classdef source < stochasticWave
                     index = abs(photometry.wavelengths-photometry.R)<=eps(max(photometry.wavelengths));
                     out = photometry.deltaWavelengths(index).*...
                         1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                        10.^(-0.4*obj.p_magnitude)./(cougarConstants.plank*cougarConstants.c);
+                        10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
                 else
                     out = [];
                 end
@@ -349,6 +353,65 @@ classdef source < stochasticWave
             end
         end
         
+        function varargout = polar(obj,lineSpec)
+            %% POLAR Display the sources location
+            %
+            % polar(srcs) plots the sources location around the zenith in
+            % arcsec
+            %
+            % polar(srcs,linespecs) plots the sources location around the
+            % zenith in arcsec with given line specification
+            %
+            % h = polar(...) plots and returns the graphic handle
+            
+            if nargin<2
+                lineSpec = 'o';
+            end
+            if any(isempty([obj.magnitude]))
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,lineSpec);
+            else
+                h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'.');
+                delete(h)
+                nObj = numel(obj);
+                a = max([obj.magnitude]);
+                hold on
+                for kObj = 1:nObj
+                    h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,lineSpec);
+                  hcmenu = uicontextmenu;
+                  uimenu(hcmenu, 'Label', sprintf('mag=%5.2f',obj(kObj).magnitude))
+                  set(h(kObj),...
+                        'MarkerSize',6*a/obj(kObj).magnitude,...
+                        'MarkerFaceColor',get(h(kObj),'Color'),...
+                        'uicontextmenu',hcmenu);
+                end
+                hold off
+            end
+            if nargout>0
+                varargout{1} = h;
+            end
+        end
+        
+    end
+    
+    methods (Static)
+    
+        function [rhoSrcLayer,thetaSrcLayer] = separationMatrix(src1,src2)
+            zen1 = [src1.zenith];
+            az1  = [src1.azimuth];
+            if nargin>1
+                zen2 = [src2.zenith];
+                az2  = [src2.zenith];
+            else
+                zen2 = zen1;
+                az2 = az1;
+            end
+            [xSrc1,xSrc2] = meshgrid(tan(zen1).*cos(az1),tan(zen2).*cos(az2));
+            [ySrc1,ySrc2] = meshgrid(tan(zen1).*sin(az1),tan(zen2).*sin(az2));
+            xSrc = xSrc1 - xSrc2;
+            ySrc = ySrc1 - ySrc2;
+            rhoSrcLayer = hypot(xSrc,ySrc)*cougarConstants.radian2arcsec;
+            thetaSrcLayer = atan2(ySrc,xSrc)*180/pi;
+        end
     end
     
 end

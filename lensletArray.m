@@ -19,6 +19,8 @@ classdef lensletArray < handle
         sumStack = false;
         % the number of lenslet arrays
         nArray;
+        % optical throughput
+        throughput=1;
     end
     
     properties (SetObservable=true)
@@ -242,7 +244,7 @@ classdef lensletArray < handle
             if obj.sumStack
                 wavePrgted = sum(wavePrgted,3);
             end
-            obj.imagelets = wavePrgted;
+            obj.imagelets = wavePrgted*obj.throughput;
         end
         
         function relay(obj,src)

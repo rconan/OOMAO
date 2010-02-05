@@ -7,7 +7,7 @@ atm = atmosphere(photometry.V,0.15,30,...
     'fractionnalR0',[0.7,0.25,0.05],...
     'windSpeed',[5,10,20],...
     'windDirection',[0,pi/4,pi]);
-atm.wavelength = photometry.R
+atm.wavelength = photometry.R;
 
 %% Telescope
 nPx = 60;
@@ -142,8 +142,8 @@ end
 maxRadialDegree = 8;
 zern = zernike(2:zernike.nModeFromRadialOrder(maxRadialDegree),'resolution',nPx,'pupil',tel.pupil);
 zern.lex = false;
-figure(10)
-imagesc(zern.phase)
+% figure(10)
+% imagesc(zern.phase)
 zern.c = eye(zern.nMode);
 % wfs.lenslets.wave = zern.wave;
 % grabAndProcess(wfs)
@@ -190,35 +190,37 @@ imagesc(Czn)
 axis equal tight
 colorbar
 
-%% Phase reconstruction
-tel = tel+atm;
-%% wavefront reconstruction least square fit
-offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
-offAxis=offAxis.*tel;
-ps = offAxis.meanRmPhase;
-% wfs.lenslets.wave     = tel;
-% wfs.camera.readOutNoise = 1;
-% grabAndProcess(wfs)
-offAxis=offAxis*wfs;
-% z = getZernike(wfs,maxRadialDegree);
-z = z\wfs;
-zern.c = Dz\z.c(2:end);
-phaseLS = zern.phase;
-
-%% wavefront reconstruction minimum variance
-Cz = phaseStats.zernikeCovariance(zern,atm,tel);
+% %% Phase reconstruction (BROKEN)
+% tel = tel+atm;
+% %% wavefront reconstruction least square fit
+% offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
+% offAxis=offAxis.*tel;
+% ps = offAxis.meanRmPhase;
+% % wfs.lenslets.wave     = tel;
+% % wfs.camera.readOutNoise = 1;
+% % grabAndProcess(wfs)
+% offAxis=offAxis*wfs;
+% % z = getZernike(wfs,maxRadialDegree);
+% z = z\wfs;
+% zern.c = Dz\z.c(2:end);
+% ngs = source.*zern;
+% phaseLS = ngs.phase;
+% 
+% %% wavefront reconstruction minimum variance
+% Cz = phaseStats.zernikeCovariance(zern,atm);
+% % M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
 % M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
-M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
-zern.c = M*z.c(2:end);
-phaseMV = zern.phase;
-figure(11)
-subplot(2,1,1)
-imagesc([ps,phaseLS,phaseMV])
-axis equal tight
-colorbar
-subplot(2,1,2)
-imagesc([ps-phaseLS,ps-phaseMV])
-axis equal tight
-colorbar
-
-
+% zern.c = M*z.c(2:end);
+% ngs = source.*zern;
+% phaseMV = ngs.phase;
+% figure(11)
+% subplot(2,1,1)
+% imagesc([ps,phaseLS,phaseMV])
+% axis equal tight
+% colorbar
+% subplot(2,1,2)
+% imagesc([ps-phaseLS,ps-phaseMV])
+% axis equal tight
+% colorbar
+% 
+% 

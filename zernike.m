@@ -1,4 +1,4 @@
-classdef zernike < handle
+classdef zernike < telescopeAbstract
     % ZERNIKE Zernike polynomials
     %
     % obj = zernike(j) creates a Zernike polynomials object from the
@@ -29,13 +29,12 @@ classdef zernike < handle
         o;
         % coefficients
         c;
-        % index where r<=1
-        pupil;
         % lexicographic ordering of frames (default: true)
         lex = true;
         %         % Projection matrix of a Zernike portion on the same basis defined
         %         % on the portion
         %         P
+%         pupil;
     end
     
     properties (Dependent, SetAccess=private)
@@ -43,10 +42,6 @@ classdef zernike < handle
         p;
         % # of modes
         nMode;
-        % Zernike phase
-        phase;
-        % Zernike wave;
-        wave;
         % Zernike X derivative matrix
         xDerivativeMatrix
         % Zernike Y derivative matrix
@@ -69,16 +64,21 @@ classdef zernike < handle
             error(nargchk(1,5,nargin));
             p = inputParser;
             p.addRequired('j', @isnumeric);
+            p.addOptional('D', 2, @isnumeric);
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('radius', [], @isnumeric);
             p.addParamValue('angle', [], @isnumeric);
             p.addParamValue('pupil', [], @isnumeric);
             p.parse(j,varargin{:});
+            obj = obj@telescopeAbstract(p.Results.D,...
+                'resolution',p.Results.resolution);
+            if ~isempty(p.Results.pupil)
+                obj.pupil = p.Results.pupil;
+            end
             obj.j = p.Results.j;
             obj.r = p.Results.radius;
             obj.o = p.Results.angle;
             nPixel = p.Results.resolution;
-            obj.pupil = logical(p.Results.pupil);
             [obj.n,obj.m] = findNM(obj);
             if isempty(obj.r)
                 [obj.r,obj.o] = utilities.cartAndPol(nPixel,'output','polar');
@@ -145,30 +145,14 @@ classdef zernike < handle
             out = length(obj.j);
         end
         
-        %% get phase
-        function out = get.phase(obj)
-            out = obj.p_p*obj.c;
-            if ~obj.lex
-                out = utilities.toggleFrame(out,3);
-            end
-        end
-        
-        %% get wave
-        function out = get.wave(obj)
-            out = bsxfun(@times,double(obj.r(:)<=1),exp(1i.*obj.p_p*obj.c));
-            if ~obj.lex
-                out = utilities.toggleFrame(out,3);
-            end
-        end
-        
         function relay(obj,src)
             %% RELAY zernike to source relay
             %
             % relay(obj,srcs) writes the zernike amplitude and phase into
             % the properties of the source object(s)
             
-            src.mask      = obj.pupil;
-            src.amplitude = double(obj.pupil);
+            src.mask      = obj.pupilLogical;
+            src.amplitude = obj.pupil;
             src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
         end
         
@@ -340,6 +324,17 @@ classdef zernike < handle
             end
             
         end
+        
+        function out = otf(obj, r)
+            out = [];
+        end
+        function out = psf(obj,f)  
+            out = [];
+        end
+        function out = fullWidthHalfMax(obj)
+            out = [];
+        end
+
         
     end
     
@@ -522,18 +517,15 @@ classdef zernike < handle
                 mv = obj.m;
                 nf  = length(obj.j);
                 fun = zeros(numel(obj.r),nf);
-                if isempty(obj.pupil)
-                    obj.pupil = obj.r<=1;
-                end
-                r = obj.r(obj.pupil);
-                o = obj.o(obj.pupil);
+                r = obj.r(obj.pupilLogical);
+                o = obj.o(obj.pupilLogical);
                 
                 % Null azimuthal order
                 ind_m = find(mv==0);
                 for cpt=ind_m
                     n = nv(cpt);
                     m = mv(cpt);
-                    fun(obj.pupil,cpt) = sqrt(n+1).*R_fun(r,n,m);
+                    fun(obj.pupilLogical,cpt) = sqrt(n+1).*R_fun(r,n,m);
                 end
                 mod_mode = mod(obj.j,2);
                 % Even polynomes
@@ -541,14 +533,14 @@ classdef zernike < handle
                 for cpt=ind_m
                     n = nv(cpt);
                     m = mv(cpt);
-                    fun(obj.pupil,cpt) = sqrt(n+1).*R_fun(r,n,m).*sqrt(2).*cos(m.*o);
+                    fun(obj.pupilLogical,cpt) = sqrt(n+1).*R_fun(r,n,m).*sqrt(2).*cos(m.*o);
                 end
                 % Odd polynomes
                 ind_m = find(mod_mode==1 & mv~=0);
                 for cpt=ind_m
                     n = nv(cpt);
                     m = mv(cpt);
-                    fun(obj.pupil,cpt) = sqrt(n+1).*R_fun(r,n,m).*sqrt(2).*sin(m.*o);
+                    fun(obj.pupilLogical,cpt) = sqrt(n+1).*R_fun(r,n,m).*sqrt(2).*sin(m.*o);
                 end
                 
             end

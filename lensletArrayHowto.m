@@ -6,9 +6,9 @@ nlenslet = 10;
 nPx = 60;
 la = lensletArray(nlenslet)
 % a circular pupil
-ngs = source==utilities.piston(nPx);
+ngs = source.*utilities.piston(nPx);
 % a circular pupil propagated throught the lenslet array
-propagateThrough(la,ngs)
+ngs = ngs*la;
 % and displayed
 imagesc(la)
 % auto-update of the display
@@ -34,21 +34,21 @@ propagateThrough(la,ngs)
 %% a random aberration
 zern = zernike(5:6,'resolution',nPx);
 zern.c = 4*rand(2,1);
-propagateThrough(la,ngs==zern)
+ngs = ngs.*zern*la;
 
 %% a random aberration function
 for k=1:100
     o = (k-1).*2*pi/99;
     zern.c = 4.*[cos(o);sin(o)];
-    propagateThrough(la,ngs==zern)
+    +ngs;
     drawnow
 end
 
 %% stacked waves
 zern.lex = false;
-ngs = source==cat(3,utilities.piston(nPx),zern.wave);
+ngs = source.*cat(3,utilities.piston(nPx),ngs.wave);
 la.imageletsListener.Enabled = false;
-propagateThrough(la,ngs)
+ngs = ngs*la;
 imagesc( [la.imagelets(:,:,1) , la.imagelets(:,:,2)] )
 axis equal tight
 colorbar('location','NorthOutside')
@@ -57,12 +57,11 @@ colorbar('location','NorthOutside')
 zern = zernike(4,'resolution',nPx);
 zern.lex = false;
 zern.c = 6*rand;
-wave1  = zern.wave;
+ngs1  = source.*zern;
 zern.c = -6*rand;
-wave2  = zern.wave;
-ngs = source==cat(3,wave1,wave2);
+ngs2  = source.*zern;
 la.sumStack = true;
-propagateThrough(la,ngs)
+ngs = source.*cat(3,ngs1.wave,ngs2.wave)*la;
 imagesc( la )
 la.sumStack = false;
 
@@ -72,29 +71,29 @@ atm = atmosphere(2.2e-6,1.5,25,...
     'fractionnalR0',1,...
     'windSpeed',10,...
     'windDirection',0);
-sys = telescope(30,...
+tel = telescope(30,...
     'fieldOfViewInArcMin',2,...
     'resolution',nPx*3,...
-    'samplingTime',1/100,...
-    'opticalAberration',atm);
-update(sys)
-imagesc(sys)
+    'samplingTime',1/100)
+tel = tel+atm;
+imagesc(+tel)
 %%
-ngs = source==sys;
-propagateThrough(la,ngs)
+ngs = source.*tel*la;
 imagesc( la )
 la.imageletsListener.Enabled = true;
 for k=1:50
-    ngs==update(sys)>=la;
+    +tel;
+    +ngs;
     drawnow
 end
 %%
 % a simple Laser Guide Star
-lgs = source('height',[89.6,90,90.4].*1e3,'wavelength',589e-9); 
-sys.focalDistance = 90e3;
-propagateThrough(la,lgs==sys)
+lgs = source('height',[89.6,90,90.4].*1e3,'wavelength',2.2e-6); 
+tel.focalDistance = 90e3;
+lgs = lgs.*tel*la;
 for k=1:50
-    lgs==update(sys)>=la;
+    +tel;
+    +lgs;
     drawnow
 end
 

@@ -119,7 +119,7 @@ classdef atmosphere < handle
         end
         
         function display(obj)
-            %% DISP Display object information
+            %% DISPLAY Display object information
             %
             % disp(obj) prints information about the atmosphere object
             
@@ -152,7 +152,8 @@ classdef atmosphere < handle
                     obj.layer(kLayer).D,...
                     obj.layer(kLayer).nPixel)
             end
-       end
+        end
+       
         function val = get.wavelength(obj)
             val = obj.p_wavelength;
         end

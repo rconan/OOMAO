@@ -1,6 +1,7 @@
 %% ADAPTIVE OPTICS TOMOGRAPHY HOWTO
 % Demonstrate how to build a tomographic adaptive optics system
 
+nosave = false;
 %% Atmosphere 
 Cn2 = [6.39 3.94 1.46 1.73 3.11 2.69 2.81];
 fr0 = Cn2/sum(Cn2);
@@ -22,6 +23,9 @@ tel = telescope(8.2,...
 %% Wavefront sensor
 nLenslet = 16;
 wfs = shackHartmann(nLenslet,nPx,0.75);
+wfs.lenslets.throughput = 0.75;
+wfs.camera.exposureTime = 1/500;
+wfs.camera.quantumEfficiency = 0.8;
 setValidLenslet(wfs,utilities.piston(nPx))
 
 %% Deformable mirror
@@ -41,11 +45,18 @@ zern = zernike(2:zernModeMax,tel.D,'resolution',nPx);
  % Calibration source
 ngs = source('wavelength',photometry.R);
 gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
-    'wavelength',photometry.R,'magnitude',0);
+    'wavelength',photometry.R,'magnitude',12);
 % scs = source('asterism',{[0,0],[30*cougarConstants.arcsec2radian,pi/4]},'wavelength',photometry.H);
+% scs = source('asterism',{[0,0],...
+%     [12, 30*cougarConstants.arcsec2radian, 0],...
+%     [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H);
 scs = source('asterism',{[0,0],...
-    [12, 30*cougarConstants.arcsec2radian, 0],...
-    [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H);
+    [30*constants.arcsec2radian,0],...
+    [60*constants.arcsec2radian,0],...
+    [30*constants.arcsec2radian,pi/3],...
+    [60*constants.arcsec2radian,pi/3]},...
+    'wavelength',photometry.H);
+scsIndex = [1 2 14 4 16];
 nScs = length(scs);
 nGs = length(gs);
 
@@ -94,8 +105,8 @@ z = zernike(1:zernike.nModeFromRadialOrder(maxRadialDegree),tel.D)\wfs;
 Dz = z.c;
 
 %% With noise
-ngs.magnitude = 0;
-wfs.camera.readOutNoise = 0;
+ngs.magnitude = gs(1).magnitude;
+wfs.camera.readOutNoise = 3;
 wfs.camera.photonNoiseLess = false;
 wfs.framePixelThreshold = 0;
 ngs=ngs.*tel*wfs;
@@ -166,6 +177,7 @@ load('S12')
 %% Data/Target covariance
 % C = phaseStats.zernikeAngularCovariance(zern,atm,gs,scs);
 load('C12')
+C = C(:,scsIndex);
 %% tomographic matrices
 CznAst = blkdiag( Czn , Czn , Czn );
 DzAst = blkdiag( Dz , Dz , Dz );
@@ -204,7 +216,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =500;
+nIt = 500;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -217,23 +229,31 @@ zern.lex = true;
 zern2dm = dm.modes.modes(tel.pupilLogical,:)\zern.p(tel.pupilLogical,:)/2;%\zPoly/2;
 dm.coefs = zern2dm*zern.c;
 
-turbRes = zeros(nPx,nPx*nScs,nIt);
-turbRes(:,:,1) = turbPhase;
+% turbRes = zeros(nPx,nPx*nScs,nIt);
+turbRes = turbPhase;
 turbResStd = turbPhaseStd;
 figure
 % plot([turbPhaseStd(1:k,:),turbResStd(1:k,:)],'.');
 % set(h(1),'YDataSource',turbPhaseStd(:,1))
-h = imagesc([turbPhase;turbRes(:,:,1);lambdaRatio*reshape(-dm.phase,nPx,[])]);
+h = imagesc([turbPhase;turbRes;lambdaRatio*reshape(-dm.phase,nPx,[])]);
 axis equal tight xy
 colorbar
 
 %% Open-Loop
 k = 1;
-scs(1).saveImage = true;
-scs(2).saveImage = true;
 log = logBook.checkIn;
 log.verbose=false;
+normTel = sum(tel.pupil(:));
+nOtf = 2*nPx;
+otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
+otfItStep = 50;
+nOtfItStep = nIt/otfItStep;
+kItStep = 0;
+uScs = 1:nScs;
+meanOtfPdBuf = 0;
+meanOtfPd = zeros(nOtf,nOtf,nScs*nOtfItStep);
 warning off MATLAB:rankDeficientMatrix
+fprintf(' --> Open-loop started at %s, %d iterations\n',datestr(now),nIt);
 tic
 while k<nIt
     
@@ -248,19 +268,30 @@ while k<nIt
     +tel;
     % propagation of science star to the telescope through the atmosphere
     scs = scs.*tel;
-    turbPhase = [scs.meanRmPhase];
     k = k + 1 ;
     turbPhaseStd(k,:) = scs.var;
     % propagation of science star resumes to the DMs
     scs = scs*dm;
-    turbRes(:,:,k) = [scs.meanRmPhase];
-    
+    turbRes = cat(3,scs.meanRmPhase);
     turbResStd(k,:) = scs.var;
+    if k>1
+        residualWave = bsxfun(@times,tel.pupil,exp(1i.*turbRes));
+        meanOtfPdBuf = meanOtfPdBuf + abs(fft( fft( residualWave, nOtf, 1) , nOtf, 2)).^2;
+    end
+    if ~rem(k,otfItStep)
+        kItStep = kItStep + 1;
+        fprintf(' >> Logging OTF %d/%d\n',kItStep,nOtfItStep)
+        meanOtfPd(:,:,uScs+(kItStep-1)*nScs) = meanOtfPdBuf/(k-1);
+    end
+
 %     set(h,'Ydata',[turbPhaseStd,turbResStd])
 %     set(h,'Cdata',[turbPhase;turbRes(:,:,k);reshape(-dm.phase,nPx,[])])
 %     drawnow
     
 end
+meanOtfPd = fftshift( fftshift( ifft (ifft( meanOtfPd, nOtf, 1), nOtf, 2)/normTel, 1), 2);
+meanOtfPd = reshape(meanOtfPd,nOtf,nOtf*nScs*nOtfItStep);
+meanOtfPd = mat2cell(meanOtfPd,nOtf,nOtf*ones(1,nScs*nOtfItStep));
 toc
 
 %%
@@ -281,38 +312,38 @@ ylabel('Variance [rd^2]')
 atm.wavelength = atmWavelength;
 
 %%
-% Optical transfer function
-normTel = sum(tel.pupil(:));
-nOtf = 2*nPx;
-otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
-bigRam = false;
-if bigRam
-    turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
-    turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
-    residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
-    tic
-    otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normgTel,residualWave,'UniformOutput',false);
-    toc
-    clear residualWave
-    for kScs = 1:nScs
-        otfPd{kScs} = mean(reshape(cell2mat(otfPd((nScs+kScs):nScs:end)),nOtf,nOtf,nIt-1),3);
-    end
-    meanOtfPd = otfPd(1:nScs);
-    clear otfPd
-else
-    meanOtfPd = cell(1,nScs);
-    h = waitbar(0,'Computing OTFs ...');
-    tic
-    for kScs = 1:nScs
-        otfPd = bsxfun(@times,tel.pupil,exp(1i.*turbRes(:,:,(nScs+kScs):nScs:end)));
-        otfPd = mean( abs(fft( fft( otfPd, nOtf, 1) , nOtf, 2)).^2 , 3);
-        meanOtfPd{kScs} = fftshift(ifft2( otfPd, nOtf, nOtf)/normTel);
-        waitbar(kScs/nScs)
-    end
-    toc
-    close(h)
-    clear residualWave otfPd
-end
+% % Optical transfer function
+% normTel = sum(tel.pupil(:));
+% nOtf = 2*nPx;
+% otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
+% bigRam = false;
+% if bigRam
+%     turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
+%     turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
+%     residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
+%     tic
+%     otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normgTel,residualWave,'UniformOutput',false);
+%     toc
+%     clear residualWave
+%     for kScs = 1:nScs
+%         otfPd{kScs} = mean(reshape(cell2mat(otfPd((nScs+kScs):nScs:end)),nOtf,nOtf,nIt-1),3);
+%     end
+%     meanOtfPd = otfPd(1:nScs);
+%     clear otfPd
+% else
+%     meanOtfPd = cell(1,nScs);
+%     h = waitbar(0,'Computing OTFs ...');
+%     tic
+%     for kScs = 1:nScs
+%         otfPd = bsxfun(@times,tel.pupil,exp(1i.*turbRes(:,:,(nScs+kScs):nScs:end)));
+%         otfPd = mean( abs(fft( fft( otfPd, nOtf, 1) , nOtf, 2)).^2 , 3);
+%         meanOtfPd{kScs} = fftshift(ifft2( otfPd, nOtf, nOtf)/normTel);
+%         waitbar(kScs/nScs)
+%     end
+%     toc
+%     close(h)
+%     clear residualWave otfPd
+% end
 % Strehl ratio
 u = linspace(-tel.D,tel.D,nOtf);
 strehlRatioFun = @(x)real(trapz(u,trapz(u,x)))/tel.area;
@@ -330,52 +361,29 @@ tel = tel + atm;
 eNrg = cellfun(eNrgFun,meanOtfPd);
 
 %%
-[x,y] = pol2cart([scs.azimuth],[scs.zenith]*cougarConstants.radian2arcsec);
-z = zeros(size(x));
-tri = delaunay(x,y);
+legs = [...
+    repmat('( ',nScs,1),...
+    num2str([[scs.zenith]'*constants.radian2arcsec],'%2.0f'),...
+    repmat(' , ',nScs,1),...
+    num2str([[scs.azimuth]'*180/pi],'%2.0f'),...
+    repmat(' )',nScs,1),...
+    ];
 figure
+time = (1:nOtfItStep)*otfItStep/500;
 subplot(1,2,1)
-trisurf(tri,x,y,z,strehlRatio)
-view(2)
-shading interp
-axis square
-colorbar
-hold on
-polar(scs,'k*')
-polar(gs,'wo')
-hold off
-title('Strehl ratio')
-set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
-xlabel('arcsec')
-ylabel('arcsec')
+plot(time,reshape(strehlRatio,nScs,nOtfItStep)','.--')
+grid
+xlabel('Exposure time [s]')
+ylabel('Strehl ratio')
+legend(legs,0)
 subplot(1,2,2)
-trisurf(tri,x,y,z,eNrg)
-view(2)
-shading interp
-axis square
-colorbar
-hold on
-polar(scs,'k*')
-polar(gs,'wo')
-hold off
-title('entrapped energy')
-set(gca,'View',[0 90],'Box','on','xlim',[-1,1]*60,'ylim',[-1,1]*60)
-xlabel('arcsec')
-ylabel('arcsec')
-% [o,r] = meshgrid([0:12]*pi/6,[0 30 60]);
-% [x,y] = pol2cart(o,r);
-% u = reshape(strehlRatio(2:end),[],2)';
-% u = [repmat(strehlRatio(1),1,13); u, u(:,1)];
-% v = reshape(eNrg(2:end),[],2)';
-% v = [repmat(eNrg(1),1,13); v, v(:,1)];
-% figure
-% subplot(1,2,1)
-% pcolor(x,y,u)
-% shading interp
-% axis square
-% colorbar
-% subplot(1,2,2)
-% pcolor(x,y,v)
-% shading interp
-% axis square
-% colorbar
+plot(time,reshape(eNrg,nScs,nOtfItStep)','.--')
+grid
+xlabel('Exposure time [s]')
+ylabel('Entr. Energy')
+%%
+if ~nosave
+    filename = sprintf('raven-%s-%dscs-%dgs%dMag-#it%d',datestr(now,30),nScs,nGs,gs(1).magnitude,nIt);
+    save(filename)
+    fprintf(' >> Run saved in %s\n',filename)
+end

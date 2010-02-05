@@ -22,6 +22,9 @@ tel = telescope(8.2,...
 %% Wavefront sensor
 nLenslet = 16;
 wfs = shackHartmann(nLenslet,nPx,0.75);
+wfs.lenslets.throughput = 0.75;
+wfs.camera.exposureTime = 1/500;
+wfs.camera.quantumEfficiency = 0.8;
 setValidLenslet(wfs,utilities.piston(nPx))
 
 %% Deformable mirror
@@ -41,7 +44,7 @@ zern = zernike(2:zernModeMax,tel.D,'resolution',nPx);
  % Calibration source
 ngs = source('wavelength',photometry.R);
 gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
-    'wavelength',photometry.R,'magnitude',0);
+    'wavelength',photometry.R,'magnitude',12);
 % scs = source('asterism',{[0,0],[30*cougarConstants.arcsec2radian,pi/4]},'wavelength',photometry.H);
 scs = source('asterism',{[0,0],...
     [12, 30*cougarConstants.arcsec2radian, 0],...
@@ -94,10 +97,11 @@ z = zernike(1:zernike.nModeFromRadialOrder(maxRadialDegree),tel.D)\wfs;
 Dz = z.c;
 
 %% With noise
-ngs.magnitude = 0;
-wfs.camera.readOutNoise = 0;
+withNoise = true;
+ngs.magnitude = gs(1).magnitude;
+wfs.camera.readOutNoise = 3;
 wfs.camera.photonNoiseLess = false;
-wfs.framePixelThreshold = 0;
+wfs.framePixelThreshold = 6;
 ngs=ngs.*tel*wfs;
 slopesAndFrameDisplay(wfs)
 
@@ -204,7 +208,7 @@ zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
 ngs = ngs.*zern;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =500;
+nIt =2500;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
@@ -217,13 +221,13 @@ zern.lex = true;
 zern2dm = dm.modes.modes(tel.pupilLogical,:)\zern.p(tel.pupilLogical,:)/2;%\zPoly/2;
 dm.coefs = zern2dm*zern.c;
 
-turbRes = zeros(nPx,nPx*nScs,nIt);
-turbRes(:,:,1) = turbPhase;
+% turbRes = zeros(nPx,nPx*nScs,nIt);
+turbRes = turbPhase;
 turbResStd = turbPhaseStd;
 figure
 % plot([turbPhaseStd(1:k,:),turbResStd(1:k,:)],'.');
 % set(h(1),'YDataSource',turbPhaseStd(:,1))
-h = imagesc([turbPhase;turbRes(:,:,1);lambdaRatio*reshape(-dm.phase,nPx,[])]);
+h = imagesc([turbPhase;turbRes;lambdaRatio*reshape(-dm.phase,nPx,[])]);
 axis equal tight xy
 colorbar
 
@@ -233,7 +237,12 @@ scs(1).saveImage = true;
 scs(2).saveImage = true;
 log = logBook.checkIn;
 log.verbose=false;
+normTel = sum(tel.pupil(:));
+nOtf = 2*nPx;
+otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
+meanOtfPd = 0;
 warning off MATLAB:rankDeficientMatrix
+fprintf(' --> Open-loop started at %s, %d iterations\n',datestr(now),nIt);
 tic
 while k<nIt
     
@@ -248,19 +257,25 @@ while k<nIt
     +tel;
     % propagation of science star to the telescope through the atmosphere
     scs = scs.*tel;
-    turbPhase = [scs.meanRmPhase];
     k = k + 1 ;
     turbPhaseStd(k,:) = scs.var;
     % propagation of science star resumes to the DMs
     scs = scs*dm;
-    turbRes(:,:,k) = [scs.meanRmPhase];
-    
+    turbRes = cat(3,scs.meanRmPhase);
     turbResStd(k,:) = scs.var;
+    if k>1
+        residualWave = bsxfun(@times,tel.pupil,exp(1i.*turbRes));
+        meanOtfPd = meanOtfPd + abs(fft( fft( residualWave, nOtf, 1) , nOtf, 2)).^2;
+    end
+
 %     set(h,'Ydata',[turbPhaseStd,turbResStd])
 %     set(h,'Cdata',[turbPhase;turbRes(:,:,k);reshape(-dm.phase,nPx,[])])
 %     drawnow
     
 end
+meanOtfPd = fftshift( fftshift( ifft (ifft( meanOtfPd, nOtf, 1), nOtf, 2)/normTel, 1), 2)/(nIt-1);
+meanOtfPd = reshape(meanOtfPd,nOtf,nOtf*nScs);
+meanOtfPd = mat2cell(meanOtfPd,nOtf,nOtf*ones(1,nScs));
 toc
 
 %%
@@ -281,38 +296,38 @@ ylabel('Variance [rd^2]')
 atm.wavelength = atmWavelength;
 
 %%
-% Optical transfer function
-normTel = sum(tel.pupil(:));
-nOtf = 2*nPx;
-otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
-bigRam = false;
-if bigRam
-    turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
-    turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
-    residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
-    tic
-    otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normgTel,residualWave,'UniformOutput',false);
-    toc
-    clear residualWave
-    for kScs = 1:nScs
-        otfPd{kScs} = mean(reshape(cell2mat(otfPd((nScs+kScs):nScs:end)),nOtf,nOtf,nIt-1),3);
-    end
-    meanOtfPd = otfPd(1:nScs);
-    clear otfPd
-else
-    meanOtfPd = cell(1,nScs);
-    h = waitbar(0,'Computing OTFs ...');
-    tic
-    for kScs = 1:nScs
-        otfPd = bsxfun(@times,tel.pupil,exp(1i.*turbRes(:,:,(nScs+kScs):nScs:end)));
-        otfPd = mean( abs(fft( fft( otfPd, nOtf, 1) , nOtf, 2)).^2 , 3);
-        meanOtfPd{kScs} = fftshift(ifft2( otfPd, nOtf, nOtf)/normTel);
-        waitbar(kScs/nScs)
-    end
-    toc
-    close(h)
-    clear residualWave otfPd
-end
+% % Optical transfer function
+% normTel = sum(tel.pupil(:));
+% nOtf = 2*nPx;
+% otfTel = fftshift(ifft2(abs(fft2(tel.pupil,nOtf,nOtf)).^2))/normTel;
+% bigRam = false;
+% if bigRam
+%     turbRes = reshape(turbRes,nPx,nPx*nScs*nIt);
+%     turbRes = mat2cell(turbRes,nPx,nPx*ones(1,nScs*nIt));
+%     residualWave = cellfun(@(x)tel.pupil.*exp(1i*x),turbRes,'UniformOutput',false);
+%     tic
+%     otfPd = cellfun(@(x)fftshift(ifft2(abs(fft2(x,nOtf,nOtf)).^2))/normgTel,residualWave,'UniformOutput',false);
+%     toc
+%     clear residualWave
+%     for kScs = 1:nScs
+%         otfPd{kScs} = mean(reshape(cell2mat(otfPd((nScs+kScs):nScs:end)),nOtf,nOtf,nIt-1),3);
+%     end
+%     meanOtfPd = otfPd(1:nScs);
+%     clear otfPd
+% else
+%     meanOtfPd = cell(1,nScs);
+%     h = waitbar(0,'Computing OTFs ...');
+%     tic
+%     for kScs = 1:nScs
+%         otfPd = bsxfun(@times,tel.pupil,exp(1i.*turbRes(:,:,(nScs+kScs):nScs:end)));
+%         otfPd = mean( abs(fft( fft( otfPd, nOtf, 1) , nOtf, 2)).^2 , 3);
+%         meanOtfPd{kScs} = fftshift(ifft2( otfPd, nOtf, nOtf)/normTel);
+%         waitbar(kScs/nScs)
+%     end
+%     toc
+%     close(h)
+%     clear residualWave otfPd
+% end
 % Strehl ratio
 u = linspace(-tel.D,tel.D,nOtf);
 strehlRatioFun = @(x)real(trapz(u,trapz(u,x)))/tel.area;
@@ -379,3 +394,8 @@ ylabel('arcsec')
 % shading interp
 % axis square
 % colorbar
+
+%%
+filename = sprintf('raven-%s-%dscs-%dgs%dMag-#it%d',datestr(now,30),nScs,nGs,gs(1).magnitude,nIt);
+save(filename)
+fprintf(' >> Run saved in %s\n',filename)

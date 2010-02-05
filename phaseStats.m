@@ -224,49 +224,35 @@ classdef phaseStats
             end
         end
         
-        function out = zernikeVariance(zern,atm,tel)
-            %% VARIANCE Zernike coefficients variance
+        function out = zernikeVariance(zern,atm)
+            %% ZERNIKEVARIANCE Zernike coefficients variance
             %
-            % out = variance(modes,atmosphere,telescope) computes the
-            % variance of Zernike coefficients from the modes, the
-            % atmosphere object and the telescope object
+            % out = variance(modes,atmosphere) computes the
+            % variance of Zernike coefficients from the modes and the
+            % atmosphere object
             %
-            % out = variance(zernike,atmosphere,telescope) computes the
+            % out = variance(zernike,atmosphere) computes the
             % variance of Zernike coefficients from the Zernike polynomials
-            % object, the atmosphere object and the telescope object
-            %
-            % out = variance(modes,atmTel) computes the variance of Zernike
-            % coefficients from the modes and the atmosphere&telescope
-            % object
-            %
-            % out = variance(zernike,atmTel) computes the variance of
-            % Zernike coefficients from the Zernike polynomials object and
-            % the atmosphere&telescope object
+            % object and the atmosphere object
             %
             % Example:
             % atm = atmosphere(photometry.V,0.15,30);
             % tel = telescope(10);
             % modes = 1:15;
             % figure
-            % semilogy(modes,phaseStats.zernikeVariance(modes,atm,tel),'--.')
+            % semilogy(modes,phaseStats.zernikeVariance(modes,atm),'--.')
             % xlabel('Zernike modes')
             % ylabel('Variance [rd^2]')
             %
-            % See also zernikepolynomials, atmosphere, telescope, AT
+            % See also zernike, atmosphere
             
             
             if ~isa(zern,'zernike')
                 zern = zernike(zern);
             end
-            if nargin<3
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = atm.D;
-            else
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = tel.D;
-            end
+            r0 = atm.r0;
+            L0 = atm.L0;
+            D  = zern.D;
             jv = zern.j;
             nv = zern.n;
             mv = zern.m;
@@ -395,25 +381,16 @@ classdef phaseStats
             end
         end
         
-        function out = zernikeCovariance(zern,atm,tel)
-            %% COVARIANCE Zernike coefficients covariance
+        function out = zernikeCovariance(zern,atm)
+            %% ZERNIKECOVARIANCE Zernike coefficients covariance
             %
-            % out = phaseStats.covariance(modes,atmosphere,telescope)
+            % out = phaseStats.covariance(modes,atmosphere)
             % computes the covariance matrix of Zernike coefficients from
-            % the modes, the atmosphere object and the telescope object
+            % the modes and the atmosphere object
             %
-            % out = covariance(zernike,atmosphere,telescope) computes the
+            % out = covariance(zernike,atmosphere) computes the
             % covariance matrix of Zernike coefficients from the Zernike
-            % polynomials object, the atmosphere object and the telescope
-            % object
-            %
-            % out = covariance(modes,atmTel) computes the covariance matrix
-            % of Zernike coefficients from the modes and the
-            % atmosphere&telescope object
-            %
-            % out = covariance(zernike,atmTel) computes the covariance
-            % matrix of Zernike coefficients from the Zernike polynomials
-            % object and the atmosphere&telescope object
+            % polynomials object and the atmosphere object
             %
             % Example:
             % atm = atmosphere(photometry.V,0.15,30);
@@ -422,21 +399,15 @@ classdef phaseStats
             % figure
             % spy(phaseStats.zernikeCovariance(modes,atm,tel))
             %
-            % See also zernikepolynomials, atmosphere, telescope
+            % See also zernike, atmosphere
             
             
             if ~isa(zern,'zernike')
                 zern = zernike(zern);
             end
-            if nargin<3
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = atm.D;
-            else
-                r0 = atm.r0;
-                L0 = atm.L0;
-                D  = tel.D;
-            end
+            r0 = atm.r0;
+            L0 = atm.L0;
+            D  = zern.D;
             % -- covariance --
             n = zern.n;
             m = zern.m;
@@ -595,11 +566,11 @@ classdef phaseStats
             %
             % out = zernikeResidualVariance(N,atm,tel)
             
-            zern = zernike(1:N);
+            zern = zernike(1:N,tel.D);
             r0 = atm.r0;
             L0 = atm.L0;
             D  = tel.D;
-            aiVar = phaseStats.zernikeVariance(zern,atm,tel);
+            aiVar = phaseStats.zernikeVariance(zern,atm);
             
             if isinf(L0)
                 Delta1 = -(2.*gamma(11./6).^2./pi.^1.5).*(24.*gamma(6./5)./5).^(5./6).*...
@@ -610,19 +581,19 @@ classdef phaseStats
             end
         end
         
-        function aiaj = zernikeAngularCovariance(zern,atm,tel,src,optSrc)
+        function aiaj = zernikeAngularCovariance(zern,atm,src,optSrc)
             %% ZERNIKEANGULARCOVARIANCE Zernike coefficients angular covariance
             %
-            % aiaj = zernikeAngularCovariance(zern,atm,tel,src) computes
+            % aiaj = zernikeAngularCovariance(zern,atm,src) computes
             % the covariance matrix between Zernike coefficients of Zernike
             % polynomials zern corresponding to wavefront propagating from
-            % two sources src(1) and src(2) through the atmosphere atm and
-            % to the telescope tel
+            % two sources src(1) and src(2) through the atmosphere atm
             %
-            % See also zernikepolynomials, atmosphere, telescope, source
+            % See also zernike, atmosphere, source
+            
             nGs = numel(src);
             if nGs>2 % then its a meta-matrix
-                if nargin<5 % a correlation meta-matrix
+                if nargin<4 % a correlation meta-matrix
                     iSrc = src;
                     jSrc = src;
                     mGs = nGs;
@@ -632,7 +603,7 @@ classdef phaseStats
                         gsCurrent = iSrc(iGs);
                         for jGs = iGs:mGs
                             fprintf('gs#%d/gs#%d - ',iGs,jGs)
-                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,tel,[gsCurrent,jSrc(jGs)]);
+                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
                         end
                         fprintf('\b\b\b\n')
                     end
@@ -648,19 +619,17 @@ classdef phaseStats
                         gsCurrent = iSrc(iGs);
                         for jGs = 1:mGs
                             fprintf('gs#%d/gs#%d - ',iGs,jGs);
-                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,tel,[gsCurrent,jSrc(jGs)]);
+                            aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
                         end
                         fprintf('\b\b\b\n')
                     end
-                    index = cellfun(@isempty,aiaj);
-                    aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
                 end
 %                 aiaj = cell2mat(aiaj);
             else
                 if src(1)==src(2)
-                    aiaj = phaseStats.zernikeCovariance(zern,atm,tel);
+                    aiaj = phaseStats.zernikeCovariance(zern,atm);
                 else
-                    R   = tel.R;
+                    R   = zern.R;
                     zs1 = src(1).height;
                     zs2 = src(2).height;
                     xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
@@ -675,7 +644,8 @@ classdef phaseStats
                     znmi = znmj';
                     index = triu(true(nMode));
                     aiajFun = @ (znmi,znmj) ...
-                        quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), 0, Inf);
+                        quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                        0, Inf, 'AbsTol',0, 'RelTol',1e-2);
                     aiaj = zeros(nMode);
                     %                 tic
                     aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
@@ -720,7 +690,7 @@ classdef phaseStats
                 out = real(out);
             end
         end
-        
+                
         function out = zern_aiaj(zi,ni,mi,zj,nj,mj,atm,tel)
             out = 0;
             if (ni==0) && (nj==0)

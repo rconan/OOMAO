@@ -157,8 +157,9 @@ classdef detector < handle
             image = image.*obj.exposureTime; % flux integration
             if license('checkout','statistics_toolbox')
                 if ~obj.photonNoiseLess
-                    image = obj.quantumEfficiency*poissrnd(image);
+                    image = poissrnd(image);
                 end
+                image = obj.quantumEfficiency*image;
                 if obj.readOutNoise>0
                     image = normrnd(image,obj.readOutNoise);
                 end
@@ -170,6 +171,7 @@ classdef detector < handle
                     image(index) = buffer(index);
                     image = obj.quantumEfficiency*image;
                 end
+                image = obj.quantumEfficiency*image;
                 if obj.readOutNoise>0
                     image = image + randn(size(image)).*obj.readOutNoise;
                 end

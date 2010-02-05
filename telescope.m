@@ -1,4 +1,4 @@
-classdef telescope < telescopeCore
+classdef telescope < telescopeAbstract
     % TELESCOPE Create a telescope object
     %
     % sys = telescope(D) creates a telescope object from the telescope diameter D
@@ -61,7 +61,7 @@ classdef telescope < telescopeCore
             p.addParamValue('samplingTime', [], @isnumeric);
             p.addParamValue('opticalAberration', [], @(x) isa(x,'atmosphere'));
             p.parse(D,varargin{:});
-            obj = obj@telescopeCore(D,...
+            obj = obj@telescopeAbstract(D,...
                 'obstructionRatio',p.Results.obstructionRatio,...
                 'fieldOfViewInArcsec',p.Results.fieldOfViewInArcsec,...
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin,...
@@ -81,7 +81,7 @@ classdef telescope < telescopeCore
             end
             checkOut(obj.log,obj)
         end
-        
+
         %% Set/Get for opticalAberration property
         function set.opticalAberration(obj,val)
             obj.atm = val;
@@ -104,27 +104,27 @@ classdef telescope < telescopeCore
             %
             % obj = update(obj) moves the phase screens and returns the
             % object
-            
 %             disp(' (@telescope) > Layer translation')
             if ~isempty(obj.atm)
 %                 disp('HERE')
                 for kLayer=1:obj.atm.nLayer
                     
-                    pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
+                   pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                     % 1 pixel increased phase sampling vector                    
                     u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength; 
+                    [xu0,yu0] = meshgrid(u0);
                     % phase sampling vector
                     u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
 
                     % phase displacement in meter
-                    leap = [obj.windVx obj.windVy].*(obj.count(kLayer)+1).*obj.samplingTime;
+                    leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
                     % phase displacement im pixel
                     pixelLeap = leap/pixelLength;
                     
-                    notDoneOnce = true;
+                   notDoneOnce = true;
                     while any(pixelLeap>1) || notDoneOnce
-                        notDoneOnce = false;
-                        
+                       notDoneOnce = false;
+                       
                         if obj.count(kLayer)==0
                             % 1 pixel around phase increase
                             Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
@@ -137,8 +137,10 @@ classdef telescope < telescopeCore
                         step   = min(leap,pixelLength);
                         xShift = u - step(1);
                         yShift = u - step(2);
+%                         obj.atm.layer(kLayer).phase ...
+%                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
                         obj.atm.layer(kLayer).phase ...
-                               = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                               = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
                         
                         leap = leap - step;
                         pixelLeap = leap/pixelLength;
@@ -146,7 +148,7 @@ classdef telescope < telescopeCore
                     end
                         
                     obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
-                    
+                   
                 end
                 
                 
@@ -155,7 +157,6 @@ classdef telescope < telescopeCore
             if nargout>0
                 varargout{1} = obj;
             end
-            
         end
         function varargout = uplus(obj)
             %% UPLUS + Update operator
@@ -201,7 +202,7 @@ classdef telescope < telescopeCore
             % the properties of the source object(s)
             
             nSrc = numel(srcs);
-            for kSrc=1:nSrc
+            parfor kSrc=1:nSrc
                 src = srcs(kSrc);
                 src.mask      = obj.pupilLogical;
                 if isempty(src.nPhoton)
@@ -209,7 +210,7 @@ classdef telescope < telescopeCore
                 else
                     src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
                 end
-                out = fresnelPropagation(src,obj);
+                out = 0;
                 if ~isempty(obj.atm)
                     if obj.fieldOfView==0 && isNgs(src)
                         out = out + sum(cat(3,obj.atm.layer.phase),3);
@@ -228,8 +229,11 @@ classdef telescope < telescopeCore
                             end
                         end
                     end
+                    if ~isempty(src.wavelength)
+                        out = (obj.atm.wavelength/src.wavelength)*out;
+                    end
                 end
-                src.phase = out;
+                src.phase = fresnelPropagation(src,obj) + out;
             end
         end
                  
@@ -444,7 +448,7 @@ classdef telescope < telescopeCore
     methods (Access=private)
         
         function obj = init(obj)
-            nInner = 2;
+            nInner = 1;
             obj.sampler = linspace(-1,1,obj.resolution);
             add(obj.log,obj,'Initializing phase screens making parameters:')
             obj.log.verbose = false;

@@ -99,11 +99,11 @@ classdef utilities
             
             if isempty(v)
                 if numel(u)==1
-                    u = linspace(-1,1,u);
+                    u = 2*( -(u-1)/2:(u-1)/2 )/u;%linspace(-1,1,u);
                 end
                 v=u;
             elseif (numel(u)==1) && (numel(v)==1)
-                u = linspace(-v,v,u);
+                u = 2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
                 v = u;
             end
             
@@ -126,7 +126,7 @@ classdef utilities
                 case 'radius'
                     varargout{1} = r;
                 otherwise
-                    error('cougar:utilities:cartAndPol:wrongOutput',...
+                    error('oomao:utilities:cartAndPol:wrongOutput',...
                         'Valid outputs are all, polar or radius.')
             end
             

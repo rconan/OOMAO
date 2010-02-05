@@ -20,17 +20,17 @@ atm = atmosphere(2.2e-6,0.8,25,...
     'fractionnalR0',1,...
     'windSpeed',10,...
     'windDirection',0)
-sys = telescope(10,...
+tel = telescope(10,...
     'fieldOfViewInArcMin',2,...
     'resolution',60,...
-    'samplingTime',1/500,...
-    'opticalAberration',atm)
-update(sys)
-imagesc(sys)
+    'samplingTime',1/500)
+tel = tel + atm;
++tel;
+imagesc(tel)
 %% 
 % At any time, the phase screen of each layer is stored in the phase
 % property of the <matlab:doc('turbulenceLayer') layer> object 
-sys.opticalAberration.layer
+tel.opticalAberration.layer
 %%
 % For a given direction in the sky, the geometric propagation of the phase
 % through the turbulence layers into the telescope pupil are computed with
@@ -39,62 +39,61 @@ sys.opticalAberration.layer
 % object
 %%
 % * a natural guide star on axis
-src = source == sys;
+src = source.*tel;
 figure
 imagesc(src.meanRmPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
-src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) == sys;
+src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) .* tel;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
-src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) == sys;
+src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) .* tel;
 imagesc(src.catPhase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
-sys.focalDistance = 90e3;
-src == sys
+tel.focalDistance = 90e3;
+src = src .* tel;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 
 %% a 3 layer case
-delete(imagesc(sys))
+delete(imagesc(tel))
 atm = atmosphere(2.2e-6,0.8,25,...
     'altitude',[0,10,15].*1e3,...
     'fractionnalR0',[0.7,0.2,0.1],...
     'windSpeed',[10,5,15],...
     'windDirection',[0,pi/4,pi/2]);
-sys.opticalAberration = atm;
-update(sys)
-imagesc(sys)
+tel=tel+atm;
+imagesc(+tel)
 %%
-sys.opticalAberration.layer(1)
-sys.opticalAberration.layer(2)
-sys.opticalAberration.layer(3)
+tel.opticalAberration.layer(1)
+tel.opticalAberration.layer(2)
+tel.opticalAberration.layer(3)
 %%
 % * a natural guide star on axis
-src = source == sys;
+src = source .* tel;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a natural guide star off axis
-src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) == sys;
+src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4) .* tel;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 %%
 % * an asterism of 4 stars conjugated at infinity
-src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) == sys;
+src =  source('asterism',{[0,0],[3,60*cougarConstants.arcsec2radian,30]}) .* tel;
 imagesc([src.meanRmPhase])
 axis equal tight, colorbar('NorthOutside')
 %%
 % * a single source laser guide star
 src = source('zenith',0,'azimuth',0,'height',91e3,'wavelength',589e-9);
-sys.focalDistance = 90e3;
-src == sys
+tel.focalDistance = 90e3;
+src =  src .* tel;
 imagesc(src.phase)
 axis equal tight, colorbar('NorthOutside')
 

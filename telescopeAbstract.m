@@ -1,4 +1,4 @@
-classdef telescopeCore < handle
+classdef telescopeAbstract < handle
     % TELESCOPECORE Create a telescopeCore object
     %
     % tel = telescopeCore(D) creates a telescopeCore object from the diameter D.
@@ -44,7 +44,7 @@ classdef telescopeCore < handle
     methods
         
         %% Constructor
-        function obj = telescopeCore(D,varargin)
+        function obj = telescopeAbstract(D,varargin)
             p = inputParser;
             p.addRequired('D', @isnumeric);
             p.addParamValue('obstructionRatio', 0, @isnumeric);
@@ -66,6 +66,29 @@ classdef telescopeCore < handle
                 obj.fieldOfView      = 0;
             end
             obj.resolution       = p.Results.resolution;
+        end
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % disp(obj) prints information about the telescope object
+            
+            if obj.obstructionRatio==0
+                fprintf(' %4.2fm diameter full aperture',obj.D)
+            else
+                fprintf(' %4.2fm diameter with a %4.2f%% central obstruction',...
+                    obj.D,obj.obstructionRatio*100)
+            end
+            fprintf(' with %5.2fm^2 of light collecting area;\n',obj.area)
+            if obj.fieldOfView~=0
+                fprintf(' the field-of-view is %4.2farcmin;',...
+                    obj.fieldOfView*constants.radian2arcmin)
+            end
+            if ~isempty(obj.resolution)
+                fprintf(' the pupil is sampled with %dX%d pixels',...
+                    obj.resolution,obj.resolution)
+            end
+            fprintf('\n')
         end
 
         %% Get and Set the pupil
@@ -174,14 +197,14 @@ classdef telescopeCore < handle
     methods (Static)
                 
         function out = symFT(symf)
-            syms D ri s
-            u = pi*D*symf;
-            s = pi*D^2/4;
+            syms sD ri s
+            u = pi*sD*symf;
+            s = pi*sD^2/4;
             out = 2*s*besselj(1,u)/u;
-            u = pi*D*ri*symf;
+            u = pi*sD*ri*symf;
             s = s*ri^2;
             out = out - 2*s*besselj(1,u)/u;
-            out = out/(pi*D^2*(1-ri^2)/4);
+            out = out/(pi*sD^2*(1-ri^2)/4);
         end
         
     end
