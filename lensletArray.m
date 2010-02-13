@@ -21,6 +21,8 @@ classdef lensletArray < handle
         nArray;
         % optical throughput
         throughput=1;
+        % lenslet array tag
+        tag='LENSLET ARRAY';
     end
     
     properties (SetObservable=true)
@@ -78,6 +80,29 @@ classdef lensletArray < handle
                 delete(get(obj.imageHandle,'parent'));
             end
             checkOut(obj.log,obj)
+        end
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % disp(obj) prints information about the lenslet array object
+          
+            fprintf('___ %s ___\n',obj.tag)
+            if obj.nArray>1
+                fprintf(' %d %dx%d lenslet array: \n',...
+                    obj.nArray,obj.nLenslet*ones(1,2))
+            else
+                fprintf(' %dx%d lenslet array: \n',...
+                    obj.nLenslet*ones(1,2))
+            end
+            fprintf('  . %3.1f pixels across the diffraction limited spot fwhm\n',...
+                obj.nyquistSampling*2);
+            fprintf('  . %d pixels across the square lenslet field stop size\n',...
+                obj.fieldStopSize*obj.nyquistSampling*2);            
+            fprintf('  . optical throughput coefficient: %3.1f\n',...
+                obj.throughput);            
+            fprintf('----------------------------------------------------\n')
+            
         end
 
         %% Lenslet image sampling

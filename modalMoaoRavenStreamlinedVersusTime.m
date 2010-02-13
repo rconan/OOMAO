@@ -1,7 +1,7 @@
 %% ADAPTIVE OPTICS TOMOGRAPHY HOWTO
 % Demonstrate how to build a tomographic adaptive optics system
 
-nosave = false;
+nosave = true;
 %% Atmosphere 
 Cn2 = [6.39 3.94 1.46 1.73 3.11 2.69 2.81];
 fr0 = Cn2/sum(Cn2);
@@ -26,7 +26,7 @@ wfs = shackHartmann(nLenslet,nPx,0.75);
 wfs.lenslets.throughput = 0.75;
 wfs.camera.exposureTime = 1/500;
 wfs.camera.quantumEfficiency = 0.8;
-setValidLenslet(wfs,utilities.piston(nPx))
+setValidLenslet(wfs,tel.pupil)
 
 %% Deformable mirror
 nActuator = nLenslet + 1;

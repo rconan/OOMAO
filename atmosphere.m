@@ -49,6 +49,8 @@ classdef atmosphere < handle
         nLayer;
         % turbulence layer object array
         layer;
+        % atmosphere tag
+        tag = 'ATMOSPHERE';
     end
     
     properties (Dependent)
@@ -123,6 +125,7 @@ classdef atmosphere < handle
             %
             % disp(obj) prints information about the atmosphere object
             
+            fprintf('___ %s ___\n',obj.tag)
             if isinf(obj.L0)
                 fprintf(' Kolmogorov-Tatarski atmospheric turbulence:\n')
                 fprintf('  wavelength=%.2fmicron, r0=%.2fcm, seeing=%.2farcsec,\n  ',...
@@ -152,6 +155,8 @@ classdef atmosphere < handle
                     obj.layer(kLayer).D,...
                     obj.layer(kLayer).nPixel)
             end
+            fprintf('----------------------------------------------------\n')
+            
         end
        
         function val = get.wavelength(obj)

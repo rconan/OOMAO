@@ -22,6 +22,7 @@ tel = telescope(8.2,...
 %% Wavefront sensor
 nLenslet = 16;
 wfs = shackHartmann(nLenslet,nPx,0.75);
+wfs.tag = 'OPEN-LOOP WFS';
 wfs.lenslets.throughput = 0.75;
 wfs.camera.exposureTime = 1/500;
 wfs.camera.quantumEfficiency = 0.8;
@@ -44,11 +45,12 @@ zern = zernike(2:zernModeMax,tel.D,'resolution',nPx);
  % Calibration source
 ngs = source('wavelength',photometry.R);
 gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
-    'wavelength',photometry.R,'magnitude',12);
+    'wavelength',photometry.R,'magnitude',12,'tag','GUIDE STARS');
 % scs = source('asterism',{[0,0],[30*cougarConstants.arcsec2radian,pi/4]},'wavelength',photometry.H);
 scs = source('asterism',{[0,0],...
     [12, 30*cougarConstants.arcsec2radian, 0],...
-    [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H);
+    [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H,...
+    'tag','SCIENCE STARS');
 nScs = length(scs);
 nGs = length(gs);
 
@@ -101,7 +103,7 @@ withNoise = true;
 ngs.magnitude = gs(1).magnitude;
 wfs.camera.readOutNoise = 3;
 wfs.camera.photonNoiseLess = false;
-wfs.framePixelThreshold = 6;
+wfs.framePixelThreshold = 3;
 ngs=ngs.*tel*wfs;
 slopesAndFrameDisplay(wfs)
 
@@ -192,7 +194,7 @@ DzAst = blkdiag( Dz , Dz , Dz );
 % imagesc([ps;phaseLS;phaseMV])
 % axis equal tight xy
 
-%% Target matrix
+%% Target command matrix
 M = cell(nScs,1);
 denom = DzAst*S*DzAst'+CznAst;
 for kScs = 1:nScs

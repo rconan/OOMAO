@@ -6,7 +6,7 @@ classdef detector < handle
     
     properties
         % Add or not photon noise to the frame
-        photonNoiseLess = true;
+        photonNoise = false;
         % # of photo-electron per pixel rms
         readOutNoise = 0;
         % quantum efficiency
@@ -28,6 +28,8 @@ classdef detector < handle
         frameListener;
         % frame grabber callback function
         frameGrabber;
+        % detector tag
+        tag= 'DETECTOR';
     end
     
     properties (SetObservable=true)
@@ -87,6 +89,29 @@ classdef detector < handle
                 delete(obj.paceMaker)
             end
             checkOut(obj.log,obj)
+        end
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % disp(obj) prints information about the detector object
+          
+            fprintf('___ %s ___\n',obj.tag)
+            fprintf(' %dx%d pixels camera \n',...
+                obj.resolution)
+            fprintf('  . quantum efficiency: %3.1f \n',...
+                obj.quantumEfficiency)
+            if obj.photonNoise
+                fprintf('  . photon noise enabled\n')
+            else
+                fprintf('  . photon noise disabled\n')
+            end
+            fprintf('  . %.1f photo-events rms read-out moise \n',...
+                obj.readOutNoise)
+            fprintf('  . %3.1fms exposure time and %3.1fHz frame rate \n',...
+                obj.exposureTime*1e3,obj.frameRate)
+            fprintf('----------------------------------------------------\n')
+            
         end
         
         function imagesc(obj,varargin)
@@ -151,12 +176,12 @@ classdef detector < handle
             %% READOUT Detector readout
             %
             % readOut(obj,image) adds noise to the image: photon noise if
-            % photonNoiseLess property is false and readout noise if
+            % photonNoise property is true and readout noise if
             % readOutNoise property is greater than 0
             
             image = image.*obj.exposureTime; % flux integration
             if license('checkout','statistics_toolbox')
-                if ~obj.photonNoiseLess
+                if obj.photonNoise
                     image = poissrnd(image);
                 end
                 image = obj.quantumEfficiency*image;
@@ -164,7 +189,7 @@ classdef detector < handle
                     image = normrnd(image,obj.readOutNoise);
                 end
             else
-                if ~obj.photonNoiseLess
+                if obj.photonNoise
                     buffer    = image;
                     image = image + randn(size(image)).*image;
                     index     = image<0;
