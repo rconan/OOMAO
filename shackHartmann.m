@@ -53,6 +53,8 @@ classdef shackHartmann < handle
         slopesUnits = 1;
         % zernike to slopes conversion matrix
         zern2slopes;
+        % wavefront sensor tag
+        tag = 'SHACK-HARTMANN WAVEFRONT SENSOR';
     end
     
     properties (Dependent,SetObservable=true,GetObservable=true)
@@ -158,6 +160,30 @@ classdef shackHartmann < handle
             delete(obj.lenslets)
             delete(obj.camera)
             checkOut(obj.log,obj)
+        end
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % disp(obj) prints information about the Shack-Hartmann
+            % wavefront sensor object
+          
+            fprintf('___ %s ___\n',obj.tag)
+            fprintf(' Shack-Hartmann wavefront sensor: \n  . %d lenslets total on the pupil\n  . %d pixels per lenslet \n',...
+                obj.nValidLenslet,obj.camera.resolution(1)/obj.lenslets.nLenslet)
+            if isinf(obj.framePixelThreshold)
+                algoProp = ', no thresholding!';
+            else
+                algoProp = sprintf(', pixel threshold: %d\n',obj.framePixelThreshold);
+            end
+            
+            algo = {'quadCell','centroiding','matchedFilter','correlation'};
+            algoTF = [obj.quadCell,obj.centroiding,obj.matchedFilter,obj.correlation];
+            fprintf('  . spot algorithm: %s%s\n',algo{algoTF},algoProp);
+            fprintf('----------------------------------------------------\n')
+            display(obj.lenslets)
+            display(obj.camera)
+
         end
         
         %% Get and Set slopes
@@ -324,7 +350,6 @@ classdef shackHartmann < handle
             if obj.quadCell
             elseif obj.centroiding
                 massLenslet         = sum(buffer);
-                %                 index               = massLenslet~=0;
                 %                 massLenslet(~index) = [];
                 %                 buffer(:,~index)    = [];
                 %                 size(buffer)
@@ -342,7 +367,14 @@ classdef shackHartmann < handle
 %                 size(xyBuffer)
                 xBuffer = reshape(xBuffer,obj.nValidLenslet,nLensletArray*nFrame);
                 yBuffer = reshape(yBuffer,obj.nValidLenslet,nLensletArray*nFrame);
-                obj.p_slopes = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes).*obj.slopesUnits;
+                sBuffer = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes).*obj.slopesUnits;
+                index = isnan(sBuffer);
+                if any(index(:)) % if all pixels threshold
+                    warning('OOMAO:shackHartmann:dataProcessing',...
+                        'Threshold is probably too high1')
+                    sBuffer(index) = obj.p_slopes(index);
+                end
+                obj.p_slopes = sBuffer;
             elseif obj.matchedFilter
             elseif obj.correlation
             end
@@ -368,10 +400,25 @@ classdef shackHartmann < handle
             % out = grabAndProcess(obj) grabs a frame, computes and returns
             % the slopes
             
+            warning('OOMAO;shackHartmann:grabAndProcess',...
+                'DEPRECATED! Instead use the uplus operator (+obj)')
             grab(obj.camera)
             dataProcessing(obj);
             if nargout>0
                 varargout{1} = obj.p_slopes;
+            end
+        end
+        function varargout = uplus(obj)
+            %% UPLUS + Update operator
+            %
+            % +obj grabs a frame and computes the slopes
+            %
+            % obj = +obj returns the shackHartmann object
+            
+            grab(obj.camera)
+            dataProcessing(obj);
+            if nargout>0
+                varargout{1} = obj;
             end
         end
   

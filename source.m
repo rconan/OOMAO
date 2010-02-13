@@ -33,6 +33,8 @@ classdef source < stochasticWave & hgsetget
         % cell array of handles of objects the source is propagating through  
         opticalPath;
         log;
+        % source tag
+        tag;
     end
     
     properties (SetAccess=private)
@@ -68,11 +70,12 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('zenith',0,@isnumeric);
             p.addParamValue('azimuth',0,@isnumeric);
             p.addParamValue('height',Inf,@isnumeric);
-            p.addParamValue('wavelength',[],@isnumeric);
+            p.addParamValue('wavelength',photometry.V,@isnumeric);
             p.addParamValue('magnitude',[],@isnumeric);
             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);
+            p.addParamValue('tag','SOURCE',@ischar);
             p.parse(varargin{:});
             persistent nCall
             if nargin>0 || isempty(nCall)
@@ -116,11 +119,8 @@ classdef source < stochasticWave & hgsetget
                         end
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
+                        obj(1,kObj,kHeight).tag        = p.Results.tag;
                         setDirectionVector(obj(1,kObj,kHeight))
-                        if ~isempty(obj(1,kObj,kHeight).log)
-                            checkOut(obj(1,kObj,kHeight).log,obj(1,kObj,kHeight))
-                        end
-                       obj(1,kObj,kHeight).log = logBook.checkIn(obj(1,kObj,kHeight));
                    end
                 end
                 nCall = [];
@@ -133,14 +133,23 @@ classdef source < stochasticWave & hgsetget
                 obj.magnitude  = p.Results.magnitude;
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
+                obj.tag        = p.Results.tag;
                 setDirectionVector(obj)
+            end
+            % Here we are registering the source object(s) into the log
+            % book
+            if isempty(nCall)
+                for k=1:numel(obj)
+                    obj(k).log = logBook.checkIn(obj(k));
+                end
             end
          end
         
         %% Destructor
         function delete(obj)
-            disp('Delete')
+            if ~isempty(obj.log)
                 checkOut(obj.log,obj)
+            end
         end
         
         %% Get and Set nPhoton
@@ -189,7 +198,8 @@ classdef source < stochasticWave & hgsetget
             %
             % disp(obj) prints information about the source object
             nObj = numel(obj);
-                fprintf(' Obj   zen[arcsec] azim[deg]  height[m]  lambda[micron] magnitude\n')
+            fprintf('___ %s ___\n',obj(1).tag)
+            fprintf(' Obj   zen[arcsec] azim[deg]  height[m]  lambda[micron] magnitude\n')
             for kObj=1:nObj
                 fprintf(' %2d     %5.2f      %6.2f    %8.2f     %5.2f          %5.2f\n',...
                     kObj,obj(kObj).zenith*cougarConstants.radian2arcsec,...
@@ -201,6 +211,7 @@ classdef source < stochasticWave & hgsetget
                 cellfun(@(x) fprintf('~>~%s',class(x)), obj(1).opticalPath,'uniformOutput',false);
                 fprintf('\n')
             end
+            fprintf('----------------------------------------------------\n')
         end
         
         function bool = isNgs(obj)

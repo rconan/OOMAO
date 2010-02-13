@@ -21,6 +21,8 @@ classdef telescopeAbstract < handle
         fieldOfView;
         % diameter resolution in pixel
         resolution;
+        % telescope tag
+        tag = 'TELESCOPE';
     end
     
     properties (Dependent)
@@ -73,6 +75,7 @@ classdef telescopeAbstract < handle
             %
             % disp(obj) prints information about the telescope object
             
+            fprintf('___ %s ___\n',obj.tag)
             if obj.obstructionRatio==0
                 fprintf(' %4.2fm diameter full aperture',obj.D)
             else
@@ -89,6 +92,7 @@ classdef telescopeAbstract < handle
                     obj.resolution,obj.resolution)
             end
             fprintf('\n')
+            fprintf('----------------------------------------------------\n')
         end
 
         %% Get and Set the pupil
