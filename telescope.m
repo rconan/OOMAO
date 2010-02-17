@@ -201,9 +201,18 @@ classdef telescope < telescopeAbstract
             % relay(obj,srcs) writes the telescope amplitude and phase into
             % the properties of the source object(s)
             
+            if isempty(obj.resolution) % Check is resolution has been set
+                if isscalar(srcs(1).amplitude) % if the src is not set either, do nothing
+                    return
+                else % if the src is set, set the resolution according to src wave resolution
+                    obj.resolution = length(srcs(1).amplitude);
+                end
+            end
+            
             nSrc = numel(srcs);
-            parfor kSrc=1:nSrc
+            parfor kSrc=1:nSrc % Browse the srcs array
                 src = srcs(kSrc);
+                % Set mask and pupil first
                 src.mask      = obj.pupilLogical;
                 if isempty(src.nPhoton)
                     src.amplitude = obj.pupil;
@@ -211,7 +220,7 @@ classdef telescope < telescopeAbstract
                     src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
                 end
                 out = 0;
-                if ~isempty(obj.atm)
+                if ~isempty(obj.atm) % Set phase if an atmosphere is defined
                     if obj.fieldOfView==0 && isNgs(src)
                         out = out + sum(cat(3,obj.atm.layer.phase),3);
                     else
@@ -229,12 +238,11 @@ classdef telescope < telescopeAbstract
                             end
                         end
                     end
-                    if ~isempty(src.wavelength)
-                        out = (obj.atm.wavelength/src.wavelength)*out;
-                    end
+                    out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
             end
+            
         end
                  
         function out = otf(obj, r)

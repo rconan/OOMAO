@@ -11,12 +11,6 @@ classdef shackHartmann < handle
     % size nLenslet setting the location of the valid lenslets inside the
     % lenslet array
     %
-    % obj = shackHartmann(nLenslet,detectorResolution,validLenslet,guideStars) creates
-    % a Shack-Hartmann object with a (nLenslet X nLenslet) lenslet array, a
-    % detector with a detectorResolution resolution, a logical mask of
-    % size nLenslet setting the location of the valid lenslets inside the
-    % lenslet array and a guide star
-    %
     % See also: lensletArray, detector, source, lensletArrayHowto,
     % detectorHowto
     
@@ -54,7 +48,7 @@ classdef shackHartmann < handle
         % zernike to slopes conversion matrix
         zern2slopes;
         % wavefront sensor tag
-        tag = 'SHACK-HARTMANN WAVEFRONT SENSOR';
+        tag = 'SHACK-HARTMANN';
     end
     
     properties (Dependent,SetObservable=true,GetObservable=true)
@@ -241,12 +235,12 @@ classdef shackHartmann < handle
         end
         function set.referenceSlopes(obj,val)
             obj.p_referenceSlopes = val;
-            if ishandle(obj.slopesDisplayHandle)
-                hc = get(obj.slopesDisplayHandle,'children');
-                u = obj.p_referenceSlopes(1:end/2)+obj.lensletCenterX;
-                v = obj.p_referenceSlopes(1+end/2:end)+obj.lensletCenterY;
-                set(hc(2),'xData',u,'yData',v)
-            end
+%             if ishandle(obj.slopesDisplayHandle)
+%                 hc = get(obj.slopesDisplayHandle,'children');
+%                 u = obj.p_referenceSlopes(1:end/2)+obj.lensletCenterX;
+%                 v = obj.p_referenceSlopes(1+end/2:end)+obj.lensletCenterY;
+%                 set(hc(2),'xData',u,'yData',v)
+%             end
         end
         
         % Get the zernike coeficients
@@ -287,15 +281,19 @@ classdef shackHartmann < handle
             % lenslet based on the value of minLightRatio in the lenslets
             % object providing the pupil intensity map
             
-            n = length(pupilIntensity);
-            nL = n/obj.lenslets.nLenslet;
-            pupilIntensity = reshape(pupilIntensity,nL,n*obj.lenslets.nLenslet);
-            pupilIntensity = sum(pupilIntensity);
-            pupilIntensity = reshape(pupilIntensity,obj.lenslets.nLenslet,obj.lenslets.nLenslet*nL);
-            pupilIntensity = reshape(pupilIntensity',nL,obj.lenslets.nLenslet^2);
-            pupilIntensity = sum(pupilIntensity);
-            surfPx         = nL^2;
-            pupilIntensity = pupilIntensity/surfPx;
+            if nargin<2
+                pupilIntensity = obj.lensletIntensity./max(obj.lensletIntensity);
+            else
+                n = length(pupilIntensity);
+                nL = n/obj.lenslets.nLenslet;
+                pupilIntensity = reshape(pupilIntensity,nL,n*obj.lenslets.nLenslet);
+                pupilIntensity = sum(pupilIntensity);
+                pupilIntensity = reshape(pupilIntensity,obj.lenslets.nLenslet,obj.lenslets.nLenslet*nL);
+                pupilIntensity = reshape(pupilIntensity',nL,obj.lenslets.nLenslet^2);
+                pupilIntensity = sum(pupilIntensity);
+                surfPx         = nL^2;
+                pupilIntensity = pupilIntensity/surfPx;
+            end
             obj.p_validLenslet  = logical( ...
                 reshape( pupilIntensity>=obj.lenslets.minLightRatio , ...
                 obj.lenslets.nLenslet,obj.lenslets.nLenslet));
@@ -371,8 +369,10 @@ classdef shackHartmann < handle
                 index = isnan(sBuffer);
                 if any(index(:)) % if all pixels threshold
                     warning('OOMAO:shackHartmann:dataProcessing',...
-                        'Threshold is probably too high1')
-                    sBuffer(index) = obj.p_slopes(index);
+                        'Threshold (%f) is probably too high or simply there is no light on some of the lenslets',obj.framePixelThreshold)
+                    if ~isempty(obj.p_slopes)
+                        sBuffer(index) = obj.p_slopes(index);
+                    end
                 end
                 obj.p_slopes = sBuffer;
             elseif obj.matchedFilter
@@ -425,7 +425,9 @@ classdef shackHartmann < handle
         function relay(obj,src)
             %% RELAY
             propagateThrough(obj.lenslets,src)
-            grabAndProcess(obj)
+%             grabAndProcess(obj)
+            grab(obj.camera)
+            dataProcessing(obj);
         end
         
         function varargout = slopesDisplay(obj,varargin)

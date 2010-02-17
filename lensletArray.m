@@ -169,6 +169,17 @@ classdef lensletArray < handle
                 obj.sumStack = true;
             end
             val = src.catWave;
+            if isscalar(val) % if source amplitude and phase not set, set a default one
+                n = obj.nLensletWavePx*obj.nLenslet;
+                set(src,...
+                    'mask',true(n),...
+                    'amplitude',ones(n),...
+                    'phase',zeros(n));
+                if ~isempty(src(1).opticalPath)
+                    cellfun(@(x)relay(x,src),src(1).opticalPath,'uniformOutput',false)
+                end
+                val = src.catWave;
+            end
             [nLensletsWavePx,nLensletsWavePxNGuideStar,nWave] = size(val);
             % Resize the 3D input into a 2D input
             nLensletsWavePxNGuideStar = nLensletsWavePxNGuideStar*nWave;

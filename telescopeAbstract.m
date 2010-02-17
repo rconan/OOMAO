@@ -91,7 +91,9 @@ classdef telescopeAbstract < handle
                 fprintf(' the pupil is sampled with %dX%d pixels',...
                     obj.resolution,obj.resolution)
             end
-            fprintf('\n')
+            if obj.fieldOfView~=0 || ~isempty(obj.resolution)
+                fprintf('\n')
+            end
             fprintf('----------------------------------------------------\n')
         end
 
