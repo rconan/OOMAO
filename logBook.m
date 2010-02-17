@@ -55,7 +55,7 @@ classdef (Sealed) logBook < handle
         function add(obj,src,info)
             k           = mod(obj.kLogs,obj.nLogs) + 1;
 %             obj.logs{k} = sprintf(' @(%s)> %s\n',src.logsId,evnt.info);
-            obj.logs{k} = sprintf(' @(%s)> %s\n',class(src),info);
+            obj.logs{k} = sprintf(' @(%s)> %s\n',lower(src.tag),info);
             if obj.verbose
 %                 fprintf(obj.logs{k});
                 obj.queueIndex = [obj.queueIndex, k];
