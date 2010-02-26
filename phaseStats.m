@@ -565,6 +565,8 @@ classdef phaseStats
             %% ZERNIKERESIDUALVARIANCE
             %
             % out = zernikeResidualVariance(N,atm,tel)
+            %
+            % See also: atmosphere, telescope
             
             zern = zernike(1:N,tel.D);
             r0 = atm.r0;

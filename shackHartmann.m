@@ -159,7 +159,7 @@ classdef shackHartmann < handle
         function display(obj)
             %% DISPLAY Display object information
             %
-            % disp(obj) prints information about the Shack-Hartmann
+            % display(obj) prints information about the Shack-Hartmann
             % wavefront sensor object
           
             fprintf('___ %s ___\n',obj.tag)
@@ -460,9 +460,9 @@ classdef shackHartmann < handle
                 nPxLenslet = nPx/obj.lenslets.nLenslet;
                 mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
                 % Display lenslet center with a cross
-                u = (0:nPxLenslet:nPx-1);
-                v = (0:mPxLenslet:mPx-1);
-                [obj.lensletCenterX,obj.lensletCenterY] = ndgrid(u,v);
+                u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);%(1:nPxLenslet-1:nPx-1)-1
+                v = (0:(obj.lenslets.nLenslet-1)*nLensletArray)*(mPxLenslet-1);%(1:mPxLenslet-1:mPx-1)-1
+                [obj.lensletCenterX,obj.lensletCenterY] = meshgrid(u,v);
                 obj.lensletCenterX = obj.lensletCenterX(obj.validLenslet(:));
                 obj.lensletCenterY = obj.lensletCenterY(obj.validLenslet(:));
                 if nLensletArray>1
@@ -477,9 +477,34 @@ classdef shackHartmann < handle
                     'color','k','Marker','.',...
                     'linestyle','none',...
                     'parent',obj.slopesDisplayHandle)
-                set(gca,'xlim',[0,nPx],...
-                    'ylim',[0,mPx*nLensletArray],'visible','off')
                 axis equal tight
+                % Display lenslet footprint
+                lc = ones(1,3)*0.75;
+                u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
+                kLenslet = 1;
+                v = u(obj.validLenslet(:,kLenslet));
+                prev_v = v;
+                v = [v v(end)+nPxLenslet-1];
+                while length(v)>=length(prev_v)
+                    w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
+                    line(v,w,'LineStyle','-','color',lc)
+                    line(w,v,'LineStyle','-','color',lc)
+                    prev_v = v;
+                    kLenslet = kLenslet + 1;
+                    v = u(obj.validLenslet(:,kLenslet));
+                    v = [v v(end)+nPxLenslet-1];
+                end
+                w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
+                line(prev_v,w,'LineStyle','-','color',lc)
+                line(w,prev_v,'LineStyle','-','color',lc)
+                while kLenslet<=obj.lenslets.nLenslet
+                    v = u(obj.validLenslet(:,kLenslet));
+                    v = [v v(end)+nPxLenslet-1];
+                    w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
+                    line(v,w,'LineStyle','-','color',lc)
+                    line(w,v,'LineStyle','-','color',lc)
+                    kLenslet = kLenslet + 1;                    
+                end
                 % Display slopes reference
                 u = obj.referenceSlopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+obj.lensletCenterY;
@@ -494,6 +519,8 @@ classdef shackHartmann < handle
                 line(u,v,'color','r','marker','+',...
                     'linestyle','none',...
                     'parent',obj.slopesDisplayHandle)
+                set(gca,'xlim',[0,obj.lenslets.nLenslet*(nPxLenslet-1)],...
+                    'ylim',[0,obj.lenslets.nLenslet*(mPxLenslet-1)],'visible','off')
             end
             if nargout>0
                 varargout{1} = obj.slopesDisplayHandle;

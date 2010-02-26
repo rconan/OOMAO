@@ -9,6 +9,8 @@ classdef influenceFunction < handle
         bezierListener;
         % modes
         modes
+        % influence function tag
+        tag = 'BEZIER INFLUENCE FUN';
     end
     
     properties (SetObservable=true)

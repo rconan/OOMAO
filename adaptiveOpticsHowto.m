@@ -7,7 +7,6 @@ atm = atmosphere(photometry.V,0.15,30,...
     'fractionnalR0',[0.7,0.25,0.05],...
     'windSpeed',[5,10,20],...
     'windDirection',[0,pi/4,pi]);
-atm.wavelength = photometry.R;
 
 %% Telescope
 nPx = 60;
@@ -22,7 +21,7 @@ wfs = shackHartmann(nLenslet,nPx,0.75);
 setValidLenslet(wfs,utilities.piston(nPx))
 
 %% Source
-ngs = source;
+ngs = source('wavelength',photometry.J);
 
 %% Deformable mirror
 nActuator = nLenslet + 1;
@@ -54,21 +53,21 @@ figure
 imagesc(dm)%,'parent',subplot(1,2,2))
 dm.surfaceListener.Enabled = true;
 for k=1:97;
-    dm.coefs(k)=10;
+    dm.coefs(k)=ngs.wavelength/2;
     ngs=ngs.*tel*dm*wfs;
 %     pause(0.5);
     drawnow
     dm.coefs(k)=0;
 end
+wfs.slopesListener.Enabled = false;
+wfs.camera.frameListener.Enabled = false;
+dm.surfaceListener.Enabled = false;
 
 % stop(wfs.paceMaker)
 
 %% DM/WFS calibration
-wfs.slopesListener.Enabled = false;
-wfs.camera.frameListener.Enabled = false;
-dm.surfaceListener.Enabled = false;
 dm.coefsDefault = 0;
-stroke = 3;
+stroke = ngs.wavelength/2;
 dm.coefs = eye(dm.nValidActuator)*stroke;
 ngs=ngs.*tel*dm*wfs;
 calibrationMatrix = wfs.slopes./stroke;
@@ -117,12 +116,14 @@ wfs.slopesListener.Enabled = false;
 wfs.camera.frameListener.Enabled = false;
 gain = 0.5;
 tel = tel+atm;
+figure
+imagesc(tel)
 dm.coefs = zeros(dm.nValidActuator,1);
 ngs=ngs.*tel;
 turbPhase = ngs.meanRmPhase;
 ngs=ngs*dm*wfs;
 figure(11)
-h = imagesc([turbPhase,ngs.meanRmPhase,dm.phase]);
+h = imagesc([turbPhase,ngs.meanRmPhase]);
 axis equal tight
 colorbar
 pause
@@ -131,9 +132,10 @@ while true
     ngs=ngs.*+tel; 
     turbPhase = ngs.meanRmPhase;
     ngs=ngs*dm*wfs; 
+    ngs=ngs.*tel*dm*wfs;
     residualDmCoefs = commandMatrix*wfs.slopes;
     dm.coefs = dm.coefs - gain*residualDmCoefs;
-    set(h,'Cdata',[turbPhase,ngs.meanRmPhase,-dm.phase])
+    set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
     
     drawnow
 end
@@ -156,10 +158,10 @@ Dz = z.c(2:end,:);
 %% With noise
 onAxis = source;
 onAxis.wavelength = photometry.R;
-onAxis.magnitude = 16;
+onAxis.magnitude = 0;
 % wfs.lenslets.lightSource = onAxis;
 wfs.camera.readOutNoise = 10;
-wfs.camera.photonNoiseLess = false;
+wfs.camera.photonNoise = true;
 tel=tel-atm;
 % wfs.lenslets.wave = tel;
 wfs.framePixelThreshold = 0;
@@ -190,37 +192,37 @@ imagesc(Czn)
 axis equal tight
 colorbar
 
-% %% Phase reconstruction (BROKEN)
-% tel = tel+atm;
-% %% wavefront reconstruction least square fit
-% offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
-% offAxis=offAxis.*tel;
-% ps = offAxis.meanRmPhase;
-% % wfs.lenslets.wave     = tel;
-% % wfs.camera.readOutNoise = 1;
-% % grabAndProcess(wfs)
-% offAxis=offAxis*wfs;
-% % z = getZernike(wfs,maxRadialDegree);
-% z = z\wfs;
-% zern.c = Dz\z.c(2:end);
-% ngs = source.*zern;
-% phaseLS = ngs.phase;
-% 
-% %% wavefront reconstruction minimum variance
-% Cz = phaseStats.zernikeCovariance(zern,atm);
-% % M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
+%% Phase reconstruction
+tel = tel+atm;
+%% wavefront reconstruction least square fit
+offAxis = reset(onAxis);%source('zenith',0*cougarConstants.arcmin2radian,'azimuth',0);
+offAxis=offAxis.*tel;
+ps = offAxis.meanRmPhase;
+% wfs.lenslets.wave     = tel;
+% wfs.camera.readOutNoise = 1;
+% grabAndProcess(wfs)
+offAxis=offAxis*wfs;
+% z = getZernike(wfs,maxRadialDegree);
+z = z\wfs;
+zern.c = Dz\z.c(2:end);
+ngs = source.*zern;
+phaseLS = ngs.phase;
+
+%% wavefront reconstruction minimum variance
+Cz = phaseStats.zernikeCovariance(zern,atm);
 % M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
-% zern.c = M*z.c(2:end);
-% ngs = source.*zern;
-% phaseMV = ngs.phase;
-% figure(11)
-% subplot(2,1,1)
-% imagesc([ps,phaseLS,phaseMV])
-% axis equal tight
-% colorbar
-% subplot(2,1,2)
-% imagesc([ps-phaseLS,ps-phaseMV])
-% axis equal tight
-% colorbar
-% 
-% 
+M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
+zern.c = M*z.c(2:end);
+ngs = source.*zern;
+phaseMV = ngs.phase;
+figure(11)
+subplot(2,1,1)
+imagesc([ps,phaseLS,phaseMV])
+axis equal tight
+colorbar
+subplot(2,1,2)
+imagesc([ps-phaseLS,ps-phaseMV])
+axis equal tight
+colorbar
+
+

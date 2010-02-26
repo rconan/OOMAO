@@ -2,17 +2,20 @@ classdef zernike < telescopeAbstract
     % ZERNIKE Zernike polynomials
     %
     % obj = zernike(j) creates a Zernike polynomials object from the
-    % modes vector
+    % modes vector. The radius is set to unity.
     %
-    % obj = zernike(j,'resolution',nPixel) creates a Zernike polynomials
+    % obj = zernike(j,D) creates a Zernike polynomials object from the
+    % modes vector and the telescope diameter D. 
+    %
+    % obj = zernike(...,'resolution',nPixel) creates a Zernike polynomials
     % object from the modes vector and the the number of pixel across the
     % polynomials diameter
     %
-    % obj = zernike(j,'radius',r,'angle',o) creates a Zernike polynomials
+    % obj = zernike(...,'radius',r,'angle',o) creates a Zernike polynomials
     % object from the modes vector computed on the given radius and angle.
     % The radius must be normalized to one.
     %
-    % obj = zernike(j,'resolution',nPixel,'pupil',pupilMask) creates a
+    % obj = zernike(...,'resolution',nPixel,'pupil',pupilMask) creates a
     % Zernike polynomials object from the modes vector, the the number of
     % pixel across the polynomials diameter and the pupil mask
     
@@ -35,6 +38,8 @@ classdef zernike < telescopeAbstract
         %         % on the portion
         %         P
 %         pupil;
+        % zernike tag
+        tag = 'ZERNIKE POLYNOMIALS';
     end
     
     properties (Dependent, SetAccess=private)
@@ -90,6 +95,15 @@ classdef zernike < telescopeAbstract
         %% Destructor
         function delete(obj)
             checkOut(obj.log,obj)
+        end
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % display(obj) prints information about the zernike object
+            
+            fprintf('___ %s ___\n',obj.tag)
+            disp(obj)
         end
 
         function obj = minus(obj,val)

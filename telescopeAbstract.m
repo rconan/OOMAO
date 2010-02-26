@@ -21,8 +21,11 @@ classdef telescopeAbstract < handle
         fieldOfView;
         % diameter resolution in pixel
         resolution;
-        % telescope tag
-        tag = 'TELESCOPE';
+    end
+    
+    properties (Abstract)
+        % tag
+        tag;
     end
     
     properties (Dependent)
@@ -68,34 +71,7 @@ classdef telescopeAbstract < handle
                 obj.fieldOfView      = 0;
             end
             obj.resolution       = p.Results.resolution;
-        end
-        
-        function display(obj)
-            %% DISPLAY Display object information
-            %
-            % disp(obj) prints information about the telescope object
-            
-            fprintf('___ %s ___\n',obj.tag)
-            if obj.obstructionRatio==0
-                fprintf(' %4.2fm diameter full aperture',obj.D)
-            else
-                fprintf(' %4.2fm diameter with a %4.2f%% central obstruction',...
-                    obj.D,obj.obstructionRatio*100)
-            end
-            fprintf(' with %5.2fm^2 of light collecting area;\n',obj.area)
-            if obj.fieldOfView~=0
-                fprintf(' the field-of-view is %4.2farcmin;',...
-                    obj.fieldOfView*constants.radian2arcmin)
-            end
-            if ~isempty(obj.resolution)
-                fprintf(' the pupil is sampled with %dX%d pixels',...
-                    obj.resolution,obj.resolution)
-            end
-            if obj.fieldOfView~=0 || ~isempty(obj.resolution)
-                fprintf('\n')
-            end
-            fprintf('----------------------------------------------------\n')
-        end
+        end      
 
         %% Get and Set the pupil
         function pupil = get.pupil(obj)
@@ -195,6 +171,7 @@ classdef telescopeAbstract < handle
     end
     
     methods (Abstract)
+        display(obj)
         out = otf(obj, r)
         out = psf(obj,f)  
         out = fullWidthHalfMax(obj)

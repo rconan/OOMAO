@@ -5,15 +5,27 @@ classdef source < stochasticWave & hgsetget
     % to another object on the optical path by using the propagation
     % operator ".*" and "*". The proppagation through a pre-set optical
     % path can be re-played with the unary plus operator.
+    %
     % Example :
     % To create an on-axis source: src = source; 
     % src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
+    %
     % To create an off-axis source at 30 arcsec zenith and 45degree
     % azimuth: 
-    % src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
+    % src = source('zenith',30*constants.arcsec2radian,'azimuth',pi/4); 
+    %
     % To set an asterism with one star on-axis and five star on a 60 arcsec
     % radius shifted of 30 degrees : 
-    % src = source('asterism',{[0,0],[5,60*cougarConstants.arcsec2radian,pi/3]})
+    % src = source('asterism',{[0,0],[5,60*constants.arcsec2radian,pi/3]})
+    %
+    % Setting the magnitude
+    % src = source('zenith',30*constants.arcsec2radian,'wavelength',photometry.H,'magnitude',12)
+    %
+    % For an asterism, all the sources have the same wavelength but they
+    % may have different magnitudes
+    % src = source('asterism',{[0,0],[5,60*constants.arcsec2radian,0]},'wavelength',photometry.H,'magnitude',[8 10 12 9 11 14])
+    %
+    % See also: constants, photometry
     
     properties
         % source zenith angle
@@ -45,6 +57,10 @@ classdef source < stochasticWave & hgsetget
     properties (Dependent)
         waveNumber;
         magnitude;
+    end
+    
+    properties (Dependent,SetAccess=private)
+        wavelengthInMicron;
     end
     
     properties (Access=private)
@@ -177,6 +193,11 @@ classdef source < stochasticWave & hgsetget
         function set.magnitude(obj,val)
             obj.nPhoton = [];
             obj.p_magnitude = val;
+        end
+        
+        %% Get the wavelength in micron
+        function out = get.wavelengthInMicron(obj)
+            out = obj.wavelength*1e6;
         end
         
         

@@ -22,6 +22,8 @@ classdef telescope < telescopeAbstract
         samplingTime;
         % phase listener
         phaseListener;
+        % telescope tag
+        tag = 'TELESCOPE';
     end
     
     properties (Dependent)
@@ -81,7 +83,36 @@ classdef telescope < telescopeAbstract
             end
             checkOut(obj.log,obj)
         end
-
+        
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % display(obj) prints information about the atmosphere+telescope object
+            
+            display(obj.atm)
+            fprintf('___ %s ___\n',obj.tag)
+            if obj.obstructionRatio==0
+                fprintf(' %4.2fm diameter full aperture',obj.D)
+            else
+                fprintf(' %4.2fm diameter with a %4.2f%% central obstruction',...
+                    obj.D,obj.obstructionRatio*100)
+            end
+            fprintf(' with %5.2fm^2 of light collecting area;\n',obj.area)
+            if obj.fieldOfView~=0
+                fprintf(' the field-of-view is %4.2farcmin;',...
+                    obj.fieldOfView*constants.radian2arcmin)
+            end
+            if ~isempty(obj.resolution)
+                fprintf(' the pupil is sampled with %dX%d pixels',...
+                    obj.resolution,obj.resolution)
+            end
+            if obj.fieldOfView~=0 || ~isempty(obj.resolution)
+                fprintf('\n')
+            end
+            fprintf('----------------------------------------------------\n')
+            
+        end
+        
         %% Set/Get for opticalAberration property
         function set.opticalAberration(obj,val)
             obj.atm = val;
@@ -104,28 +135,34 @@ classdef telescope < telescopeAbstract
             %
             % obj = update(obj) moves the phase screens and returns the
             % object
-%             disp(' (@telescope) > Layer translation')
-            if ~isempty(obj.atm)
-%                 disp('HERE')
+            %             disp(' (@telescope) > Layer translation')
+            if ~isempty(obj.atm) &&  ~(obj.atm.nLayer==1 && obj.atm.layer.windSpeed==0)
+                %                 disp('HERE')
                 for kLayer=1:obj.atm.nLayer
                     
-                   pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
-                    % 1 pixel increased phase sampling vector                    
-                    u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength; 
-                    [xu0,yu0] = meshgrid(u0);
+                    pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
+                    % 1 pixel increased phase sampling vector
+                    u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
+                    %                     [xu0,yu0] = meshgrid(u0);
                     % phase sampling vector
                     u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
-
+                    
                     % phase displacement in meter
                     leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
-                    % phase displacement im pixel
+                    % phase displacement in pixel
                     pixelLeap = leap/pixelLength;
                     
-                   notDoneOnce = true;
+                    notDoneOnce = true;
+                    
+%                     fprintf(' >>> Layer #%d: nShift=%d ; count=%d ; pixelLeap=(%4.2f,%4.2f) ; pixelLength=%4.2f ; leap=(%4.2f,%4.2f)\n',...
+%                        kLayer, obj.nShift(kLayer), obj.count(kLayer) , pixelLeap(1) , pixelLeap(2) , pixelLength , leap)
+%                     fprintf(' ------> Starting while loop\n');
+                    
                     while any(pixelLeap>1) || notDoneOnce
-                       notDoneOnce = false;
-                       
+                        notDoneOnce = false;
+                        
                         if obj.count(kLayer)==0
+%                             fprintf(' ------>      : expanding!\n')
                             % 1 pixel around phase increase
                             Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
                             X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(size(obj.B{kLayer},2),1);
@@ -134,21 +171,24 @@ classdef telescope < telescopeAbstract
                         end
                         
                         % phase displacement (not more than 1 pixel)
-                        step   = min(leap,pixelLength);
+                        step   = min(abs(leap),pixelLength).*sign(leap);
                         xShift = u - step(1);
                         yShift = u - step(2);
-%                         obj.atm.layer(kLayer).phase ...
-%                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
                         obj.atm.layer(kLayer).phase ...
-                               = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
+                            = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                        %                         obj.atm.layer(kLayer).phase ...
+                        %                                = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
                         
                         leap = leap - step;
                         pixelLeap = leap/pixelLength;
                         
-                    end
+%                         fprintf(' ------>      : count=%d ; pixelLeap=(%4.2f,%4.2f) ; step=(%4.2f,%4.2f)\n',...
+%                             obj.count(kLayer) , pixelLeap(1) , pixelLeap(2), step)
                         
+                    end
+                    
                     obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
-                   
+                    
                 end
                 
                 
@@ -210,7 +250,7 @@ classdef telescope < telescopeAbstract
             end
             
             nSrc = numel(srcs);
-            parfor kSrc=1:nSrc % Browse the srcs array
+            for kSrc=1:nSrc % Browse the srcs array
                 src = srcs(kSrc);
                 % Set mask and pupil first
                 src.mask      = obj.pupilLogical;
@@ -456,7 +496,7 @@ classdef telescope < telescopeAbstract
     methods (Access=private)
         
         function obj = init(obj)
-            nInner = 1;
+            nInner = 2;
             obj.sampler = linspace(-1,1,obj.resolution);
             add(obj.log,obj,'Initializing phase screens making parameters:')
             obj.log.verbose = false;

@@ -19,6 +19,8 @@ classdef deformableMirror < handle
         lex = false;
         % units of dm coefficients [default: micron]
         coefsUnit = 1;%e-6;
+        % deformableMirror tag
+        tag = 'DEFORMABLE MIRROR';
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -27,8 +29,6 @@ classdef deformableMirror < handle
     end
     
     properties (Dependent,SetAccess=private)
-        % the DM phase
-        phase;
          % # of actuators in the pupil
         nValidActuator;
    end
@@ -65,7 +65,7 @@ classdef deformableMirror < handle
             obj.surfaceListener.Enabled = false;
             obj.coefsDefault      = zeros(obj.nValidActuator,1);
             obj.coefs             = zeros(obj.nValidActuator,1);
-            if isa(obj.modes,'influenceFunction')
+            if isa(obj.modes,'influenceFunction') && ~isempty(p.Results.resolution)
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator);
             end
             obj.log = logBook.checkIn(obj);
@@ -111,10 +111,6 @@ classdef deformableMirror < handle
                 dmShape = utilities.toggleFrame(obj.p_surface,3);
             end
         end
-        %% Get the dm phase
-        function phase = get.phase(obj)
-            phase = -2*obj.surface;
-        end
         
         function relay(obj,src)
             %% RELAY deformable mirror to source relay
@@ -122,18 +118,18 @@ classdef deformableMirror < handle
             % relay(obj,srcs) writes the deformableMirror amplitude and
             % phase into the properties of the source object(s)
             
-            nSrc = numel(src);
-            nPhase = size(obj.phase,3);
+            nSrc       = numel(src);
+            wavenumber = 2*pi/src(1).wavelength;
+            dmPhase    = -2*obj.surface*wavenumber;
+            nPhase     = size(obj.p_coefs,2);
             if nPhase>nSrc
                 for kSrc = 1:nSrc
-                    kLambda = 1;%2*pi/src(kSrc).wavelength;
-                    src(kSrc).phase = -2*obj.surface*kLambda;
+                    src(kSrc).phase = dmPhase;
                     src(kSrc).amplitude = 1;
                 end
             else
                 for kSrc = 1:nSrc
-                    kLambda = 1;%2*pi/src(kSrc).wavelength;
-                    src(kSrc).phase = -2*obj.surface(:,:,min(kSrc,nPhase))*kLambda;
+                    src(kSrc).phase = dmPhase(:,:,min(kSrc,nPhase));
                     src(kSrc).amplitude = 1;
                 end
             end
