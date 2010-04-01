@@ -220,7 +220,7 @@ classdef phaseStats
                 index         = rho~=0;
                 u             = 2.*pi.*rho(index)./atm.L0;
                 out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-                out = sum(atm.layer.fractionnalR0).*out;
+                out = sum([atm.layer.fractionnalR0]).*out;
             end
         end
         
@@ -595,6 +595,7 @@ classdef phaseStats
             
             nGs = numel(src);
             if nGs>2 % then its a meta-matrix
+                disp('META-MATRIX')
                 if nargin<4 % a correlation meta-matrix
                     iSrc = src;
                     jSrc = src;
@@ -612,6 +613,7 @@ classdef phaseStats
                     index = cellfun(@isempty,aiaj);
                     aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
                 else % a cross-correlation meta-matrix
+                    disp('CROSS CORRELATION META-MATRIX')
                     iSrc = src;
                     jSrc = optSrc;
                     mGs = numel(jSrc);

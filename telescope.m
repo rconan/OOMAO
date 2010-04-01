@@ -496,6 +496,8 @@ classdef telescope < telescopeAbstract
     methods (Access=private)
         
         function obj = init(obj)
+            %% INIT
+            
             nInner = 2;
             obj.sampler = linspace(-1,1,obj.resolution);
             add(obj.log,obj,'Initializing phase screens making parameters:')

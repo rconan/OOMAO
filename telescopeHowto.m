@@ -1,5 +1,5 @@
-%% TELESCOPE HOWTO
-% Demonstrate the use of the <matlab:doc('telescope') telescope> class
+%% SOURCE HOWTO
+% Demonstrate the use of the source class
 %%
 
 %% 
@@ -13,8 +13,8 @@
 % the layer is set a 2km, the wind blows a 10m/s in
 % the X direction, the field of view is 2', the 10m pupil is sampled with
 % 60pixels and the phase screens are sampled at 500Hz
-% The <matlab:doc('AT.update') update> method move the phase screen of one
-% time step and <matlab:doc('AT.imagesc') imagesc> display the phase screen
+% The unary plus operator moves the phase screen of one
+% time step and imagesc display the phase screen
 atm = atmosphere(2.2e-6,0.8,25,...
     'altitude',2e3,...
     'fractionnalR0',1,...
@@ -29,14 +29,12 @@ tel = tel + atm;
 imagesc(tel)
 %% 
 % At any time, the phase screen of each layer is stored in the phase
-% property of the <matlab:doc('turbulenceLayer') layer> object 
+% property of the layer object 
 tel.opticalAberration.layer
 %%
 % For a given direction in the sky, the geometric propagation of the phase
 % through the turbulence layers into the telescope pupil are computed with
-% the method <matlab:doc('AT.getPhaseScreen') getPhaseScreen>, the
-% direction in the sky is given by the <matlab:doc('AT.source') source>
-% object
+% .* or * operators, the direction in the sky is given by the source object
 %%
 % * a natural guide star on axis
 src = source.*tel;

@@ -18,7 +18,7 @@ tel = telescope(3.6,...
 
 %% Sources
 ngs = source;
-ast = source('asterism',{[3,30*cougarConstants.arcsec2radian,0]});
+% ast = source('asterism',{[3,30*cougarConstants.arcsec2radian,0]});
 
 %% Wavefront sensor
 nLenslet = 10;
@@ -32,19 +32,21 @@ dm = deformableMirror(nActuator,...
     'modes',bif,...
     'resolution',nPx,...
     'validActuator',wfs.validActuator,...
-    'zLocation',4e3);
+    'zLocation',0e3);
 
 %% Building the system
 ngs=ngs.*tel*dm*wfs;
 wfs.referenceSlopes = wfs.slopes;
-slopesAndFrameDisplay(wfs)
-% pause
 +ngs;
-slopesAndFrameDisplay(wfs)
+figure
+subplot(1,2,1)
+imagesc(wfs.camera)
+subplot(1,2,2)
+slopesDisplay(wfs)
 
   %% DM/WFS calibration
 dm.coefsDefault = 0;
-stroke = 3;
+stroke = ngs.wavelength/2;
 dm.coefs = eye(dm.nValidActuator)*stroke;
 +ngs;
 dm.coefs = 0;
@@ -70,30 +72,29 @@ iS(nC,nS) = 0;
 commandMatrix = V*iS*U';
 
 %% Zernike measurement
-maxRadialDegree = 3;
+maxRadialDegree = 8;
 zern = zernike(2:zernike.nModeFromRadialOrder(maxRadialDegree),'resolution',nPx,'pupil',tel.pupil);
 zern.lex = false;
-figure(10)
-imagesc(zern.phase)
+% figure(10)
+% imagesc(zern.phase)
 zern.c = eye(zern.nMode);
 ngs=ngs.*zern*wfs;
 z = zernike(1:zernike.nModeFromRadialOrder(maxRadialDegree))\wfs;
-Dz = z.c(2:end,:);
+Dz = z.c;%(2:end,:);
 
 %% With noise
 ngs.wavelength = photometry.R;
 ngs.magnitude = 0;
 wfs.camera.readOutNoise = 5;
-wfs.camera.photonNoiseLess = false;
+wfs.camera.photonNoise = true;
 wfs.framePixelThreshold = 0;
 ngs=ngs.*tel*wfs;
-slopesAndFrameDisplay(wfs)
 
 %% noise convariance matrix
 nMeas = 250;
 slopes = zeros(wfs.nSlope,nMeas);
 for kMeas=1:nMeas
-    grabAndProcess(wfs)
+    +wfs
     slopes(:,kMeas) = wfs.slopes;
 end
 Cn = slopes*slopes'/nMeas;
@@ -104,40 +105,19 @@ axis equal tight
 colorbar
 wfs.slopes = slopes;
 z = z\wfs;
-Czn = z.c(2:end,:)*z.c(2:end,:)'/nMeas;
+Czn = z.c*z.c'/nMeas;
 subplot(1,2,2)
 imagesc(Czn)
 axis equal tight
 colorbar
 
-%% Phase reconstruction
-tel = tel+atm;
-% %% wavefront reconstruction least square fit
-% ngs=ngs.*tel;
-% ps = ngs.meanRmPhase;
-% ngs=ngs*wfs;
-% z = z\wfs;
-% zern.c = Dz\z.c(2:end);
-% phaseLS = zern.phase;
-% 
-% %% wavefront reconstruction minimum variance
-% Cz = phaseStats.zernikeCovariance(zern,atm,tel);
-% M = Cz*Dz'/(Dz*Cz*Dz'+Czn);
-% zern.c = M*z.c(2:end);
-% phaseMV = zern.phase;
-% figure(11)
-% subplot(2,1,1)
-% imagesc([ps,phaseLS,phaseMV])
-% axis equal tight
-% colorbar
-% subplot(2,1,2)
-% imagesc([ps-phaseLS,ps-phaseMV])
-% axis equal tight
-% colorbar
 
 %% TOMOGRAPHY
+tel = tel+atm;
  %% Tomography
-pd = source('zenith',0*cougarConstants.arcsec2radian);
+ast = source('asterism',{[3,30*cougarConstants.arcsec2radian,0]},...
+    'wavelength',photometry.R,'magnitude',0)
+pd = source('zenith',0*cougarConstants.arcsec2radian,'wavelength',photometry.R);
 figure(3)
 imagesc(tel,[ast,pd])
 wpd = ones(size(pd));
@@ -165,7 +145,7 @@ for kDm = 1:nDm
     end
     fprintf('\n')
 end
-% Turbulence covariance matrix
+%% Turbulence covariance matrix
 SFile = sprintf('S%d__18-Jan-2010.mat',maxRadialDegree);
 if exist(SFile,'file')==2
     load(SFile)
@@ -177,14 +157,13 @@ else
 end
 
 %% wavefront reconstruction least square fit
-ast = source('asterism',{[3,30*cougarConstants.arcsec2radian,0]},...
-    'wavelength',photometry.R,'magnitude',16)
 ast=ast.*tel;
 ps = [ast.meanRmPhase];
 ast=ast*wfs
 z = z\wfs;
-zern.c = Dz\z.c(2:end,:);
-phaseLS = reshape(zern.phase,nPx,nPx*length(ast));
+zern.c = Dz\z.c;%(2:end,:);
+zern.lex = true;
+phaseLS = reshape(zern.p*zern.c,nPx,nPx*length(ast));
 
 %% wavefront reconstruction minimum variance
 S = cell2mat(S);
@@ -194,21 +173,20 @@ M = S/(S+CznAst);
 M = S*DzAst'/(DzAst*S*DzAst'+CznAst);
 z = z - 1; % piston removed
 zern.c = reshape(M*z.c(:),z.nMode,[]);
-phaseMV = reshape(zern.phase,nPx,nPx*length(ast));
+phaseMV = reshape(zern.p*zern.c,nPx,nPx*length(ast));
 figure(12)
 imagesc([ps;phaseLS;phaseMV])
 axis equal tight xy
 
 %% Data/Target covariance
-C = cell(nGs,nPd);
-for kPd=1:nPd
-    fprintf('@(Data/Target covariance)> ');
-    pdCurrent= pd(kPd);
-    for kGs=1:nGs
-        fprintf('pd#%d/gs#%d - ',kPd,kGs)
-        C{kGs,kPd} = phaseStats.zernikeAngularCovariance(zernWfs,atm,tel,[gs(kGs),pdCurrent]);
-    end
-    fprintf('\b\b\b\n')
+CFile = sprintf('C%d__31-Mar-2010.mat',maxRadialDegree);
+if exist(CFile,'file')==2
+    load(CFile)
+else
+    C = phaseStats.zernikeAngularCovariance(zernWfs,atm,gs,pd);
+    CFile = sprintf(['C%d__',date,'.mat'],maxRadialDegree);
+    save(CFile,'C','maxRadialDegree')
+    fprintf(' C matrix saved to %s\n',CFile)
 end
 %% Target matrix
 T = 0;
@@ -227,6 +205,6 @@ z = z - 1;
 zern.c = M*z.c(:);
 pd = pd.*tel;
 figure
-imagesc([zern.phase,pd.meanRmPhase])
+imagesc([2*reshape(zern.p*zern.c,nPx,nPx),pd.meanRmPhase])
 axis equal tight xy
 colorbar

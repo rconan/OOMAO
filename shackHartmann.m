@@ -101,8 +101,9 @@ classdef shackHartmann < handle
             if nargin>2
                 obj.lenslets.minLightRatio = minLightRatio;
             else
-                obj.validLenslet = true(nLenslet);
+                obj.lenslets.minLightRatio = 0;
             end
+            obj.validLenslet = true(nLenslet);
             obj.camera.frameGrabber ...
                 = obj.lenslets;
             obj.referenceSlopes = zeros(obj.nValidLenslet*2,1);
@@ -574,6 +575,76 @@ classdef shackHartmann < handle
             n  = obj.lenslets.nLensletImagePx;
             slopesDisplay(obj,'matrix',...
                 makehgtform('translate',-[(n-1)/2,(n-1)/2,0]/n,'scale',1/n,'translate',[1,1,0]*2),varargin{:});
+        end
+        
+        
+        function varargout = sparseGradientMatrix(obj)
+            %% SPARSEGRADIENTMATRIX
+            %
+            % Gamma = sparseGradientMatrix(obj)
+            %
+            % [Gamma,gridMask] = sparseGradientMatrix(obj)
+            
+            nLenslet = obj.lenslets.nLenslet;
+            nMap     = 2*nLenslet+1;
+            nValidLenslet ...
+                     = obj.nValidLenslet;
+            
+            i0x = [1:3 1:3]; % x stencil row subscript
+            j0x = [ones(1,3) ones(1,3)*3]; % x stencil col subscript
+            i0y = [1 3 1 3 1 3]; % y stencil row subscript
+            j0y = [1 1 2 2 3 3]; % y stencil col subscript
+            s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
+            s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
+            
+            i_x = zeros(1,6*nValidLenslet);
+            j_x = zeros(1,6*nValidLenslet);
+            s_x = zeros(1,6*nValidLenslet);
+            i_y = zeros(1,6*nValidLenslet);
+            j_y = zeros(1,6*nValidLenslet);
+            s_y = zeros(1,6*nValidLenslet);
+            
+            [iMap0,jMap0] = ndgrid(1:3);
+            gridMask = false(nMap);
+            
+            u   = 1:6;
+            
+            % Accumulation of x and y stencil row and col subscript and weight
+            for jLenslet = 1:nLenslet
+                jOffset = 2*(jLenslet-1);
+                for iLenslet = 1:nLenslet
+                    
+                    if obj.validLenslet(iLenslet,jLenslet)
+                        
+                        iOffset= 2*(iLenslet-1);
+                        i_x(u) = i0x + iOffset;
+                        j_x(u) = j0x + jOffset;
+                        s_x(u) = s0x;
+                        i_y(u) = i0y + iOffset;
+                        j_y(u) = j0y + jOffset;
+                        s_y(u) = s0y;
+                        u = u + 6;
+                        
+                        gridMask( iMap0 + iOffset , jMap0 + jOffset ) = true;
+                        
+                    end
+                    
+                end
+            end
+            indx = sub2ind([nMap,nMap],i_x,j_x); % mapping the x stencil subscript into location index on the phase map
+            indy = sub2ind([nMap,nMap],i_y,j_y); % mapping the y stencil subscript into location index on the phase map
+            % row index of non zero values in the gradient matrix
+            v = 1:2*nValidLenslet;
+            v = v(ones(6,1),:);
+            % sparse gradient matrix
+            Gamma = sparse(v,[indx,indy],[s_x,s_y],2*nValidLenslet,nMap^2);
+            Gamma(:,~gridMask) = [];
+            
+            varargout{1} = Gamma;
+            if nargout>1
+                varargout{2} = gridMask;
+            end
+            
         end
         
     end

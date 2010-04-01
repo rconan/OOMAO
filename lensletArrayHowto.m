@@ -1,5 +1,5 @@
 %% LENSLETARRAY HOWTO
-% Demonstrate the use of the <matlab:doc('lensletArray') lensletArray> class
+% Demonstrate the use of thelensletArray class
 
 %% A simple 10x10 lenslet array
 nlenslet = 10;
@@ -17,19 +17,19 @@ la.imageletsListener.Enabled = true;
 %% changing the sampling:
 % nyquistSampling=1 corresponds to 2 pixels per fwhm
 la.nyquistSampling = 0.5;
-propagateThrough(la,ngs)
++ngs
 
 %% increasing the field of view
 % fieldStopSize is given in units of fwhm, for example for a nXn input wave
 % and nyquistSampling=1, the default value of fieldStopSize is
 % (n/nLenslet)/2
 la.fieldStopSize = 6;
-propagateThrough(la,ngs)
++ngs
 
 %% back to original sampling and field of view
 la.nyquistSampling = 1;
 la.fieldStopSize = 3;
-propagateThrough(la,ngs)
++ngs
 
 %% a random aberration
 zern = zernike(5:6,'resolution',nPx);
@@ -65,7 +65,7 @@ ngs = source.*cat(3,ngs1.wave,ngs2.wave)*la;
 imagesc( la )
 la.sumStack = false;
 
-%% <matlab:doc('lensletArray') lensletArray> combined with an <matlab:doc('telescope') telescope> object
+%% lensletArray combined with a telescope> object
 atm = atmosphere(2.2e-6,1.5,25,...
     'altitude',2e3,...
     'fractionnalR0',1,...
@@ -78,7 +78,7 @@ tel = telescope(30,...
 tel = tel+atm;
 imagesc(+tel)
 %%
-ngs = source.*tel*la;
+ngs = source('wavelength',2.2e-6).*tel*la;
 imagesc( la )
 la.imageletsListener.Enabled = true;
 for k=1:50

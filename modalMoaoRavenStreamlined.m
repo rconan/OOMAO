@@ -12,21 +12,29 @@ atm = atmosphere(photometry.V,0.2,30,...
 atm.wavelength = photometry.R;
 
 %% Telescope
-nPx = 8*16;
-tel = telescope(8.2,...
+tel = telescope(8.2,...%7.98
     'fieldOfViewInArcMin',2.5,...
-    'resolution',nPx,...
     'samplingTime',1/500);
 
+%% Calibration source
+cSrc = source;
 
 %% Wavefront sensor
 nLenslet = 16;
-wfs = shackHartmann(nLenslet,nPx,0.75);
+wfs = shackHartmann(nLenslet,nLenslet*15);
 wfs.tag = 'OPEN-LOOP WFS';
+cSrc = cSrc.*tel*wfs;
 wfs.lenslets.throughput = 0.75;
 wfs.camera.exposureTime = 1/500;
+wfs.camera.frameRate    = 500;
 wfs.camera.quantumEfficiency = 0.8;
-setValidLenslet(wfs,utilities.piston(nPx))
+wfs.lenslets.minLightRatio = 0.85;
+setValidLenslet(wfs)
++cSrc;
+wfs.referenceSlopes = wfs.slopes;
+figure
+imagesc(wfs.camera)
+nPx = wfs.camera.resolution(1);
 
 %% Deformable mirror
 nActuator = nLenslet + 1;
@@ -45,22 +53,24 @@ zern = zernike(2:zernModeMax,tel.D,'resolution',nPx);
  % Calibration source
 ngs = source('wavelength',photometry.R);
 gs = source('asterism',{[3,0.5*constants.arcmin2radian,0]},...
-    'wavelength',photometry.R,'magnitude',12,'tag','GUIDE STARS');
+    'wavelength',photometry.R,'magnitude',0,'tag','GUIDE STARS');
 % scs = source('asterism',{[0,0],[30*cougarConstants.arcsec2radian,pi/4]},'wavelength',photometry.H);
+% scs = source('asterism',{[0,0],...
+%     [12, 30*cougarConstants.arcsec2radian, 0],...
+%     [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H,...
+%     'tag','SCIENCE STARS');
 scs = source('asterism',{[0,0],...
-    [12, 30*cougarConstants.arcsec2radian, 0],...
-    [12, 60*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H,...
+    [8, 45*cougarConstants.arcsec2radian, 0]},'wavelength',photometry.H,...
     'tag','SCIENCE STARS');
 nScs = length(scs);
 nGs = length(gs);
 
 %% Building the system
 ngs=ngs.*tel*dm*wfs;
-wfs.referenceSlopes = wfs.slopes;
 slopesAndFrameDisplay(wfs)
-% pause
-+ngs;
-slopesAndFrameDisplay(wfs)
+% % pause
+% +ngs;
+% slopesAndFrameDisplay(wfs)
 
 %   %% DM/WFS calibration
 % dm.coefsDefault = 0;
@@ -102,7 +112,7 @@ Dz = z.c;
 withNoise = true;
 ngs.magnitude = gs(1).magnitude;
 wfs.camera.readOutNoise = 3;
-wfs.camera.photonNoiseLess = false;
+wfs.camera.photonNoise = true;
 wfs.framePixelThreshold = 3;
 ngs=ngs.*tel*wfs;
 slopesAndFrameDisplay(wfs)
@@ -111,7 +121,7 @@ slopesAndFrameDisplay(wfs)
 nMeas = 250;
 slopes = zeros(wfs.nSlope,nMeas);
 for kMeas=1:nMeas
-    grabAndProcess(wfs)
+    +wfs;
     slopes(:,kMeas) = wfs.slopes;
 end
 Cn = slopes*slopes'/nMeas;
@@ -171,7 +181,7 @@ hold off
 load('S12')
 %% Data/Target covariance
 % C = phaseStats.zernikeAngularCovariance(zern,atm,gs,scs);
-load('C12')
+load('C12_45')
 %% tomographic matrices
 CznAst = blkdiag( Czn , Czn , Czn );
 DzAst = blkdiag( Dz , Dz , Dz );
@@ -203,33 +213,49 @@ end
 M = cell2mat(M);
 
 %% Command matrix
-lambdaRatio = gs(1).wavelength/scs(1).wavelength;
+lambdaRatio = 1;%gs(1).wavelength/scs(1).wavelength;
 gs=gs.*tel*wfs;
 z = zernike(1:zernModeMax)\wfs;
 zern.c = reshape(M*(lambdaRatio*z.c(:)),z.nMode,nScs);
+ngsWavelength  = ngs.wavelength;
+% ngs.wavelength = scs(1).wavelength;
 ngs = ngs.*zern;
+% ngs.wavelength = ngsWavelength;
 scs = scs.*tel;
 turbPhase = [scs.meanRmPhase];
-nIt =2500;
+nIt =50;
 turbPhaseStd = zeros(nIt,nScs);
 turbPhaseStd(1,:) = scs.var;
 figure
-imagesc([scs.meanRmPhase;reshape(ngs.phase,nPx,[])])
+imagesc([scs.meanRmPhase;reshape(ngs.phase,nPx,[])*ngs.wavelength/scs(1).wavelength])
 axis equal tight xy
 colorbar
 
 %% DM
 zern.lex = true;
-zern2dm = dm.modes.modes(tel.pupilLogical,:)\zern.p(tel.pupilLogical,:)/2;%\zPoly/2;
-dm.coefs = zern2dm*zern.c;
-
+zernC = zern.c;
+dm.coefs = eye(dm.nValidActuator);
+tel = tel - atm;
+ngs = ngs.*tel*dm; % influence functions
+% buf = utilities.toggleFrame(ngs.phase);
+% buf = buf(ngs.mask,:);
+% % zern2dm = dm.modes.modes(tel.pupilLogical,:)\zern.p(tel.pupilLogical,:)/2;%\zPoly/2;
+% zern2dm = -buf\zern.p(tel.pupilLogical,:);
+zern2dm = -(ngs\zern);
+%zern2dm = -zern2dm*ngs.wavelength/scs(1).wavelength;
+dm.coefs = zern2dm*zernC;
+scs = scs.*tel*dm;
+correction = [scs.meanRmPhase];
+tel = tel + atm;
+scs = scs.*tel*dm;
+residue = [scs.meanRmPhase];
 % turbRes = zeros(nPx,nPx*nScs,nIt);
 turbRes = turbPhase;
 turbResStd = turbPhaseStd;
 figure
 % plot([turbPhaseStd(1:k,:),turbResStd(1:k,:)],'.');
 % set(h(1),'YDataSource',turbPhaseStd(:,1))
-h = imagesc([turbPhase;turbRes;lambdaRatio*reshape(-dm.phase,nPx,[])]);
+h = imagesc([turbPhase;residue;-correction]);
 axis equal tight xy
 colorbar
 

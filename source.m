@@ -327,6 +327,21 @@ classdef source < stochasticWave & hgsetget
             
              mtimes(reset(obj),otherObj);
         end
+        
+        function out = mldivide(obj,phaseMap)
+            %% \ Least square fit to the source wavefront
+            %
+            % out = obj\phaseMap projects the 2D phase map onto
+            % the source wavefront
+            
+            if isa(phaseMap,'zernike')
+                buf = utilities.toggleFrame(obj.phase,2);
+                out = buf(obj.mask,:)\phaseMap.p(obj.mask,:);
+            else
+                out = utilities.toggleFrame(obj.phase,2)\...
+                    utilities.toggleFrame(phaseMap,2);
+            end
+        end
 
         function out = fresnelPropagation(obj,tel)
             %% FRESNELPROPAGATION Source propagation to the light collector
@@ -411,10 +426,10 @@ classdef source < stochasticWave & hgsetget
                     h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,lineSpec);
                   hcmenu = uicontextmenu;
                   uimenu(hcmenu, 'Label', sprintf('mag=%5.2f',obj(kObj).magnitude))
-                  set(h(kObj),...
-                        'MarkerSize',6*a/obj(kObj).magnitude,...
-                        'MarkerFaceColor',get(h(kObj),'Color'),...
-                        'uicontextmenu',hcmenu);
+%                   set(h(kObj),...
+%                         'MarkerSize',6*a/obj(kObj).magnitude,...
+%                         'MarkerFaceColor',get(h(kObj),'Color'),...
+%                         'uicontextmenu',hcmenu);
                 end
                 hold off
             end
