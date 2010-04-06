@@ -28,10 +28,11 @@ wfs.lenslets.throughput = 0.75;
 wfs.camera.exposureTime = 1/500;
 wfs.camera.frameRate    = 500;
 wfs.camera.quantumEfficiency = 0.8;
-wfs.lenslets.minLightRatio = 0.85;
+wfs.lenslets.minLightRatio = 0.8;
 setValidLenslet(wfs)
-+cSrc;
++wfs;
 wfs.referenceSlopes = wfs.slopes;
++wfs;
 figure
 imagesc(wfs.camera)
 nPx = wfs.camera.resolution(1);

@@ -56,6 +56,10 @@ classdef atmosphere < handle
     properties (Dependent)
         % wavelength of the r0
         wavelength;
+        % theta0 and tau0 definition: 
+        % . Roddier (default): coherence function 1/e decay  
+        % . Fried: structure function equal 1rd^2
+        theta0Tau0Definition;
     end
     
     properties (Dependent, SetAccess=private)
@@ -69,7 +73,9 @@ classdef atmosphere < handle
     
     properties (Access=private)
         p_wavelength;
-%         log;
+        p_theta0Tau0Definition = 'roddier';
+        p_theta0Tau0Scale = 1;
+        log;
     end
     
     methods
@@ -84,6 +90,7 @@ classdef atmosphere < handle
             p.addParamValue('fractionnalR0', 1, @isnumeric);
             p.addParamValue('windSpeed', [], @isnumeric);
             p.addParamValue('windDirection', [], @isnumeric);
+            p.addParamValue('logging', true, @islogical);
             p.parse(lambda,r0, varargin{:});
             obj.p_wavelength = p.Results.wavelength;
             obj.r0 = p.Results.r0;
@@ -100,13 +107,17 @@ classdef atmosphere < handle
                     p.Results.windSpeed,...
                     p.Results.windDirection);
             end
-%             obj.log = logBook.checkIn(obj);
+            if p.Results.logging
+                obj.log = logBook.checkIn(obj);
+            end
         end
         
-%         % Destructor
-%         function delete(obj)
-%             checkOut(obj.log,obj)
-%         end
+        % Destructor
+        function delete(obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj)
+            end
+        end
         
         function newObj = slab(obj,layerIndex)
             %% SLAB Create a single turbulence layer atmosphere object
@@ -116,7 +127,8 @@ classdef atmosphere < handle
             newObj = atmosphere(...
                 obj.wavelength,...
                 obj.r0,...
-                obj.L0);
+                obj.L0,...
+                'logging',false);
             newObj.layer = obj.layer(layerIndex);
         end
         
@@ -128,23 +140,26 @@ classdef atmosphere < handle
             fprintf('___ %s ___\n',obj.tag)
             if isinf(obj.L0)
                 fprintf(' Kolmogorov-Tatarski atmospheric turbulence:\n')
-                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, seeing=%.2farcsec,\n  ',...
-                obj.wavelength*1e6,obj.r0*1e2,obj.seeingInArcsec)
+                fprintf('  . wavelength = %5.2fmicron,\n  . r0         = %5.2fcm,\n  . seeing     = %5.2farcsec,\n  ',...
+                    obj.wavelength*1e6,obj.r0*1e2,obj.seeingInArcsec)
             else
                 fprintf(' Von Karman atmospheric turbulence\n')
-                fprintf('  wavelength=%.2fmicron, r0=%.2fcm, L0=%.2fm, seeing=%.2farcsec,\n  ',...
-                obj.wavelength*1e6,obj.r0*1e2,obj.L0,obj.seeingInArcsec)
+                fprintf('  . wavelength = %5.2fmicron,\n  . r0         = %5.2fcm,\n  . L0         = %5.2fm,\n  . seeing     = %5.2farcsec,\n  ',...
+                    obj.wavelength*1e6,obj.r0*1e2,obj.L0,obj.seeingInArcsec)
             end
-            if ~isinf(obj.theta0InArcsec) 
-                fprintf('theta0=%.2farcsec, ',obj.theta0InArcsec)
+            if ~isinf(obj.theta0InArcsec)
+                fprintf('. theta0     = %5.2farcsec (%s),\n  ',...
+                    obj.theta0InArcsec,obj.p_theta0Tau0Definition)
             end
             if ~isempty(obj.tau0InMs)
-                 fprintf('tau0=%.2fmillisec',obj.tau0InMs)
+                fprintf('. tau0       = %5.2fmillisec (%s)',...
+                    obj.tau0InMs,obj.p_theta0Tau0Definition)
             else
                 fprintf('\b\b')
             end
             fprintf('\n')
-                fprintf('  Layer   Altitude[m]   fr0    wind([m/s] [deg])   D[m]    res[px]\n')
+            fprintf('----------------------------------------------------\n')
+            fprintf('  Layer   Altitude[m]   fr0    wind([m/s] [deg])   D[m]    res[px]\n')
             for kLayer=1:obj.nLayer
                 fprintf('  %2d      %8.2f      %4.2f    (%5.2f %6.2f)     %5.2f    %3d\n',...
                     kLayer,...
@@ -159,20 +174,39 @@ classdef atmosphere < handle
             
         end
        
+        %% Set/Get wavelength property
         function val = get.wavelength(obj)
             val = obj.p_wavelength;
-        end
-        
+        end        
         function set.wavelength(obj,val)
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
             obj.p_wavelength = val;
         end
         
+        %% Get seeingInArcsec property
         function out = get.seeingInArcsec(obj)
             out = cougarConstants.radian2arcsec.*...
                 0.98.*obj.wavelength./obj.r0;
         end
         
+        %% Get/Set theta0Tau0Definition property
+        function out = get.theta0Tau0Definition(obj)
+            out = obj.p_theta0Tau0Definition;
+        end
+        function set.theta0Tau0Definition(obj,val)
+            obj.p_theta0Tau0Definition = val;
+            switch lower(val)
+                case 'roddier'
+                    obj.p_theta0Tau0Scale = 1;
+                case 'fried'
+                    obj.p_theta0Tau0Scale = 2^(-3/5);
+                otherwise
+                    error('oomao:atmosphere:theta0Tau0Definition',...
+                        'The valid definitions for theta0 and tau0 are either Roddier of Fried')
+            end
+        end
+        
+        %% Get theta0InArcsec property
         function out = get.theta0InArcsec(obj)
             z = [obj.layer.altitude];
             if numel(z)==1 && z==0
@@ -186,9 +220,10 @@ classdef atmosphere < handle
                     out = abs(fzero(fun,0));
                 end
             end
-            out = out*cougarConstants.radian2arcsec;
+            out = out*obj.p_theta0Tau0Scale*cougarConstants.radian2arcsec;
         end
         
+        %% Get tau0InMs property
         function out = get.tau0InMs(obj)
             v = [obj.layer.windSpeed];
             if isempty(v)
@@ -204,10 +239,13 @@ classdef atmosphere < handle
                     out = abs(fzero(fun,0));
                 end
             end
-            out = out*1e3;
+            out = out*obj.p_theta0Tau0Scale*1e3;
         end
         
         function map = fourierPhaseScreen(atm,D,nPixel)
+            %% FOURIERPHASESCREEN 
+            % map = fourierPhaseScreen(atm,D,nPixel)
+            
             N = 4*nPixel;
             L = (N-1)*D/(nPixel-1);
             [fx,fy]  = freqspace(N,'meshgrid');

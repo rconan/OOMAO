@@ -244,7 +244,7 @@ classdef shackHartmann < handle
 %             end
         end
         
-        % Get the zernike coeficients
+        %% Get the zernike coeficients
         function val = get.zernCoefs(obj)
             val = obj.zern2slopes\obj.slopes;
             val(1,:) = []; % piston=0 removed
@@ -541,7 +541,7 @@ classdef shackHartmann < handle
             %
             % See also: imagesc
             
-            intensity = nan(obj.lenslets.nLenslet,obj.lenslets.nLenslet*obj.lenslets.nArray);
+            intensity = zeros(obj.lenslets.nLenslet,obj.lenslets.nLenslet*obj.lenslets.nArray);
             v = obj.validLenslet(:);
             v = repmat(v,obj.lenslets.nArray,1);
             intensity(v) = obj.lensletIntensity;
