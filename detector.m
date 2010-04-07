@@ -138,7 +138,7 @@ classdef detector < handle
                     'CDataMApping','Scaled',...
                     varargin{:});
                 colormap(pink)
-                axis equal tight
+                axis xy equal tight
                 colorbar
             end
         end

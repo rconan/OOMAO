@@ -1,4 +1,4 @@
-classdef atmosphere < handle
+classdef atmosphere < hgsetget
 % ATMOSPHERE Create an atmosphere object
 %
 % atm = atmosphere(wavelength,r0) creates an atmosphere object from the
@@ -51,15 +51,15 @@ classdef atmosphere < handle
         layer;
         % atmosphere tag
         tag = 'ATMOSPHERE';
+        % coherence function decay for theta0 and tau0 computation
+        % . Roddier (default): coherence function 1/e decay  
+        % . Fried: structure function equal 1rd^2 (1/\sqrt(e) decay)
+        coherenceFunctionDecay = exp(-1);
     end
     
     properties (Dependent)
         % wavelength of the r0
         wavelength;
-        % theta0 and tau0 definition: 
-        % . Roddier (default): coherence function 1/e decay  
-        % . Fried: structure function equal 1rd^2
-        theta0Tau0Definition;
     end
     
     properties (Dependent, SetAccess=private)
@@ -73,9 +73,7 @@ classdef atmosphere < handle
     
     properties (Access=private)
         p_wavelength;
-        p_theta0Tau0Definition = 'roddier';
-        p_theta0Tau0Scale = 1;
-        log;
+        p_log;
     end
     
     methods
@@ -108,14 +106,14 @@ classdef atmosphere < handle
                     p.Results.windDirection);
             end
             if p.Results.logging
-                obj.log = logBook.checkIn(obj);
+                obj.p_log = logBook.checkIn(obj);
             end
         end
         
         % Destructor
         function delete(obj)
-            if ~isempty(obj.log)
-                checkOut(obj.log,obj)
+            if ~isempty(obj.p_log)
+                checkOut(obj.p_log,obj)
             end
         end
         
@@ -140,20 +138,20 @@ classdef atmosphere < handle
             fprintf('___ %s ___\n',obj.tag)
             if isinf(obj.L0)
                 fprintf(' Kolmogorov-Tatarski atmospheric turbulence:\n')
-                fprintf('  . wavelength = %5.2fmicron,\n  . r0         = %5.2fcm,\n  . seeing     = %5.2farcsec,\n  ',...
+                fprintf('  . wavelength  = %5.2fmicron,\n  . r0          = %5.2fcm,\n  . seeing      = %5.2farcsec,\n  ',...
                     obj.wavelength*1e6,obj.r0*1e2,obj.seeingInArcsec)
             else
                 fprintf(' Von Karman atmospheric turbulence\n')
-                fprintf('  . wavelength = %5.2fmicron,\n  . r0         = %5.2fcm,\n  . L0         = %5.2fm,\n  . seeing     = %5.2farcsec,\n  ',...
+                fprintf('  . wavelength  = %5.2fmicron,\n  . r0          = %5.2fcm,\n  . L0          = %5.2fm,\n  . seeing      = %5.2farcsec,\n  ',...
                     obj.wavelength*1e6,obj.r0*1e2,obj.L0,obj.seeingInArcsec)
             end
             if ~isinf(obj.theta0InArcsec)
-                fprintf('. theta0     = %5.2farcsec (%s),\n  ',...
-                    obj.theta0InArcsec,obj.p_theta0Tau0Definition)
+                fprintf('. theta0(%2.0f%%) = %5.2farcsec,\n  ',...
+                    100*obj.coherenceFunctionDecay,obj.theta0InArcsec)
             end
             if ~isempty(obj.tau0InMs)
-                fprintf('. tau0       = %5.2fmillisec (%s)',...
-                    obj.tau0InMs,obj.p_theta0Tau0Definition)
+                fprintf('. tau0(%2.0f%%)   = %5.2fmillisec',...
+                    100*obj.coherenceFunctionDecay,obj.tau0InMs)
             else
                 fprintf('\b\b')
             end
@@ -189,20 +187,20 @@ classdef atmosphere < handle
                 0.98.*obj.wavelength./obj.r0;
         end
         
-        %% Get/Set theta0Tau0Definition property
-        function out = get.theta0Tau0Definition(obj)
-            out = obj.p_theta0Tau0Definition;
-        end
-        function set.theta0Tau0Definition(obj,val)
-            obj.p_theta0Tau0Definition = val;
+        %% Set coherenceFunctionDecay property
+        function set.coherenceFunctionDecay(obj,val)
             switch lower(val)
                 case 'roddier'
-                    obj.p_theta0Tau0Scale = 1;
+                    obj.coherenceFunctionDecay = exp(-1);
                 case 'fried'
-                    obj.p_theta0Tau0Scale = 2^(-3/5);
+                    obj.coherenceFunctionDecay = exp(-0.5);
                 otherwise
-                    error('oomao:atmosphere:theta0Tau0Definition',...
-                        'The valid definitions for theta0 and tau0 are either Roddier of Fried')
+                    if isnumeric(val)
+                        obj.coherenceFunctionDecay = val;
+                    else
+                        error('oomao:atmosphere:coherenceFunctionDecay',...
+                            'The valid definitions for theta0 and tau0 are either Roddier, Fried or a numeric value between 0 and 1 excluded.')
+                    end
             end
         end
         
@@ -213,14 +211,14 @@ classdef atmosphere < handle
                out  = Inf;
             else
                 if isinf(obj.L0)
-                    cst = (24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
-                    out= ( cst./sum( [obj.layer.fractionnalR0].*z.^(5./3) ) ).^(3/5);
+                    cst = -log(obj.coherenceFunctionDecay)*(24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
+                    out = ( cst./sum( [obj.layer.fractionnalR0].*z.^(5./3) ) ).^(3/5);
                 else
-                    fun = @(x) phaseStats.angularStructureFunction(abs(x),obj) + 2.*log(exp(-1));
+                    fun = @(x) phaseStats.angularStructureFunction(abs(x),obj) + 2.*log(obj.coherenceFunctionDecay);
                     out = abs(fzero(fun,0));
                 end
             end
-            out = out*obj.p_theta0Tau0Scale*cougarConstants.radian2arcsec;
+            out = out*cougarConstants.radian2arcsec;
         end
         
         %% Get tau0InMs property
@@ -232,14 +230,14 @@ classdef atmosphere < handle
                out  = Inf;
             else
                 if isinf(obj.L0)
-                    cst = (24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
-                    out= ( cst./sum( [obj.layer.fractionnalR0].*v.^(5./3) ) ).^(3/5);
+                    cst = -log(obj.coherenceFunctionDecay)*(24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
+                    out= (cst./sum( [obj.layer.fractionnalR0].*v.^(5./3) ) ).^(3/5);
                 else
-                    fun = @(x) phaseStats.temporalStructureFunction(abs(x),obj) + 2.*log(exp(-1));
+                    fun = @(x) phaseStats.temporalStructureFunction(abs(x),obj) + 2.*log(obj.coherenceFunctionDecay);
                     out = abs(fzero(fun,0));
                 end
             end
-            out = out*obj.p_theta0Tau0Scale*1e3;
+            out = out*1e3;
         end
         
         function map = fourierPhaseScreen(atm,D,nPixel)

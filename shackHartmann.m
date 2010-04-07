@@ -480,31 +480,33 @@ classdef shackHartmann < handle
                     'parent',obj.slopesDisplayHandle)
                 axis equal tight
                 % Display lenslet footprint
-                lc = ones(1,3)*0.75;
-                u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
-                kLenslet = 1;
-                v = u(obj.validLenslet(:,kLenslet));
-                prev_v = v;
-                v = [v v(end)+nPxLenslet-1];
-                while length(v)>=length(prev_v)
-                    w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
-                    line(v,w,'LineStyle','-','color',lc)
-                    line(w,v,'LineStyle','-','color',lc)
+                if obj.lenslets.nLenslet>1
+                    lc = ones(1,3)*0.75;
+                    u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
+                    kLenslet = 1;
+                    v = u(obj.validLenslet(:,kLenslet));
                     prev_v = v;
-                    kLenslet = kLenslet + 1;
-                    v = u(obj.validLenslet(:,kLenslet));
                     v = [v v(end)+nPxLenslet-1];
-                end
-                w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
-                line(prev_v,w,'LineStyle','-','color',lc)
-                line(w,prev_v,'LineStyle','-','color',lc)
-                while kLenslet<=obj.lenslets.nLenslet
-                    v = u(obj.validLenslet(:,kLenslet));
-                    v = [v v(end)+nPxLenslet-1];
-                    w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
-                    line(v,w,'LineStyle','-','color',lc)
-                    line(w,v,'LineStyle','-','color',lc)
-                    kLenslet = kLenslet + 1;                    
+                    while length(v)>=length(prev_v)
+                        w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
+                        line(v,w,'LineStyle','-','color',lc)
+                        line(w,v,'LineStyle','-','color',lc)
+                        prev_v = v;
+                        kLenslet = kLenslet + 1;
+                        v = u(obj.validLenslet(:,kLenslet));
+                        v = [v v(end)+nPxLenslet-1];
+                    end
+                    w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
+                    line(prev_v,w,'LineStyle','-','color',lc)
+                    line(w,prev_v,'LineStyle','-','color',lc)
+                    while kLenslet<=obj.lenslets.nLenslet
+                        v = u(obj.validLenslet(:,kLenslet));
+                        v = [v v(end)+nPxLenslet-1];
+                        w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
+                        line(v,w,'LineStyle','-','color',lc)
+                        line(w,v,'LineStyle','-','color',lc)
+                        kLenslet = kLenslet + 1;
+                    end
                 end
                 % Display slopes reference
                 u = obj.referenceSlopes(1:end/2)+obj.lensletCenterX;
