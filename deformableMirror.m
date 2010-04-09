@@ -79,6 +79,20 @@ classdef deformableMirror < handle
             checkOut(obj.log,obj)
         end
         
+        function display(obj)
+            %% DISPLAY Display object information
+            %
+            % display(obj) prints information about the deformable mirror
+            % object
+          
+            fprintf('___ %s ___\n',obj.tag)
+            fprintf(' %dX%d actuators deformable mirror: \n  . %d controlled actuators\n',...
+                obj.nActuator,obj.nActuator,obj.nValidActuator)
+            fprintf('----------------------------------------------------\n')
+            display(obj.modes)
+
+        end
+        
         %% Get nValidActuator
         function out = get.nValidActuator(obj)
             out = sum(obj.validActuator(:));

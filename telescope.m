@@ -15,7 +15,7 @@ classdef telescope < telescopeAbstract
     %     'resolution',nPx,...
     %     'samplingTime',1/100);
     %
-    % See also telescopeCore
+    % See also telescopeAbstract
     
     properties
         % wind shifted turbulence sampling time

@@ -1,12 +1,13 @@
 classdef telescopeAbstract < handle
-    % TELESCOPECORE Create a telescopeCore object
+    % TELESCOPEABSTRACT Create a telescopeAbstract object
     %
-    % tel = telescopeCore(D) creates a telescopeCore object from the diameter D.
+    % tel = telescopeAbstract(D) creates a telescopeAbstract object from
+    % the diameter D.
     %
-    % tel = telescopeCore(D,'parameter',value,...) creates a telescopeCore object from
-    % the diameter D and from optionnal parameter-value pair arguments. The
-    % parameters are obstructionRatio, fieldOfViewInArcsec, fieldOfViewInArcmin
-    % or resolution.
+    % tel = telescopeAbstract(D,'parameter',value,...) creates a
+    % telescopeAbstract object from the diameter D and from optionnal
+    % parameter-value pair arguments. The parameters are obstructionRatio,
+    % fieldOfViewInArcsec, fieldOfViewInArcmin or resolution.
     
     properties
         % diameter

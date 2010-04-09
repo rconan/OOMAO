@@ -51,7 +51,7 @@ classdef shackHartmann < handle
         tag = 'SHACK-HARTMANN';
     end
     
-    properties (Dependent,SetObservable=true,GetObservable=true)
+    properties (SetObservable=true)
         % measurements
         slopes = 0;
     end
@@ -77,7 +77,7 @@ classdef shackHartmann < handle
     end
     
     properties (Access=private)
-        p_slopes;
+%         p_slopes;
         p_referenceSlopes = 0;
         p_validLenslet;
         % index array to reshape a detector frame into a matrix with one
@@ -111,7 +111,7 @@ classdef shackHartmann < handle
                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
             % Slopes listener
             obj.slopesListener = addlistener(obj,'slopes','PostSet',...
-                @(src,evnt) slopesDisplay(obj) );
+                @(src,evnt) obj.slopesDisplay );
             obj.slopesListener.Enabled = false;
 %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
 %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
@@ -181,13 +181,13 @@ classdef shackHartmann < handle
 
         end
         
-        %% Get and Set slopes
-        function slopes = get.slopes(obj)
-            slopes = obj.p_slopes;
-        end
-        function set.slopes(obj,val)
-            obj.p_slopes = val;
-        end
+%         %% Get and Set slopes
+%         function slopes = get.slopes(obj)
+%             slopes = obj.p_slopes;
+%         end
+%         function set.slopes(obj,val)
+%             obj.p_slopes = val;
+%         end
         
         %% Get and Set valid lenslets
         function validLenslet = get.validLenslet(obj)
@@ -371,16 +371,16 @@ classdef shackHartmann < handle
                 if any(index(:)) % if all pixels threshold
                     warning('OOMAO:shackHartmann:dataProcessing',...
                         'Threshold (%f) is probably too high or simply there is no light on some of the lenslets',obj.framePixelThreshold)
-                    if ~isempty(obj.p_slopes)
-                        sBuffer(index) = obj.p_slopes(index);
+                    if ~isempty(obj.slopes)
+                        sBuffer(index) = obj.slopes(index);
                     end
                 end
-                obj.p_slopes = sBuffer;
+                obj.slopes = sBuffer;
             elseif obj.matchedFilter
             elseif obj.correlation
             end
             if nargout>0
-                varargout{1} = obj.p_slopes;
+                varargout{1} = obj.slopes;
             end
         end
         
@@ -389,8 +389,8 @@ classdef shackHartmann < handle
                 'resolution',obj.lenslets.nLenslet,...
                 'pupil',double(obj.validLenslet));
             dzdxy = [zern.xDerivative(obj.validLenslet,:);zern.yDerivative(obj.validLenslet,:)];
-            zern.c = dzdxy\obj.p_slopes;
-%             zern.c = dzdxy'*obj.p_slopes;
+            zern.c = dzdxy\obj.slopes;
+%             zern.c = dzdxy'*obj.slopes;
         end
         
         function varargout = grabAndProcess(obj)
@@ -406,7 +406,7 @@ classdef shackHartmann < handle
             grab(obj.camera)
             dataProcessing(obj);
             if nargout>0
-                varargout{1} = obj.p_slopes;
+                varargout{1} = obj.slopes;
             end
         end
         function varargout = uplus(obj)
@@ -441,8 +441,6 @@ classdef shackHartmann < handle
             % graphics object quiver
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
-            %
-            % See also: quiver
             
             if ishandle(obj.slopesDisplayHandle)
                 if nargin>1
@@ -450,9 +448,9 @@ classdef shackHartmann < handle
                 end
                 hc = get(obj.slopesDisplayHandle,'children');
                 u = obj.referenceSlopes(1:end/2)+...
-                    obj.p_slopes(1:end/2)+obj.lensletCenterX;
+                    obj.slopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.p_slopes(1+end/2:end)+obj.lensletCenterY;
+                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
                 set(hc(1),'xData',u,'yData',v)
             else
                 obj.slopesDisplayHandle = hgtransform(varargin{:});
@@ -516,9 +514,9 @@ classdef shackHartmann < handle
                     'parent',obj.slopesDisplayHandle)
                 % Display slopes
                 u = obj.referenceSlopes(1:end/2)+...
-                    obj.p_slopes(1:end/2)+obj.lensletCenterX;
+                    obj.slopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.p_slopes(1+end/2:end)+obj.lensletCenterY;
+                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
                 line(u,v,'color','r','marker','+',...
                     'linestyle','none',...
                     'parent',obj.slopesDisplayHandle)
@@ -596,8 +594,10 @@ classdef shackHartmann < handle
             j0x = [ones(1,3) ones(1,3)*3]; % x stencil col subscript
             i0y = [1 3 1 3 1 3]; % y stencil row subscript
             j0y = [1 1 2 2 3 3]; % y stencil col subscript
-            s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
-            s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
+%             s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
+%             s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
+            s0x = [-1 -1 -1  1 1  1]; % x stencil weight
+            s0y = -[ 1 -1  1 -1 1 -1]; % y stencil weight
             
             i_x = zeros(1,6*nValidLenslet);
             j_x = zeros(1,6*nValidLenslet);

@@ -3,8 +3,8 @@ classdef source < stochasticWave & hgsetget
     % stochasticWave which contains the phase and amplitude of the wave
     % emitted by the source object. The source propagates from one object
     % to another object on the optical path by using the propagation
-    % operator ".*" and "*". The proppagation through a pre-set optical
-    % path can be re-played with the unary plus operator.
+    % operator ".*" and "*". The propagation through a pre-set optical
+    % path can be re-played with the unary plus (+obj) operator.
     %
     % Example :
     % To create an on-axis source: src = source; 
