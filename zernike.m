@@ -74,27 +74,31 @@ classdef zernike < telescopeAbstract
             p.addParamValue('radius', [], @isnumeric);
             p.addParamValue('angle', [], @isnumeric);
             p.addParamValue('pupil', [], @isnumeric);
+            p.addParamValue('logging', true, @islogical);            
             p.parse(j,varargin{:});
             obj = obj@telescopeAbstract(p.Results.D,...
                 'resolution',p.Results.resolution);
-            if ~isempty(p.Results.pupil)
-                obj.pupil = p.Results.pupil;
-            end
+            obj.pupil = p.Results.pupil;
             obj.j = p.Results.j;
             obj.r = p.Results.radius;
             obj.o = p.Results.angle;
-            nPixel = p.Results.resolution;
             [obj.n,obj.m] = findNM(obj);
             if isempty(obj.r)
-                [obj.r,obj.o] = utilities.cartAndPol(nPixel,'output','polar');
+                [obj.r,obj.o] = utilities.cartAndPol(p.Results.resolution,'output','polar');
+            else
+                obj.resolution = length(obj.r);
             end
             obj.p_p = polynomials(obj);
             obj.c = ones(length(obj.j),1);
-            obj.log = logBook.checkIn(obj);
+            if p.Results.logging
+                obj.log = logBook.checkIn(obj);
+            end
         end
         %% Destructor
         function delete(obj)
-            checkOut(obj.log,obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj)
+            end
         end
         
         function display(obj)

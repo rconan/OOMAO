@@ -139,7 +139,7 @@ classdef detector < handle
                     varargin{:});
                 colormap(pink)
                 axis xy equal tight
-                colorbar
+                colorbar('location','NorthOutside')
             end
         end
         

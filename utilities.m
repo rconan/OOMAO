@@ -6,17 +6,23 @@ classdef utilities
         function out = piston(Npx,varargin)
             %% PISTON piston mode
             %
-            % out = piston(Npx) Computes a piston on Npx pixel across the diameter
+            % out = piston(Npx) Computes a piston on Npx pixel across the
+            % diameter
             %
-            % out = piston(Npx,nOut) Computes a piston on Npx pixel across the diameter
-            % inside a square array of nOutXnOut pixels.
+            % out = piston(Npx,nOut) Computes a piston on Npx pixel across
+            % the diameter inside a square array of nOutXnOut pixels.
             %
-            % out = piston(Npx,nOut,xOffset,yOffset) Computes a piston on Npx pixel
-            % across the diameter inside a square array of nOutXnOut pixels at xOffset
-            % and yOffset pixels from the center.
+            % out = piston(Npx,nOut,xOffset,yOffset) Computes a piston on
+            % Npx pixel across the diameter inside a square array of
+            % nOutXnOut pixels at xOffset and yOffset pixels from the
+            % center.
             %
-            % out = piston( ... ,'shape','square') By default the piston is a disc but here it
-            % is forced to be a square
+            % out = piston( ... ,'shape','square') By default the piston is
+            % a disc but here it is forced to be a square
+            %
+            % out = piston( ... ,'type','logical') By default the piston
+            % values are in double but they can be casted into any types
+            % supported by Matlab like logical
             
             p = inputParser;
             p.addRequired('Npx',@isnumeric);
