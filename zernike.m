@@ -74,10 +74,12 @@ classdef zernike < telescopeAbstract
             p.addParamValue('radius', [], @isnumeric);
             p.addParamValue('angle', [], @isnumeric);
             p.addParamValue('pupil', [], @isnumeric);
+            p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
             p.addParamValue('logging', true, @islogical);            
             p.parse(j,varargin{:});
             obj = obj@telescopeAbstract(p.Results.D,...
-                'resolution',p.Results.resolution);
+                'resolution',p.Results.resolution,...
+                'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin);
             obj.pupil = p.Results.pupil;
             obj.j = p.Results.j;
             obj.r = p.Results.radius;

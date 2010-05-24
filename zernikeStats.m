@@ -1,122 +1,122 @@
-classdef phaseStats
+classdef zernikeStats
     % PHASESTATS Phase statistics static class
     
     methods (Static)
         
-        function  out = variance(atm)
-            %% VARIANCE Phase variance
-            %
-            % out = phaseStats.variance(atm) computes the phase variance
-            % from an atmosphere object
-            %
-            % See also atmosphere
-            L0r0ratio= (atm.L0./atm.r0).^(5./3);
-            out   = (24.*gamma(6./5)./5).^(5./6).*...
-                (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-            out = sum([atm.layer.fractionnalR0]).*out;
-        end
-        
-        function out = covariance(rho,atm)
-            %% COVARIANCE Phase covariance
-            %
-            % out = phaseStats.covariance(rho,atm) computes the phase covariance from
-            % the baseline rho and an atmosphere object
-            %
-            % See also atmosphere
-             
-            L0r0ratio= (atm.L0./atm.r0).^(5./3);
-            cst      = (24.*gamma(6./5)./5).^(5./6).*...
-                (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
-                L0r0ratio;
-            out   = ones(size(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
-                (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-            index         = rho~=0;
-            u             = 2.*pi.*rho(index)./atm.L0;
-            out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-            out = sum([atm.layer.fractionnalR0]).*out;
-        end
-        
-        function out = angularCovariance(theta,atm)
-            %% ANGULARCOVARIANCE Phase angular covariance
-            %
-            % out = phaseStats.angularCovariance(rho,atm) computes the
-            % phase angular covariance from the zenith angle theta and an
-            % atmosphere object
-            %
-            % See also atmosphere
-           
-            out = zeros(size(theta));
-            for kLayer = 1:atm.nLayer
-                atmSlab = slab(atm,kLayer);
-                out = out + phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab);
-            end
-        end        
-        function out = angularStructureFunction(theta,atm)
-            %% ANGULARSTRUCTUREFUNCTION Phase angular structure function
-            %
-            % out = phaseStats.angularStructureFunction(rho,atm) computes the
-            % phase angular structure function from the zenith angle theta
-            % and an atmosphere object
-            %
-            % See also atmosphere
-           
-            out = zeros(size(theta));
-            for kLayer = 1:atm.nLayer
-                atmSlab = slab(atm,kLayer);
-                out = out + 2.*( phaseStats.variance(atmSlab) - ...
-                    phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab) );
-            end
-       end        
-        
-        function out = temporalCovariance(tau,atm)
-            %% TEMPORALCOVARIANCE Phase temporal covariance
-            %
-            % out = phaseStats.temporalCovariance(rho,atm) computes the
-            % phase temporal covariance from the delay tau and an
-            % atmosphere object
-            %
-            % See also atmosphere
-           
-            out = zeros(size(tau));
-            for kLayer = 1:atm.nLayer
-                atmSlab = slab(atm,kLayer);
-                out = out + phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab);
-            end
-        end        
-        function out = temporalStructureFunction(tau,atm)
-            %% TEMPORALSTRUCTUREFUNCTION Phase temporal structure function
-            %
-            % out = phaseStats.temporalStructureFunction(rho,atm) computes
-            % the phase temporal structure function from the delay tau and
-            % an atmosphere object
-            %
-            % See also atmosphere
-           
-            out = zeros(size(tau));
-            for kLayer = 1:atm.nLayer
-                atmSlab = slab(atm,kLayer);
-                out = out + 2.*( phaseStats.variance(atmSlab) - ...
-                    phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab) );
-            end
-        end
-        
-        function out = structureFunction(rho,atm)
-            %% STRUCTUREFUNCTION Phase structure function
-            %
-            % out = phaseStats.structureFunction(rho,atm) computes the
-            % phase structure function from the baseline rho and an
-            % atmosphere object
-            %
-            % See also atmosphere
-            
-            if isinf(atm.L0)
-                out   = zeros(size(rho));
-                index = rho~=0;
-                out(index) = 2.*(24.*gamma(6./5)./5).^(5./6).*(rho(index)./atm.r0).^(5./3);
-            else
-                out = 2.*(phaseStats.variance(atm)-phaseStats.covariance(rho,atm));
-            end
-        end
+%         function  out = variance(atm)
+%             %% VARIANCE Phase variance
+%             %
+%             % out = phaseStats.variance(atm) computes the phase variance
+%             % from an atmosphere object
+%             %
+%             % See also atmosphere
+%             L0r0ratio= (atm.L0./atm.r0).^(5./3);
+%             out   = (24.*gamma(6./5)./5).^(5./6).*...
+%                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
+%             out = sum([atm.layer.fractionnalR0]).*out;
+%         end
+%         
+%         function out = covariance(rho,atm)
+%             %% COVARIANCE Phase covariance
+%             %
+%             % out = phaseStats.covariance(rho,atm) computes the phase covariance from
+%             % the baseline rho and an atmosphere object
+%             %
+%             % See also atmosphere
+%              
+%             L0r0ratio= (atm.L0./atm.r0).^(5./3);
+%             cst      = (24.*gamma(6./5)./5).^(5./6).*...
+%                 (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
+%                 L0r0ratio;
+%             out   = ones(size(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
+%                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
+%             index         = rho~=0;
+%             u             = 2.*pi.*rho(index)./atm.L0;
+%             out(index) = cst.*u.^(5./6).*besselk(5./6,u);
+%             out = sum([atm.layer.fractionnalR0]).*out;
+%         end
+%         
+%         function out = angularCovariance(theta,atm)
+%             %% ANGULARCOVARIANCE Phase angular covariance
+%             %
+%             % out = phaseStats.angularCovariance(rho,atm) computes the
+%             % phase angular covariance from the zenith angle theta and an
+%             % atmosphere object
+%             %
+%             % See also atmosphere
+%            
+%             out = zeros(size(theta));
+%             for kLayer = 1:atm.nLayer
+%                 atmSlab = slab(atm,kLayer);
+%                 out = out + phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab);
+%             end
+%         end        
+%         function out = angularStructureFunction(theta,atm)
+%             %% ANGULARSTRUCTUREFUNCTION Phase angular structure function
+%             %
+%             % out = phaseStats.angularStructureFunction(rho,atm) computes the
+%             % phase angular structure function from the zenith angle theta
+%             % and an atmosphere object
+%             %
+%             % See also atmosphere
+%            
+%             out = zeros(size(theta));
+%             for kLayer = 1:atm.nLayer
+%                 atmSlab = slab(atm,kLayer);
+%                 out = out + 2.*( phaseStats.variance(atmSlab) - ...
+%                     phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab) );
+%             end
+%        end        
+%         
+%         function out = temporalCovariance(tau,atm)
+%             %% TEMPORALCOVARIANCE Phase temporal covariance
+%             %
+%             % out = phaseStats.temporalCovariance(rho,atm) computes the
+%             % phase temporal covariance from the delay tau and an
+%             % atmosphere object
+%             %
+%             % See also atmosphere
+%            
+%             out = zeros(size(tau));
+%             for kLayer = 1:atm.nLayer
+%                 atmSlab = slab(atm,kLayer);
+%                 out = out + phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab);
+%             end
+%         end        
+%         function out = temporalStructureFunction(tau,atm)
+%             %% TEMPORALSTRUCTUREFUNCTION Phase temporal structure function
+%             %
+%             % out = phaseStats.temporalStructureFunction(rho,atm) computes
+%             % the phase temporal structure function from the delay tau and
+%             % an atmosphere object
+%             %
+%             % See also atmosphere
+%            
+%             out = zeros(size(tau));
+%             for kLayer = 1:atm.nLayer
+%                 atmSlab = slab(atm,kLayer);
+%                 out = out + 2.*( phaseStats.variance(atmSlab) - ...
+%                     phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab) );
+%             end
+%         end
+%         
+%         function out = structureFunction(rho,atm)
+%             %% STRUCTUREFUNCTION Phase structure function
+%             %
+%             % out = phaseStats.structureFunction(rho,atm) computes the
+%             % phase structure function from the baseline rho and an
+%             % atmosphere object
+%             %
+%             % See also atmosphere
+%             
+%             if isinf(atm.L0)
+%                 out   = zeros(size(rho));
+%                 index = rho~=0;
+%                 out(index) = 2.*(24.*gamma(6./5)./5).^(5./6).*(rho(index)./atm.r0).^(5./3);
+%             else
+%                 out = 2.*(phaseStats.variance(atm)-phaseStats.covariance(rho,atm));
+%             end
+%         end
         
         function out = spectrum(f,atm)
             %% SPECTRUM Phase power spectrum density
@@ -141,27 +141,27 @@ classdef phaseStats
             out = out*L0^(11/3)*( (symf*L0)^2 + 1 )^(-11/6);
         end
         
-        function out = otf(rho,atm)
-            %% OTF Phase optical transfert function
-            %
-            % out = phaseStats.otf(rho) compute the phase optical transfert function
-            % from the baseline rho and an atmosphere object
-            
-            out = exp(-0.5*phaseStats.structureFunction(rho,atm));
-        end
-        
-        function out = psf(f,atm)
-            %% PSF Phase point spread function
-            %
-            % out = phaseStats.psf(f,atm) compute the phase point spread
-            % from the frequency f and an atmosphere object
-
-            fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,Inf);
-            out = arrayfun( fun, f);
-            function y = psfHankelIntegrandNested(x,freq)
-                y = x.*besselj(0,2.*pi.*x.*freq).*phaseStats.otf(x,atm);
-            end
-        end
+%         function out = otf(rho,atm)
+%             %% OTF Phase optical transfert function
+%             %
+%             % out = phaseStats.otf(rho) compute the phase optical transfert function
+%             % from the baseline rho and an atmosphere object
+%             
+%             out = exp(-0.5*phaseStats.structureFunction(rho,atm));
+%         end
+%         
+%         function out = psf(f,atm)
+%             %% PSF Phase point spread function
+%             %
+%             % out = phaseStats.psf(f,atm) compute the phase point spread
+%             % from the frequency f and an atmosphere object
+% 
+%             fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,Inf);
+%             out = arrayfun( fun, f);
+%             function y = psfHankelIntegrandNested(x,freq)
+%                 y = x.*besselj(0,2.*pi.*x.*freq).*phaseStats.otf(x,atm);
+%             end
+%         end
         
         function out = covarianceMatrix(varargin)
             %% COVARIANCEMATRIX Phase covariance matrix
@@ -224,7 +224,7 @@ classdef phaseStats
             end
         end
         
-        function out = zernikeVariance(zern,atm)
+        function out = variance(zern,atm)
             %% ZERNIKEVARIANCE Zernike coefficients variance
             %
             % out = variance(modes,atmosphere) computes the
@@ -381,7 +381,7 @@ classdef phaseStats
             end
         end
         
-        function out = zernikeCovariance(zern,atm)
+        function out = covariance(zern,atm)
             %% ZERNIKECOVARIANCE Zernike coefficients covariance
             %
             % out = phaseStats.zernikeCovariance(modes,atmosphere)
@@ -561,8 +561,8 @@ classdef phaseStats
             end
         end
         
-        function out = zernikeResidualVariance(N,atm,tel)
-            %% ZERNIKERESIDUALVARIANCE
+        function out = residualVariance(N,atm,tel)
+            %% RESIDUALVARIANCE
             %
             % out = zernikeResidualVariance(N,atm,tel)
             %
@@ -792,7 +792,280 @@ classdef phaseStats
                 out = real(out);
             end
         end
+        
+        function out = aiaj(zi,ni,mi,zj,nj,mj,r0,L0,R)
+            out = 0;
+            if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
+            out = (gamma(11/6)^2/pi^(14/3))*(24*gamma(6/5)/5)^(5/6)*...
+                (L0/r0)^(5/3)*(L0/R)^2*...
+                sqrt((ni+1)*(nj+1)).*(-1).^((ni+nj-mi-mj)/2).*...
+                aiajFun(ni,nj,2*pi*R/L0);
+            end
+        end
+        
+        function varargout = residueVarianceMap(N,r,o,atm,tel)
+        %% RESIDUEVARIANCEMAP
+            
+            persistent aiaj zMode zN zM R L0 L0r0Ratio L0RRatio c1 c2 ...
+                red1 atmVar
+            if isempty(aiaj)
+                fprintf(' @(zernikeStats.residueVarianceMap)> Initializing aiaj ...')
                 
+                R         = tel.R;
+                L0        = atm.L0;
+                L0r0Ratio = (L0./atm.r0).^(5./3);
+                L0RRatio  = (L0./R).^(2);
+                
+                c1 = (24.*gamma(6./5)./5).^(5./6);
+                c2 = (gamma(11/6)^2/pi^(14/3))*c1*L0r0Ratio*L0RRatio;
+                
+                red1 = 2*pi*R/L0;
+                r    = r/R;
+                atmVar    = c1.*...
+                    (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0Ratio;
+                
+                zMode = 1:N;
+                zern = zernike(zMode,'logging',false);
+                zN    = zern.n;%radialOrder(zMode)
+                zM    = zern.m;%azimuthFrequency(zMode,zN)
+                aiaj = zeros(N);
+                for zi = zMode
+                    ni = zN(zi);
+                    mi = zM(zi);
+                    for zj = 1:N
+                        nj = zN(zj);
+                        mj = zM(zj);
+                        if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
+                            fnm = sqrt((ni+1)*(nj+1)).*(-1).^((ni+nj-mi-mj)/2);
+                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
+                        end
+                    end
+                end
+                fprintf('\b\b\b: done!\n')
+            else
+                r    = r/R;
+            end
+                  
+            zernCov = 0;
+            for zi = 1:N
+                
+                ni = zN(zi);
+                mi = zM(zi);
+                
+                for zj = 1:N
+                    nj = zN(zj);
+                    mj = zM(zj);
+                    if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
+                        zerni = polynomials(zi,ni,mi,r,o);
+                        zernj = polynomials(zj,nj,mj,r,o);
+                        zernCov = zernCov + aiaj(zi,zj).*zerni.*zernj;
+                    end
+                end
+                
+            end
+            
+            nR = numel(r);
+            zernPhaseCov = zeros(size(r));
+            zernPhaseCovFun = @(y) quadgk(@(x) CphiAi(x,y), 0, Inf);
+            parfor kR = 1:nR
+                zernPhaseCov(kR) = zernPhaseCovFun(r(kR));
+            end
+            varargout{1} = atmVar + zernCov - c2*zernPhaseCov;
+            if nargout>1
+                varargout{2} = aiaj;
+            end
+            
+            function out1 = CphiAi(x,rr)
+                out1 = 0;
+                for z = 1:N
+                    n = zN(z);
+                    m = zM(z);
+                    krkr = m==0;
+                    zerni = polynomials(z,n,m,rr,o);
+                    CphiAiTerm1 = sqrt(n+1)*2^(0.5*(1-krkr))*...
+                        (-1)^((n-m*(1-krkr))/2)*cos(m*o+pi*(1-krkr)*(((-1)^z-1))/4);
+                    integrand = (1+(x/red1).^2).^(-11/6).*besselj(n+1,x).*besselj(m,rr*x);
+                    out1 = out1 + zerni.*CphiAiTerm1.*integrand;
+                end
+                
+            end
+            
+        end
+                
+        function varargout = residueStructureFunction(N,r1,o1,r2,o2,atm,tel)
+        %% RESIDUESTRUCTUREFUNCTION
+            
+            persistent aiaj zMode zN zM R L0 L0r0Ratio L0RRatio c1 c2 cst ...
+                red1 atmVar
+            if isempty(aiaj)
+                fprintf(' @(zernikeStats.residueStructureFunction)> Initializing aiaj ...')
+                
+                R         = tel.R;
+                L0        = atm.L0;
+                L0r0Ratio = (L0./atm.r0).^(5./3);
+                L0RRatio  = (L0./R).^(2);
+                
+                c1 = (24.*gamma(6./5)./5).^(5./6);
+                c2 = (gamma(11/6)^2/pi^(14/3))*c1*L0r0Ratio*L0RRatio;
+                
+                red1 = 2*pi*R/L0;
+                atmVar    = c1.*...
+                    (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0Ratio;
+                
+                cst      = c1.*...
+                    (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
+                    L0r0Ratio;
+                rho = abs(r1.*exp(1i*o1)-r2.*exp(1i*o2));
+                atmCov   = ones(size(rho)).*atmVar;
+                index         = rho~=0;
+                u             = 2.*pi.*rho(index)./L0;
+                atmCov(index) = cst.*u.^(5./6).*besselk(5./6,u);
+                
+                r1    = r1/R;
+                r2    = r2/R;
+                zMode = 1:N;
+                zern = zernike(zMode,'logging',false);
+                zN    = zern.n;%radialOrder(zMode)
+                zM    = zern.m;%azimuthFrequency(zMode,zN)
+                aiaj = zeros(N);
+                for zi = zMode
+                    ni = zN(zi);
+                    mi = zM(zi);
+                    for zj = 1:N
+                        nj = zN(zj);
+                        mj = zM(zj);
+                        if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
+                            fnm = sqrt((ni+1)*(nj+1)).*(-1).^((ni+nj-mi-mj)/2);
+                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
+                        end
+                    end
+                end
+                fprintf('\b\b\b: done!\n')
+            else
+                rho = abs(r1.*exp(1i*o1)-r2.*exp(1i*o2));
+                atmCov   = ones(size(rho)).*atmVar;
+                index         = rho~=0;
+                u             = 2.*pi.*rho(index)./L0;
+                atmCov(index) = cst.*u.^(5./6).*besselk(5./6,u);
+                r1    = r1/R;
+                r2    = r2/R;
+            end
+                 
+            atmSF = 2*(atmVar - atmCov);
+                 
+            zernCov = 0;
+            for zi = 1:N
+                
+                ni = zN(zi);
+                mi = zM(zi);
+                
+                for zj = 1:N
+                    nj = zN(zj);
+                    mj = zM(zj);
+                    if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
+                        zerni1 = polynomials(zi,ni,mi,r1,o1);
+                        zernj1 = polynomials(zj,nj,mj,r1,o1);
+                        zerni2 = polynomials(zi,ni,mi,r2,o2);
+                        zernj2 = polynomials(zj,nj,mj,r2,o2);
+                        zernCov = zernCov + aiaj(zi,zj).*...
+                            (zerni1-zerni2).*(zernj1-zernj2);
+                    end
+                end
+                
+            end
+            
+            nR = numel(r1);
+            zernPhaseCov = zeros(size(r1));
+            zernPhaseCovFun = @(r1_,o1_,r2_,o2_) quadgk(@(x) CphiAi(x,r1_,o1_,r2_,o2_), 0, Inf);
+            parfor kR = 1:nR
+                zernPhaseCov(kR) = zernPhaseCovFun(r1(kR),o1(kR),r2(kR),o2(kR));
+            end
+            zernPhaseCov = c2*zernPhaseCov;
+            varargout{1} = atmSF + zernCov - zernPhaseCov;
+            if nargout>1
+                varargout{2} = aiaj;
+            end
+            
+            function out1 = CphiAi(x,rr1,oo1,rr2,oo2)
+                out1 = 0;
+                for z = 1:N
+                    n = zN(z);
+                    m = zM(z);
+                    krkr = m==0;
+                    zerni1 = polynomials(z,n,m,rr1,oo1);
+                    zerni2 = polynomials(z,n,m,rr2,oo2);
+                    gnm    = sqrt(n+1)*2^(0.5*(1-krkr))*...
+                        (-1)^((n-m*(1-krkr))/2);
+                    CphiAiTerm1 = cos(m*oo1+pi*(1-krkr)*(((-1)^z-1))/4);
+                    CphiAiTerm2 = cos(m*oo2+pi*(1-krkr)*(((-1)^z-1))/4);
+                    integrand1 = (1+(x/red1).^2).^(-11/6).*besselj(n+1,x).*besselj(m,rr1*x);
+                    integrand2 = (1+(x/red1).^2).^(-11/6).*besselj(n+1,x).*besselj(m,rr2*x);
+                    out1 = out1 + (zerni1-zerni2).*gnm.*...
+                        ( CphiAiTerm1.*integrand1 - CphiAiTerm2.*integrand2 );
+                end
+                
+            end
+            
+        end
+        
+        function out = residueOtf(N,rho_,gamma_,atm,tel)
+            %% RESIDUEOTF
+            
+            out    = zeros(size(rho_));
+            rho_   = rho_./tel.D;
+            index  = rho_<1;
+            rho_   = rho_(index);
+            gamma_ = gamma_(index);
+            n      = sum(index(:));
+%             h = waitbar(0,'Patience ...');
+            for k=1:n
+                rho = rho_(k);
+                gamma = gamma_(k);
+                z   = rho.*exp(1i.*gamma);
+%                              out = quad2d(@(o_,r_) r_, 0,pi/2,0, ro )*4
+                ro = @(o) 0.5*rho.*cos(gamma-o)-0.5*sqrt(1-(rho.*sin(gamma-o)).^2);
+                out(k) = quad2d(@residueOtfInt, 0,pi/2,0, ro );
+%                 waitbar(k/n)
+            end
+%             close(h)
+            out = out*16/pi;
+            function out1 = residueOtfInt(oo,rr)
+                z_ = rr.*exp(1i.*oo);
+                z1 = z_-z/2;
+                z2 = z_+z/2;
+                r1 = abs(z1);
+                o1 = angle(z1);
+                r2 = abs(z2);
+                o2 = angle(z2);
+                out1 = rr.*exp(-0.5*zernikeStats.residueStructureFunction(N,r1,o1,r2,o2,atm,tel));
+            end
+        end
+        
+        function out = residueStrehlRatio(N,atm,tel)
+            %% RESIDUESR
+            
+%             rho   = linspace(0,tel.D,21);
+%             gamma = zeros(size(rho));
+%             otf   = residueOtf(N,rho,gamma,atm,tel);
+%             out   = trapz(rho,rho.*otf)*2*pi./tel.area;
+            f   = @(x) x.*zernikeStats.residueOtf(N,x,zeros(size(x)),atm,tel);
+            a = 0;b=tel.D;
+            out = simpson(f,a,b,5)*2*pi./tel.area;
+        end
+        
+        function out = residueEntrappedEnergy(N,eHalfSize,atm,tel)
+            %% RESIDUEENTRAPPEDENERGY
+            
+%             rho   = linspace(0,tel.D,21);
+%             gamma = zeros(size(rho));
+%             otf   = residueOtf(N,rho,gamma,atm,tel);
+%             out   = trapz(rho,rho.*otf)*2*pi./tel.area;
+            f   = @(x) x.*zernikeStats.residueOtf(N,x,zeros(size(x)),atm,tel).*...
+                2.*utilities.sombrero(1,2*pi.*eHalfSize.*x);
+            a = 0;b=tel.D;
+            out = simpson(f,a,b,5)*pi*eHalfSize^2;
+        end
+        
         function out = zern_aiaj(zi,ni,mi,zj,nj,mj,atm,tel)
             out = 0;
             if (ni==0) && (nj==0)
@@ -867,4 +1140,63 @@ classdef phaseStats
         
     end
     
+            
+end
+    
+function out = polynomials(j,n,m,r,o)
+%FUN Zernike polynomials mathematical expression
+%
+% out = zernike.fun(j,n,m,z) computes the Zernike polynomial
+% defined by the mode j, the radial order n, the azimuthal
+% frequency m at the locations given by the polar coordinate r
+% and o; both r and o must be column vectors and r must be in the range
+% [0,1]
+
+if n==0
+    out = ones(size(r));
+else
+    krkr = m~=0;
+    out = sqrt(n+1).*R_fun1(r,n,m).*2.^(0.5.*krkr).*...
+        cos(m.*o+pi.*krkr.*((-1).^j-1)./4);
+end
+
+    function R = R_fun1(r,n,m)
+        R=zeros(size(r));
+        for s=0:(n-m)/2
+            R = R + (-1).^s.*prod(1:(n-s)).*r.^(n-2.*s)./...
+                (prod(1:s).*prod(1:((n+m)/2-s)).*prod(1:((n-m)/2-s)));
+        end
+    end
+%     function R = R_fun2(r,n,m)
+%         s=0:(n-m)/2;
+%         fs = (-1).^s.*gamma(n-s+1)./...
+%             ( gamma(s+1).*gamma((n+m)/2-s+1).*gamma((n-m)/2-s+1) );
+%         R = bsxfun(@times,fs,bsxfun(@power,r,n-2.*s));
+%     end
+
+end
+
+function out = aiajFun(ni,nj,a)
+out = ((1/2.^(ni + nj + 1)).*...
+    (729*a.^(ni + nj + 2).*...
+    gamma(ni/2 + nj/2 + 1).*gamma(5/6 - nj/2 - ni/2).*...
+    gamma(nj/2 - ni/2 + 17/6).*gamma(ni/2 - nj/2 + 17/6).*...
+    gamma(ni/2 + nj/2 + 23/6).*gamma(2/3).*...
+    hypergeom([ni/2 + nj/2 + 1, ni/2 + nj/2 + 2, ni/2 + nj/2 + 3/2], ...
+    [ni + 2, nj + 2, ni + nj + 3, ni/2 + nj/2 + 1/6], a^2) + ...
+    275*2^(ni + nj + 2).*3^(1/2)*pi^(1/2)*a^(11/3).*...
+    gamma(ni + 2).*gamma(nj + 2).*...
+    gamma(ni/2 + nj/2 - 5/6).*gamma(5/6)^2.*...
+    hypergeom([11/6, 7/3, 17/6], ...
+    [11/6 - nj/2 - ni/2, nj/2 - ni/2 + 17/6, ni/2 - nj/2 + 17/6, ni/2 + nj/2 + 23/6], a^2)))./...
+    (2430*gamma(ni + 2).*gamma(nj + 2).*...
+    gamma(nj/2 - ni/2 + 17/6).*gamma(ni/2 - nj/2 + 17/6).*...
+    gamma(ni/2 + nj/2 + 23/6).*gamma(2/3)*gamma(5/6));
+end
+
+function out = radialOrder(zi)
+    out = ceil( (-3 + sqrt( 9 + 8*(zi-1) ))/2 );
+end
+function out = azimuthFrequency(zi,ni)
+    out = abs((ni - 2*( zi - (ni+1).*ni/2 -1 )));
 end

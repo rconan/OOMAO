@@ -127,7 +127,7 @@ classdef telescopeAbstract < handle
         end
         
         function out = entrappedEnergy(obj,eHalfSize,trap,psfOrOtf)
-            %$ ENTRAPPEDENERGY Encircled of ensquared energy
+            %% ENTRAPPEDENERGY Encircled of ensquared energy
             %
             % out = entrappedEnergy(obj,eHalfSize,trap) computes the
             % entraped energy in a circle of radius eHalfSize if trap is
