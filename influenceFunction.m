@@ -242,13 +242,16 @@ classdef influenceFunction < handle
             end
             z = linspace(-1,1,nIF)*(nIF-1)/2;
             u0 = ratioTelDm.*linspace(-1,1,resolution)*(nIF-1)/2;
-            w = zeros(resolution,nIF);
+%             w = zeros(resolution,nIF);
+            w = spalloc(resolution,nIF,nIF*resolution);
             for kIF = 1:nIF
                 u = u0 - z(kIF);
                 index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
                 w(index,kIF) = ppval(obj.splineP,u(index));
             end
-            obj.modes = zeros(resolution^2,sum(validActuator(:)));
+%             obj.modes = zeros(resolution^2,sum(validActuator(:)));
+            nValid = sum(validActuator(:));
+            obj.modes = spalloc(resolution^2,nValid,resolution^2*nValid);
             kIF = 0;
             for jIF = 1:nIF
                 for iIF = 1:nIF

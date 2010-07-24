@@ -66,7 +66,7 @@ classdef zernike < telescopeAbstract
         
         %% Constructor
         function obj = zernike(j,varargin)
-            error(nargchk(1,5,nargin));
+            error(nargchk(1,8,nargin));
             p = inputParser;
             p.addRequired('j', @isnumeric);
             p.addOptional('D', 2, @isnumeric);

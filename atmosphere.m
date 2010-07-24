@@ -266,6 +266,18 @@ classdef atmosphere < hgsetget
             map = map(u,u);
         end
         
+        function map = choleskyPhaseScreen(atm,D,nPixel)
+            %% CHOLESKYPHASESCREEN
+            % map = choleskyPhaseScreen(obj,D,nPixel)
+            
+            [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+            L = phaseStats.covarianceMatrix(complex(x,y),atm);
+            L = chol(L,'lower');
+            map = L*randn(nPixel^2,1);
+            map = reshape(map,nPixel,nPixel);
+            
+        end
+        
     end
     
 end

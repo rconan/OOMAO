@@ -100,6 +100,32 @@ classdef phaseStats
             end
         end
         
+        function L2 = sparseInverseCovarianceMatrix(layerGrid,atm)
+            %% SPARSEINVERSECOVARIANCEMATRIX 
+            %
+            % out = sparseInverseCovarianceMatrix(nPx,atm.gridMask)
+            % computes a sparse approximation of the inverse of the
+            % covariance matrix from the pupil sampling, the atmosphere and
+            % the pupil grid mask (optional)
+            %
+            % See also atmosphere
+            
+            nGrid = length(layerGrid);
+            L2 = cell(1,nGrid);
+            for kGrid=1:nGrid
+                gridMask = layerGrid{kGrid};
+                L = gallery('poisson',length(gridMask));
+                L(~gridMask,:) = [];
+                L(:,~gridMask) = [];
+                L = (L'*L);
+                L2{kGrid} = L./(phaseStats.variance(slab(atm,kGrid))*sum(L(:)));
+            end
+%             if nGrid==1
+%                 L2 = cell2mat(L2);
+%             end
+
+        end
+        
         function out = structureFunction(rho,atm)
             %% STRUCTUREFUNCTION Phase structure function
             %

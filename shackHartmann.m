@@ -53,7 +53,7 @@ classdef shackHartmann < handle
     
     properties (SetObservable=true)
         % measurements
-        slopes = 0;
+        slopes;
     end
     
     properties (Dependent)
@@ -78,7 +78,7 @@ classdef shackHartmann < handle
     
     properties (Access=private)
 %         p_slopes;
-        p_referenceSlopes = 0;
+        p_referenceSlopes;
         p_validLenslet;
         % index array to reshape a detector frame into a matrix with one
         % raster imagelet per column
