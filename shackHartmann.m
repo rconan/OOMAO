@@ -424,7 +424,13 @@ classdef shackHartmann < handle
         end
   
         function relay(obj,src)
-            %% RELAY
+            %% RELAY shackhartmann to source relay
+            %
+            % relay(obj,src) propagates the source through the
+            % Shack-Hartmann lenslet array, grab a frame from the detector
+            % adding noise if any and process the frame to get the
+            % wavefront slopes
+            
             propagateThrough(obj.lenslets,src)
 %             grabAndProcess(obj)
             grab(obj.camera)

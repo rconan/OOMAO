@@ -1,45 +1,52 @@
 classdef atmosphere < hgsetget
-% ATMOSPHERE Create an atmosphere object
-%
-% atm = atmosphere(wavelength,r0) creates an atmosphere object from the
-% wavelength and the Fried parameter r0
-%
-% atm = atmosphere(wavelength,r0,L0) creates an atmosphere object from the
-% wavelength, the Fried parameter r0 and the outer scale L0
-%
-% atm =
-% atmosphere(wavelength,r0,'altitude',altitude,'fractionnalR0',fractionnalR
-% 0) creates an atmosphere object from the wavelength, the Fried parameter
-% r0, and from the altitudes and the fractionnalR0 of the turbulence layers
-%
-% atm =
-% atmosphere(wavelength,r0,'altitude',altitude,'fractionnalR0',fractionnalR
-% 0,'windSpeed',windSpeed,'windDirection',windDirection) creates an
-% atmosphere object from the wavelength, the Fried parameter r0, and from
-% the altitudes, the fractionnalR0, the wind speeds and the wind directions
-% of the turbulence layers
-%
-% atm =
-% atmosphere(wavelength,r0,L0,'altitude',altitude,'fractionnalR0',fractionn
-% alR0) creates an atmosphere object from the wavelength, the Fried
-% parameter r0, the outer scale L0 and from the altitudes and the
-% fractionnalR0 of the turbulence layers
-%
-% atm =
-% atmosphere(wavelength,r0,L0,'altitude',altitude,'fractionnalR0',fractionn
-% alR0,'windSpeed',windSpeed,'windDirection',windDirection) creates an
-% atmosphere object from the wavelength, the Fried parameter r0, the outer
-% scale L0 and from the altitudes, the fractionnalR0, the wind speeds and
-% the wind directions of the turbulence layers
-%
-% Example:
-%     atm = atmosphere(photometry.V,0.15,30,...
-%     'altitude',4e3,...
-%     'fractionnalR0',1,...
-%     'windSpeed',15,...
-%     'windDirection',0);
-% atm.wavelength = photometry.R;
-
+    % Create an atmosphere object
+    %
+    % atm = atmosphere(wavelength,r0) creates an atmosphere object from the
+    % wavelength and the Fried parameter r0
+    %
+    % atm = atmosphere(wavelength,r0,L0) creates an atmosphere object from the
+    % wavelength, the Fried parameter r0 and the outer scale L0
+    %
+    % atm =
+    % atmosphere(wavelength,r0,'altitude',altitude,'fractionnalR0',fractionnalR
+    % 0) creates an atmosphere object from the wavelength, the Fried parameter
+    % r0, and from the altitudes and the fractionnalR0 of the turbulence layers
+    %
+    % atm =
+    % atmosphere(wavelength,r0,'altitude',altitude,'fractionnalR0',fractionnalR
+    % 0,'windSpeed',windSpeed,'windDirection',windDirection) creates an
+    % atmosphere object from the wavelength, the Fried parameter r0, and from
+    % the altitudes, the fractionnalR0, the wind speeds and the wind directions
+    % of the turbulence layers
+    %
+    % atm =
+    % atmosphere(wavelength,r0,L0,'altitude',altitude,'fractionnalR0',fractionn
+    % alR0) creates an atmosphere object from the wavelength, the Fried
+    % parameter r0, the outer scale L0 and from the altitudes and the
+    % fractionnalR0 of the turbulence layers
+    %
+    % atm =
+    % atmosphere(wavelength,r0,L0,'altitude',altitude,'fractionnalR0',fractionn
+    % alR0,'windSpeed',windSpeed,'windDirection',windDirection) creates an
+    % atmosphere object from the wavelength, the Fried parameter r0, the outer
+    % scale L0 and from the altitudes, the fractionnalR0, the wind speeds and
+    % the wind directions of the turbulence layers
+    %
+    % Example:
+    %     atm = atmosphere(photometry.V,0.15,30,...
+    %     'altitude',4e3,...
+    %     'fractionnalR0',1,...
+    %     'windSpeed',15,...
+    %     'windDirection',0);
+    %
+    % A full volume of turbulence above a telescope is made combining both
+    % a telescope and an atmosphere class
+    %
+    % The geometric propagation of a wavefront throught the atmosphere is
+    % obtained with a source object
+    %
+    % See also telescope and source
+    
     properties
         % Fried parameter
         r0;
@@ -52,7 +59,7 @@ classdef atmosphere < hgsetget
         % atmosphere tag
         tag = 'ATMOSPHERE';
         % coherence function decay for theta0 and tau0 computation
-        % . Roddier (default): coherence function 1/e decay  
+        % . Roddier (default): coherence function 1/e decay
         % . Fried: structure function equal 1rd^2 (1/\sqrt(e) decay)
         coherenceFunctionDecay = exp(-1);
     end
@@ -171,11 +178,11 @@ classdef atmosphere < hgsetget
             fprintf('----------------------------------------------------\n')
             
         end
-       
+        
         %% Set/Get wavelength property
         function val = get.wavelength(obj)
             val = obj.p_wavelength;
-        end        
+        end
         function set.wavelength(obj,val)
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
             obj.p_wavelength = val;
@@ -208,7 +215,7 @@ classdef atmosphere < hgsetget
         function out = get.theta0InArcsec(obj)
             z = [obj.layer.altitude];
             if numel(z)==1 && z==0
-               out  = Inf;
+                out  = Inf;
             else
                 if isinf(obj.L0)
                     cst = -log(obj.coherenceFunctionDecay)*(24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
@@ -227,7 +234,7 @@ classdef atmosphere < hgsetget
             if isempty(v)
                 out = [];
             elseif numel(v)==1 && v==0
-               out  = Inf;
+                out  = Inf;
             else
                 if isinf(obj.L0)
                     cst = -log(obj.coherenceFunctionDecay)*(24*gamma(6/5)/5)^(-5/6).*obj.r0.^(5./3);
@@ -241,8 +248,13 @@ classdef atmosphere < hgsetget
         end
         
         function map = fourierPhaseScreen(atm,D,nPixel)
-            %% FOURIERPHASESCREEN 
-            % map = fourierPhaseScreen(atm,D,nPixel)
+            %% FOURIERPHASESCREEN Phase screen computation
+            %
+            % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
+            % phase screen of D meter and sampled with nPixel using the
+            % Fourier method
+            %
+            % See also atmosphere
             
             N = 4*nPixel;
             L = (N-1)*D/(nPixel-1);
@@ -267,8 +279,14 @@ classdef atmosphere < hgsetget
         end
         
         function map = choleskyPhaseScreen(atm,D,nPixel)
-            %% CHOLESKYPHASESCREEN
-            % map = choleskyPhaseScreen(obj,D,nPixel)
+            %% CHOLESKYPHASESCREEN Phase screen computation 
+            %
+            % map = choleskyPhaseScreen(obj,D,nPixel) Computes a square
+            % phase screen of D meter and sampled with nPixel using the
+            % Cholesky factorisation of the atmospheric phase covariance
+            % matrix
+            %
+            % See also chol and atmosphere
             
             [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
             L = phaseStats.covarianceMatrix(complex(x,y),atm);

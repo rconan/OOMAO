@@ -1,5 +1,5 @@
 classdef phaseStats
-    % PHASESTATS Phase statistics static class
+    % Phase statistics static class
     
     methods (Static)
         

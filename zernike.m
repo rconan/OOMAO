@@ -1,5 +1,5 @@
 classdef zernike < telescopeAbstract
-    % ZERNIKE Zernike polynomials
+    %% Zernike polynomials
     %
     % obj = zernike(j) creates a Zernike polynomials object from the
     % modes vector. The radius is set to unity.
@@ -18,6 +18,17 @@ classdef zernike < telescopeAbstract
     % obj = zernike(...,'resolution',nPixel,'pupil',pupilMask) creates a
     % Zernike polynomials object from the modes vector, the the number of
     % pixel across the polynomials diameter and the pupil mask
+    %
+    % Example:
+    % zern = zernike(1:6,8,'resolution',32);
+    % %Computes Zernike polynomials from piston to astigmastism on an 8m
+    % pupil sampled on a 32x32 grid 
+    % Projection of Zernike modes onto themselves
+    % zern = zern.\zern.p;
+    % disp(zern.c); % the coefficients
+    % Least square fit of the zernike modes by themselves
+    % zern = zern\zern.p;
+    % disp(zern.c); % the coefficients
     
     properties
         % mode number
@@ -130,7 +141,11 @@ classdef zernike < telescopeAbstract
             % the polynomials of the zernike object and store the
             % projection coefficients into the object coefficients vector
             
-            obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
+            if size(obj.p_p,1)==size(phaseMap,1)
+                obj.c = obj.p_p'*phaseMap./obj.pixelArea;
+            else
+                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2)./obj.pixelArea;
+            end
         end
         
         function obj = mldivide(obj,phaseMap) 
@@ -148,7 +163,11 @@ classdef zernike < telescopeAbstract
                 obj.c = phaseMap.zern2slopes\phaseMap.slopes;
                 obj = obj - 1;
             else
-                obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
+                if size(obj.p_p,1)==size(phaseMap,1)
+                    obj.c = obj.p_p\phaseMap;
+                else
+                    obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
+                end
             end
         end
         
@@ -176,8 +195,12 @@ classdef zernike < telescopeAbstract
             src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
         end
         
-        %% fourier transform
-        function out = fourier(obj,f,o,D)
+        function out = fourier(obj,f,o)
+            %% FOURIER Zernike polynomials Fourier transform
+            %
+            % out = fourier(obj,f,o) computes the Fourier transform of the
+            % Zernike polynomials at the spatial frequency vector [f,o]
+            
             out = zeros(size(f,1),size(f,2),obj.nMode);
             for kMode = 1:obj.nMode
                 out(:,:,kMode) = fun(obj.j,obj.n,obj.m);
@@ -186,12 +209,18 @@ classdef zernike < telescopeAbstract
                 krkr = m~=0;
                 g = (-1).*((n+m*krkr)/2).*1i.^(m.*krkr).*2.^(krkr/2);
                 p = pi.*krkr.*((-1).^zj-1)/4;
-                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*D).*...
+                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*obj.D).*...
                     g.*cos(m.*o+p);
             end
         end
-        %% fourier transform azimuth average
-        function out = fourierAzimSum(obj,f,D)
+        
+        function out = fourierAzimSum(obj,f)
+            %% FourierAzimSum azimuth summed Fourier transform
+            %
+            % out = fourierAzimSum(obj,f) computes the azimuth average of
+            % the Fourier transform of the Zernike polynomials at the
+            % spatial frequency f
+            
             out = zeros(size(f,1),obj.nMode);
             for kMode = 1:obj.nMode
                 out(:,kMode) = fun(obj.j,obj.n,obj.m);
@@ -200,15 +229,20 @@ classdef zernike < telescopeAbstract
                 krkr = m~=0;
                 g = (-1).*((n+m*krkr)/2).*1i.^(m.*krkr).*2.^(krkr/2);
                 p = pi.*krkr.*((-1).^zj-1)/4;
-                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*D).*g;
+                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*obj.D).*g;
                 if krkr
                     out1 = out1.*(sin(2.*pi.*m+p)-sin(p))./m;
                 end
             end
         end
-        %% fourier transform peak frequency
-        function out = fourierPeakFreq(obj,D)
-            out = (obj.n+1)/(pi*D);
+        
+        function out = fourierPeakFreq(obj)
+            %% FOURIERPEAKFREQ Frequency of Zernike maximum power
+            %
+            % out = fourierPeakFreq(obj) computes the frequency at which
+            % the Zernike polynomials spectrum is maximal
+            
+            out = (obj.n+1)/(pi*obj.D);
         end
         
         %% get Zernike x derivative coefficients
@@ -300,8 +334,7 @@ classdef zernike < telescopeAbstract
         end
         
         function P = smallFootprintExpansion(obj,delta,largeSmallRadiusRatio)
-            %% SMALLFOOTPRINTEXPANSION Portion of Zernike expansion onto
-            % zernikes
+            %% SMALLFOOTPRINTEXPANSION Portion of Zernike expansion onto zernikes
             %
             % obj =
             % obj.smallFootprintExpansion(delta,largeSmallRadiusRatio)

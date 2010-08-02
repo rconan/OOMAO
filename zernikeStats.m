@@ -1,123 +1,8 @@
 classdef zernikeStats
-    % PHASESTATS Phase statistics static class
+    % Zernike statistics static class
     
     methods (Static)
-        
-%         function  out = variance(atm)
-%             %% VARIANCE Phase variance
-%             %
-%             % out = phaseStats.variance(atm) computes the phase variance
-%             % from an atmosphere object
-%             %
-%             % See also atmosphere
-%             L0r0ratio= (atm.L0./atm.r0).^(5./3);
-%             out   = (24.*gamma(6./5)./5).^(5./6).*...
-%                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-%             out = sum([atm.layer.fractionnalR0]).*out;
-%         end
-%         
-%         function out = covariance(rho,atm)
-%             %% COVARIANCE Phase covariance
-%             %
-%             % out = phaseStats.covariance(rho,atm) computes the phase covariance from
-%             % the baseline rho and an atmosphere object
-%             %
-%             % See also atmosphere
-%              
-%             L0r0ratio= (atm.L0./atm.r0).^(5./3);
-%             cst      = (24.*gamma(6./5)./5).^(5./6).*...
-%                 (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
-%                 L0r0ratio;
-%             out   = ones(size(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
-%                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-%             index         = rho~=0;
-%             u             = 2.*pi.*rho(index)./atm.L0;
-%             out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-%             out = sum([atm.layer.fractionnalR0]).*out;
-%         end
-%         
-%         function out = angularCovariance(theta,atm)
-%             %% ANGULARCOVARIANCE Phase angular covariance
-%             %
-%             % out = phaseStats.angularCovariance(rho,atm) computes the
-%             % phase angular covariance from the zenith angle theta and an
-%             % atmosphere object
-%             %
-%             % See also atmosphere
-%            
-%             out = zeros(size(theta));
-%             for kLayer = 1:atm.nLayer
-%                 atmSlab = slab(atm,kLayer);
-%                 out = out + phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab);
-%             end
-%         end        
-%         function out = angularStructureFunction(theta,atm)
-%             %% ANGULARSTRUCTUREFUNCTION Phase angular structure function
-%             %
-%             % out = phaseStats.angularStructureFunction(rho,atm) computes the
-%             % phase angular structure function from the zenith angle theta
-%             % and an atmosphere object
-%             %
-%             % See also atmosphere
-%            
-%             out = zeros(size(theta));
-%             for kLayer = 1:atm.nLayer
-%                 atmSlab = slab(atm,kLayer);
-%                 out = out + 2.*( phaseStats.variance(atmSlab) - ...
-%                     phaseStats.covariance(atmSlab.layer.altitude*tan(theta),atmSlab) );
-%             end
-%        end        
-%         
-%         function out = temporalCovariance(tau,atm)
-%             %% TEMPORALCOVARIANCE Phase temporal covariance
-%             %
-%             % out = phaseStats.temporalCovariance(rho,atm) computes the
-%             % phase temporal covariance from the delay tau and an
-%             % atmosphere object
-%             %
-%             % See also atmosphere
-%            
-%             out = zeros(size(tau));
-%             for kLayer = 1:atm.nLayer
-%                 atmSlab = slab(atm,kLayer);
-%                 out = out + phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab);
-%             end
-%         end        
-%         function out = temporalStructureFunction(tau,atm)
-%             %% TEMPORALSTRUCTUREFUNCTION Phase temporal structure function
-%             %
-%             % out = phaseStats.temporalStructureFunction(rho,atm) computes
-%             % the phase temporal structure function from the delay tau and
-%             % an atmosphere object
-%             %
-%             % See also atmosphere
-%            
-%             out = zeros(size(tau));
-%             for kLayer = 1:atm.nLayer
-%                 atmSlab = slab(atm,kLayer);
-%                 out = out + 2.*( phaseStats.variance(atmSlab) - ...
-%                     phaseStats.covariance(atmSlab.layer.windSpeed*tau,atmSlab) );
-%             end
-%         end
-%         
-%         function out = structureFunction(rho,atm)
-%             %% STRUCTUREFUNCTION Phase structure function
-%             %
-%             % out = phaseStats.structureFunction(rho,atm) computes the
-%             % phase structure function from the baseline rho and an
-%             % atmosphere object
-%             %
-%             % See also atmosphere
-%             
-%             if isinf(atm.L0)
-%                 out   = zeros(size(rho));
-%                 index = rho~=0;
-%                 out(index) = 2.*(24.*gamma(6./5)./5).^(5./6).*(rho(index)./atm.r0).^(5./3);
-%             else
-%                 out = 2.*(phaseStats.variance(atm)-phaseStats.covariance(rho,atm));
-%             end
-%         end
-        
+         
         function out = spectrum(f,atm)
             %% SPECTRUM Phase power spectrum density
             %
@@ -141,97 +26,15 @@ classdef zernikeStats
             out = out*L0^(11/3)*( (symf*L0)^2 + 1 )^(-11/6);
         end
         
-%         function out = otf(rho,atm)
-%             %% OTF Phase optical transfert function
-%             %
-%             % out = phaseStats.otf(rho) compute the phase optical transfert function
-%             % from the baseline rho and an atmosphere object
-%             
-%             out = exp(-0.5*phaseStats.structureFunction(rho,atm));
-%         end
-%         
-%         function out = psf(f,atm)
-%             %% PSF Phase point spread function
-%             %
-%             % out = phaseStats.psf(f,atm) compute the phase point spread
-%             % from the frequency f and an atmosphere object
-% 
-%             fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,Inf);
-%             out = arrayfun( fun, f);
-%             function y = psfHankelIntegrandNested(x,freq)
-%                 y = x.*besselj(0,2.*pi.*x.*freq).*phaseStats.otf(x,atm);
-%             end
-%         end
-        
-        function out = covarianceMatrix(varargin)
-            %% COVARIANCEMATRIX Phase covariance matrix
-            %
-            % out = phaseStats.covarianceMatrix(rho1,atm) Computes the phase
-            % auto-covariance matrix from the vector rho1 and an atmosphere
-            % object
-            %
-            % out = phaseStats.covarianceMatrix(rho1,rho2,atm) Computes the phase
-            % cross-covariance matrix from the vectors rho1 and rho2 and an
-            % atmosphere object
-            % Examples:
-            % covariance matrix on a 1 metre square grid sampled on 16
-            % pixels :
-            % [x,y] = meshgrid((0:15)*1/15);
-            % g = phaseStats.covarianceMatrix(complex(x,y),atm);
-            % imagesc(g), axis square, colorbar
-            % covariance matrix on a 1 meter square grid sampled on 16
-            % pixels with the same grid but displaced of 1 meter:
-            % [x,y] = meshgrid((0:15)*1/15);
-            % z = complex(x,y);
-            % g = phaseStats.covarianceMatrix(z,z+1,atm);
-            % imagesc(g), axis square, colorbar
-            %
-            % See also atmosphere
-            
-            error(nargchk(2,3,nargin))
-            rho1 = varargin{1}(:);
-            if nargin==2
-                atm  = varargin{2};
-                rho  = abs(bsxfun(@minus,rho1,rho1.'));
-            else
-                rho2 = varargin{2}(:);
-                atm  = varargin{3};
-                rho  = abs(bsxfun(@minus,rho1,rho2.'));
-            end
-            [nRho,mRho] = size(rho);
-            blockSize = 5000;
-            if max(nRho,mRho)>blockSize % Memory gentle
-                l  = floor(nRho/blockSize);
-                le = nRho - l*blockSize;
-                p  = floor(mRho/blockSize);
-                pe = mRho - p*blockSize;
-                rho = mat2cell( rho, ...
-                    [ones(1,l)*blockSize, le],...
-                    [ones(1,p)*blockSize, pe]);
-                out = cell2mat( ...
-                    cellfun(@(x) phaseStats.covariance(x,atm), rho, 'UniformOutput', false) );
-            else % Memory intensive
-                L0r0ratio= (atm.L0./atm.r0).^(5./3);
-                cst      = (24.*gamma(6./5)./5).^(5./6).*...
-                    (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
-                    L0r0ratio;
-                out   = ones(size(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
-                    (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-                index         = rho~=0;
-                u             = 2.*pi.*rho(index)./atm.L0;
-                out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-                out = sum([atm.layer.fractionnalR0]).*out;
-            end
-        end
-        
+                
         function out = variance(zern,atm)
-            %% ZERNIKEVARIANCE Zernike coefficients variance
+            %% VARIANCE Zernike coefficients variance
             %
-            % out = variance(modes,atmosphere) computes the
+            % out = zernikeStats.variance(modes,atmosphere) computes the
             % variance of Zernike coefficients from the modes and the
             % atmosphere object
             %
-            % out = variance(zernike,atmosphere) computes the
+            % out = zernikeStats.variance(zernike,atmosphere) computes the
             % variance of Zernike coefficients from the Zernike polynomials
             % object and the atmosphere object
             %
@@ -240,7 +43,7 @@ classdef zernikeStats
             % tel = telescope(10);
             % modes = 1:15;
             % figure
-            % semilogy(modes,phaseStats.zernikeVariance(modes,atm),'--.')
+            % semilogy(modes,zernikeStats.variance(modes,atm),'--.')
             % xlabel('Zernike modes')
             % ylabel('Variance [rd^2]')
             %
@@ -382,13 +185,13 @@ classdef zernikeStats
         end
         
         function out = covariance(zern,atm)
-            %% ZERNIKECOVARIANCE Zernike coefficients covariance
+            %% COVARIANCE Zernike coefficients covariance
             %
-            % out = phaseStats.zernikeCovariance(modes,atmosphere)
+            % out = zernikeStats.covariance(modes,atmosphere)
             % computes the covariance matrix of Zernike coefficients from
             % the modes and the atmosphere object
             %
-            % out = phaseStats.zernikeCovariance(zernike,atmosphere) computes the
+            % out = zernikeStats.covariance(zernike,atmosphere) computes the
             % covariance matrix of Zernike coefficients from the Zernike
             % polynomials object and the atmosphere object
             %
@@ -397,7 +200,7 @@ classdef zernikeStats
             % tel = telescope(10);
             % modes = 1:15;
             % figure
-            % spy(phaseStats.zernikeCovariance(modes,atm,tel))
+            % spy(zernikeStats.covariance(modes,atm,tel))
             %
             % See also zernike, atmosphere
             
@@ -562,7 +365,7 @@ classdef zernikeStats
         end
         
         function out = residualVariance(N,atm,tel)
-            %% RESIDUALVARIANCE
+            %% RESIDUALVARIANCE Zernike corrected wavefront variance 
             %
             % out = zernikeResidualVariance(N,atm,tel)
             %
@@ -572,7 +375,7 @@ classdef zernikeStats
             r0 = atm.r0;
             L0 = atm.L0;
             D  = tel.D;
-            aiVar = phaseStats.zernikeVariance(zern,atm);
+            aiVar = zernikeStats.variance(zern,atm);
             
             if isinf(L0)
                 Delta1 = -(2.*gamma(11./6).^2./pi.^1.5).*(24.*gamma(6./5)./5).^(5./6).*...
@@ -583,10 +386,10 @@ classdef zernikeStats
             end
         end
         
-        function aiaj = zernikeAngularCovariance(zern,atm,src,optSrc)
-            %% ZERNIKEANGULARCOVARIANCE Zernike coefficients angular covariance
+        function aiaj = angularCovariance(zern,atm,src,optSrc)
+            %% ANGULARCOVARIANCE Zernike coefficients angular covariance
             %
-            % aiaj = zernikeAngularCovariance(zern,atm,src) computes
+            % aiaj = angularCovariance(zern,atm,src) computes
             % the covariance matrix between Zernike coefficients of Zernike
             % polynomials zern corresponding to wavefront propagating from
             % two sources src(1) and src(2) through the atmosphere atm
@@ -620,7 +423,7 @@ classdef zernikeStats
                         ijGs = index(kGs);
                         [iGs,jGs] = ind2sub(nmGs,ijGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
-                        buffer{kGs} = phaseStats.zernikeAngularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
+                        buffer{kGs} = zernikeStats.angularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
                     end
                     aiaj(mask) = buffer;
                     index = cellfun(@isempty,aiaj);
@@ -644,7 +447,7 @@ classdef zernikeStats
                     parfor kGs = 1:nGs*mGs
                         [iGs,jGs] = ind2sub(nmGs,kGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
-                        aiaj{kGs} = phaseStats.zernikeAngularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
+                        aiaj{kGs} = zernikeStats.angularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
                     end
                 end
 %                 aiaj = cell2mat(aiaj);

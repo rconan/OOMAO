@@ -1,4 +1,12 @@
 classdef source < stochasticWave & hgsetget
+    %% SOURCE Create a source object
+    %
+    % src = source creates an on-axis star at infinity
+    %
+    % src = source('parameter',value) creates a source object from
+    % parameter-value pair arguments. The parameters are zenith, azimuth,
+    % height, wavelength, magnitude, nPhoton, width and asterism.
+    %
     % The source class represents celestial objects. It inherits from
     % stochasticWave which contains the phase and amplitude of the wave
     % emitted by the source object. The source propagates from one object
@@ -8,7 +16,6 @@ classdef source < stochasticWave & hgsetget
     %
     % Example :
     % To create an on-axis source: src = source; 
-    % src = source('zenith',30*cougarConstants.arcsec2radian,'azimuth',pi/4); 
     %
     % To create an off-axis source at 30 arcsec zenith and 45degree
     % azimuth: 
@@ -25,7 +32,7 @@ classdef source < stochasticWave & hgsetget
     % may have different magnitudes
     % src = source('asterism',{[0,0],[5,60*constants.arcsec2radian,0]},'wavelength',photometry.H,'magnitude',[8 10 12 9 11 14])
     %
-    % See also: constants, photometry
+    % See also: constants, photometry, telescope and atmosphere
     
     properties
         % source zenith angle
@@ -72,18 +79,13 @@ classdef source < stochasticWave & hgsetget
     methods
         
         function obj = source(varargin)
-            %% SOURCE Create a source object
-            %
-            % src = source creates an on-axis star at infinity
-            %
-            % src = source('parameter',value) creates a source object from
-            % parameter-value pair arguments. The parameters are zenith, azimuth,
-            % height, wavelength, magnitude, nPhoton, width and asterism.
 
             obj = obj@stochasticWave;
             p = inputParser;
             p.addParamValue('asterism',[],@iscell);
             p.addParamValue('zenith',0,@isnumeric);
+            p.addParamValue('zenithInArcsec',[],@isnumeric);
+            p.addParamValue('zenithInArcmin',[],@isnumeric);
             p.addParamValue('azimuth',0,@isnumeric);
             p.addParamValue('height',Inf,@isnumeric);
             p.addParamValue('wavelength',photometry.V,@isnumeric);
@@ -94,6 +96,11 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('tag','SOURCE',@ischar);
             p.parse(varargin{:});
             persistent nCall
+            if ~isempty(p.Results.zenithInArcsec)
+                obj.Results.zenith      = p.Results.zenithInArcsec./cougarConstants.radian2arcsec;
+            elseif ~isempty(p.Results.zenithInArcmin)
+                obj.Results.zenith      = p.Results.zenithInArcmin./cougarConstants.radian2arcmin;
+            end
             if nargin>0 || isempty(nCall)
                 nCall = 1;
                 nAst    = numel(p.Results.asterism);
@@ -322,8 +329,6 @@ classdef source < stochasticWave & hgsetget
             % src = src.*otherObj propagate src through otherObj setting the
             % source amplitude to the otherObj transmitance and the source
             % phase to the otherObj phase
-            %
-            % src = src==otherObj returns the source object
             
              mtimes(reset(obj),otherObj);
         end
@@ -345,6 +350,7 @@ classdef source < stochasticWave & hgsetget
 
         function out = fresnelPropagation(obj,tel)
             %% FRESNELPROPAGATION Source propagation to the light collector
+            %
             % fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the telescope primary mirror
             % out fresnelPropagation(a,tel) propagates the source seen

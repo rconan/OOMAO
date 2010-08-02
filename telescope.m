@@ -1,21 +1,50 @@
 classdef telescope < telescopeAbstract
-    % TELESCOPE Create a telescope object
+    % Create a telescope object
     %
     % sys = telescope(D) creates a telescope object from the telescope diameter D
     %
     % sys = telescope(D,...) creates a telescope object from the
     % above parameter and from optionnal parameter-value pair arguments. The
-    % optionnal parameters are those of the telescope clas.
+    % optionnal parameters are those of the telescopeAbstract class.
     %
     % Example:
-    % sys = telescope(10);
-    % sys = telescope(30,'resolution',900)
-    % tel = telescope(3.6,...
-    %     'fieldOfViewInArcMin',2.5,...
-    %     'resolution',nPx,...
-    %     'samplingTime',1/100);
+    % tel = telescope(8); An 8m diameter telescope
     %
-    % See also telescopeAbstract
+    % tel = telescope(8,'obstructionRatio',0.14,'fieldOfViewInArcmin',2,'resolution',64); 
+    % An 8m diameter telescope with an 14% central obstruction, a 2 arcmin
+    % fov and a pupil sampled with 64x64 pixels
+    % Displaying the pupil:
+    % imagesc(tel.pupil)
+    % The pupil logical mask is given by
+    % tel.pupilLogical
+    %
+    % A telescope object can be combined with an atmosphere object to
+    % define a volume of turbulence above the telescope within its
+    % field-of--view:
+    % atm = atmosphere(photometry.V,0.15,30,...
+    %     'altitude',4e3,...
+    %     'fractionnalR0',1,...
+    %     'windSpeed',15,...
+    %     'windDirection',0);
+    % tel = telescope(8,'fieldOfViewInArcmin',2,'resolution',64,'samplingTime',1/500); 
+    % The telescope-atmosphere object is built by adding the atmosphere to
+    % the telescope:
+    % tel = tel + atm; 
+    % figure, imagesc(tel)
+    % The frozen-flow or Taylor motion of the phase screen is created by
+    % updating the telescope object:
+    % +tel;
+    % The phase screen(s) are moved of an amount depending on the
+    % samplingTime and the wind vector parameters.
+    % The geometric propagation of a star through the atmosphere to the
+    % telescope pupil is done as followed
+    % ngs = source;
+    % ngs = ngs.*tel;
+    % figure, imagesc(ngs.phase), axis square xy, colorbar
+    % At anytime the atmosphere can be removed from the telescope:
+    % tel = tel - atm;
+    %
+    % See also telescopeAbstract, atmosphere and source
     
     properties
         % wind shifted turbulence sampling time

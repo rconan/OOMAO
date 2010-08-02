@@ -1,5 +1,5 @@
 classdef telescopeAbstract < handle
-    % TELESCOPEABSTRACT Create a telescopeAbstract object
+    % Create a telescopeAbstract object
     %
     % tel = telescopeAbstract(D) creates a telescopeAbstract object from
     % the diameter D.
@@ -8,7 +8,14 @@ classdef telescopeAbstract < handle
     % telescopeAbstract object from the diameter D and from optionnal
     % parameter-value pair arguments. The parameters are obstructionRatio,
     % fieldOfViewInArcsec, fieldOfViewInArcmin or resolution.
-    
+    %
+    % This class should never be called directly. It is an abstract class.
+    % To define a telescope object, the telescope class should be used
+    % instead. Both the telescope and the zernike classes inherit from the
+    % telescopeAbstract class
+    %
+    % See also telescope and zernike
+  
     properties
         % diameter
         D;
@@ -41,6 +48,8 @@ classdef telescopeAbstract < handle
         pupilLogical;
         % telescope area
         area;
+        % telescope area in pixels
+        pixelArea;
     end
     
     properties (Access=protected)
@@ -91,16 +100,24 @@ classdef telescopeAbstract < handle
             obj.p_pupil = val;
         end
         
+        %% Get the logical pupil mask
         function pupilLogical = get.pupilLogical(obj)
             pupilLogical = logical(obj.pupil>0);
         end
         
+        %% Get telescope radius
         function out = get.R(obj)
             out = obj.D/2;
         end
         
+        %% Get telescope surface
         function out = get.area(obj)
             out = pi*obj.R^2*(1-obj.obstructionRatio^2);
+        end
+        
+        %% Get telescope surface in pixels
+        function out = get.pixelArea(obj)
+            out = sum(obj.pupil(:));
         end
         
         function out = diameterAt(obj,height)
@@ -108,7 +125,7 @@ classdef telescopeAbstract < handle
         end
         
         function out = FT(obj,f)
-            %$ FT Fourier transform
+            %% FT Fourier transform
             %
             % out = FT(obj,f) computes the Fourier transform of the
             % telescope pupil
