@@ -655,6 +655,35 @@ classdef shackHartmann < handle
             
         end
         
+        function gridMask = validLensletSamplingMask(obj,sample)
+            %% VALIDLENSLETSAMPLINGMASK
+            %
+            % mask = validLensletSamplingMask(obj)
+            
+            nLenslet = obj.lenslets.nLenslet;
+            nMap     = (sample-1)*nLenslet+1;
+            
+            [iMap0,jMap0] = ndgrid(1:sample);
+            gridMask = false(nMap);
+            
+            % Accumulation of x and y stencil row and col subscript and weight
+            for jLenslet = 1:nLenslet
+                jOffset = (sample-1)*(jLenslet-1);
+                for iLenslet = 1:nLenslet
+                    
+                    if obj.validLenslet(iLenslet,jLenslet)
+                        
+                        iOffset= (sample-1)*(iLenslet-1);
+                        
+                        gridMask( iMap0 + iOffset , jMap0 + jOffset ) = true;
+                        
+                    end
+                    
+                end
+            end
+            
+        end
+
     end
     
 end
