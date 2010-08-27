@@ -114,6 +114,7 @@ classdef atmosphere < hgsetget
             end
             if p.Results.logging
                 obj.p_log = logBook.checkIn(obj);
+                display(obj);
             end
         end
         
@@ -160,7 +161,7 @@ classdef atmosphere < hgsetget
                 fprintf('. tau0(%2.0f%%)   = %5.2fmillisec',...
                     100*obj.coherenceFunctionDecay,obj.tau0InMs)
             else
-                fprintf('\b\b')
+%                 fprintf('\b\b')
             end
             fprintf('\n')
             fprintf('----------------------------------------------------\n')
@@ -293,6 +294,22 @@ classdef atmosphere < hgsetget
             L = chol(L,'lower');
             map = L*randn(nPixel^2,1);
             map = reshape(map,nPixel,nPixel);
+            
+        end
+        
+    end
+    
+    methods (Static)
+        
+        function out = r0VsWavelength(r0Wavelength,r0,wavelength)
+        
+            if ischar(r0Wavelength)
+                r0Wavelength = eval(['photometry.',r0Wavelength]);
+            end
+            if ischar(wavelength)
+                wavelength = eval(['photometry.',wavelength]);
+            end
+            out = r0*(wavelength/r0Wavelength)^1.2;
             
         end
         

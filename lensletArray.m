@@ -7,6 +7,8 @@ classdef lensletArray < handle
     properties
         % the # of lenslet on one side of the lenslet array
         nLenslet;
+        % lenslet size
+        pitch;
         % the minimum amount of light per lenslet
         minLightRatio;
         % lenslets conjugation altitude

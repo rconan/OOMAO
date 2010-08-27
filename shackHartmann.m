@@ -53,7 +53,7 @@ classdef shackHartmann < handle
     
     properties (SetObservable=true)
         % measurements
-        slopes;
+        slopes=0;
     end
     
     properties (Dependent)
@@ -77,8 +77,8 @@ classdef shackHartmann < handle
     end
     
     properties (Access=private)
-%         p_slopes;
-        p_referenceSlopes;
+        %         p_slopes;
+        p_referenceSlopes=0;
         p_validLenslet;
         % index array to reshape a detector frame into a matrix with one
         % raster imagelet per column
@@ -113,39 +113,40 @@ classdef shackHartmann < handle
             obj.slopesListener = addlistener(obj,'slopes','PostSet',...
                 @(src,evnt) obj.slopesDisplay );
             obj.slopesListener.Enabled = false;
-%             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
-%             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
-%                 @(src,evnt) intensityDisplay(obj) );
-% %             obj.intensityListener.Enabled = false;
+            %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
+            %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
+            %                 @(src,evnt) intensityDisplay(obj) );
+            % %             obj.intensityListener.Enabled = false;
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Shack-Hartmann Wavefront Sensor';
-%             obj.paceMaker.TimerFcn = {@timerCallBack, obj};(BROKEN: shackhartmann is not deleted after a clear)
+            %             obj.paceMaker.TimerFcn = {@timerCallBack, obj};(BROKEN: shackhartmann is not deleted after a clear)
             obj.paceMaker.ExecutionMode = 'FixedSpacing';
             obj.paceMaker.BusyMode = 'drop';
             obj.paceMaker.Period = 1e-1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
             obj.log = logBook.checkIn(obj);
-%             function timerCallBack( timerObj, event, a)
-%                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
-%                 a.grabAndProcess
-%             end
+            %             function timerCallBack( timerObj, event, a)
+            %                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
+            %                 a.grabAndProcess
+            %             end
+            display(obj)
         end
         
         %% Destructor
         function delete(obj)
-%             if isvalid(obj.slopesListener)
-%                 delete(obj.slopesListener)
-%             end
-%             if isvalid(obj.intensityListener)
-%                 delete(obj.intensityListener)
-%             end
-%             if isvalid(obj.paceMaker)
-%                 if strcmp(obj.paceMaker.Running,'on')
-%                     stop(obj.paceMaker)
-%                 end
-%                 delete(obj.paceMaker)
-%             end
+            %             if isvalid(obj.slopesListener)
+            %                 delete(obj.slopesListener)
+            %             end
+            %             if isvalid(obj.intensityListener)
+            %                 delete(obj.intensityListener)
+            %             end
+            %             if isvalid(obj.paceMaker)
+            %                 if strcmp(obj.paceMaker.Running,'on')
+            %                     stop(obj.paceMaker)
+            %                 end
+            %                 delete(obj.paceMaker)
+            %             end
             if ishandle(obj.slopesDisplayHandle)
                 delete(obj.slopesDisplayHandle)
             end
@@ -162,7 +163,7 @@ classdef shackHartmann < handle
             %
             % display(obj) prints information about the Shack-Hartmann
             % wavefront sensor object
-          
+            
             fprintf('___ %s ___\n',obj.tag)
             fprintf(' Shack-Hartmann wavefront sensor: \n  . %d lenslets total on the pupil\n  . %d pixels per lenslet \n',...
                 obj.nValidLenslet,obj.camera.resolution(1)/obj.lenslets.nLenslet)
@@ -178,16 +179,16 @@ classdef shackHartmann < handle
             fprintf('----------------------------------------------------\n')
             display(obj.lenslets)
             display(obj.camera)
-
+            
         end
         
-%         %% Get and Set slopes
-%         function slopes = get.slopes(obj)
-%             slopes = obj.p_slopes;
-%         end
-%         function set.slopes(obj,val)
-%             obj.p_slopes = val;
-%         end
+        %         %% Get and Set slopes
+        %         function slopes = get.slopes(obj)
+        %             slopes = obj.p_slopes;
+        %         end
+        %         function set.slopes(obj,val)
+        %             obj.p_slopes = val;
+        %         end
         
         %% Get and Set valid lenslets
         function validLenslet = get.validLenslet(obj)
@@ -195,7 +196,9 @@ classdef shackHartmann < handle
         end
         function set.validLenslet(obj,val)
             obj.p_validLenslet = val;
-            obj.referenceSlopes(~[obj.validLenslet(:);obj.validLenslet(:)]) = [];
+            index = ~[obj.p_validLenslet(:);obj.p_validLenslet(:)];
+            obj.p_referenceSlopes(index) = [];
+            obj.slopes(index) = [];
         end
         
         %% Get number of valid lenslet
@@ -235,13 +238,15 @@ classdef shackHartmann < handle
             val = obj.p_referenceSlopes;
         end
         function set.referenceSlopes(obj,val)
+            obj.slopes = obj.slopes + obj.p_referenceSlopes;
             obj.p_referenceSlopes = val;
-%             if ishandle(obj.slopesDisplayHandle)
-%                 hc = get(obj.slopesDisplayHandle,'children');
-%                 u = obj.p_referenceSlopes(1:end/2)+obj.lensletCenterX;
-%                 v = obj.p_referenceSlopes(1+end/2:end)+obj.lensletCenterY;
-%                 set(hc(2),'xData',u,'yData',v)
-%             end
+            obj.slopes = obj.slopes - obj.p_referenceSlopes;
+            %             if ishandle(obj.slopesDisplayHandle)
+            %                 hc = get(obj.slopesDisplayHandle,'children');
+            %                 u = obj.p_referenceSlopes(1:end/2)+obj.lensletCenterX;
+            %                 v = obj.p_referenceSlopes(1+end/2:end)+obj.lensletCenterY;
+            %                 set(hc(2),'xData',u,'yData',v)
+            %             end
         end
         
         %% Get the zernike coeficients
@@ -295,14 +300,16 @@ classdef shackHartmann < handle
                 surfPx         = nL^2;
                 pupilIntensity = pupilIntensity/surfPx;
             end
-            obj.p_validLenslet  = logical( ...
+            obj.validLenslet  = logical( ...
                 reshape( pupilIntensity>=obj.lenslets.minLightRatio , ...
                 obj.lenslets.nLenslet,obj.lenslets.nLenslet));
-            obj.referenceSlopes = zeros(2*obj.nValidLenslet,1);
-            obj.p_referenceSlopes = ...
-                repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
+%             obj.referenceSlopes = zeros(2*obj.nValidLenslet,1);
+%             obj.p_referenceSlopes = ...
+%                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
+            figure('Name',sprintf('%s valid lenslet',obj.tag)), spy(obj.p_validLenslet)
+            dataProcessing(obj)
         end
-
+        
         
         function varargout = dataProcessing(obj)
             %% DATAPROCESSING Processing a SH-WFS detector frame
@@ -358,12 +365,12 @@ classdef shackHartmann < handle
                 %                     = zeros(2*obj.nValidLenslet,1);
                 xBuffer             = bsxfun( @times , buffer , x(:) )  ;
                 xBuffer             = sum( xBuffer ) ./ massLenslet  ;
-%                 xBuffer             = squeeze((xBuffer));
+                %                 xBuffer             = squeeze((xBuffer));
                 yBuffer             = bsxfun( @times , buffer , y(:) )  ;
                 yBuffer             = sum( yBuffer ) ./ massLenslet  ;
-%                 yBuffer             = squeeze((yBuffer));
-%                 xyBuffer = squeeze([xBuffer  yBuffer]);
-%                 size(xyBuffer)
+                %                 yBuffer             = squeeze((yBuffer));
+                %                 xyBuffer = squeeze([xBuffer  yBuffer]);
+                %                 size(xyBuffer)
                 xBuffer = reshape(xBuffer,obj.nValidLenslet,nLensletArray*nFrame);
                 yBuffer = reshape(yBuffer,obj.nValidLenslet,nLensletArray*nFrame);
                 sBuffer = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes).*obj.slopesUnits;
@@ -390,7 +397,7 @@ classdef shackHartmann < handle
                 'pupil',double(obj.validLenslet));
             dzdxy = [zern.xDerivative(obj.validLenslet,:);zern.yDerivative(obj.validLenslet,:)];
             zern.c = dzdxy\obj.slopes;
-%             zern.c = dzdxy'*obj.slopes;
+            %             zern.c = dzdxy'*obj.slopes;
         end
         
         function varargout = grabAndProcess(obj)
@@ -422,7 +429,7 @@ classdef shackHartmann < handle
                 varargout{1} = obj;
             end
         end
-  
+        
         function relay(obj,src)
             %% RELAY shackhartmann to source relay
             %
@@ -431,8 +438,11 @@ classdef shackHartmann < handle
             % adding noise if any and process the frame to get the
             % wavefront slopes
             
+            if ~isempty(src(1).magnitude)
+                obj.camera.photonNoise = true;
+            end
             propagateThrough(obj.lenslets,src)
-%             grabAndProcess(obj)
+            %             grabAndProcess(obj)
             grab(obj.camera)
             dataProcessing(obj);
         end
@@ -491,7 +501,7 @@ classdef shackHartmann < handle
                     v = u(obj.validLenslet(:,kLenslet));
                     prev_v = v;
                     v = [v v(end)+nPxLenslet-1];
-                    while length(v)>=length(prev_v)
+                    while length(v)>=length(prev_v) && kLenslet<obj.lenslets.nLenslet
                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
                         line(v,w,'LineStyle','-','color',lc)
                         line(w,v,'LineStyle','-','color',lc)
@@ -503,7 +513,7 @@ classdef shackHartmann < handle
                     w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
                     line(prev_v,w,'LineStyle','-','color',lc)
                     line(w,prev_v,'LineStyle','-','color',lc)
-                    while kLenslet<=obj.lenslets.nLenslet
+                    while kLenslet<=obj.lenslets.nLenslet && kLenslet<obj.lenslets.nLenslet
                         v = u(obj.validLenslet(:,kLenslet));
                         v = [v v(end)+nPxLenslet-1];
                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
@@ -557,7 +567,7 @@ classdef shackHartmann < handle
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
                 axis equal tight xy
-%                 set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
+                %                 set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
                 colorbar
             end
             if nargout>0
@@ -569,11 +579,11 @@ classdef shackHartmann < handle
             imagesc(obj.camera,varargin{:});
             slopesDisplay(obj,'matrix',...
                 makehgtform('translate',[1,1,0]),varargin{:});
-%             if isinf(obj.framePixelThreshold)
-%                 clim = get(gca,'clim');
-%                 set(gca,'clim',[obj.framePixelThreshold,clim(2)])
-%             end
-                
+            %             if isinf(obj.framePixelThreshold)
+            %                 clim = get(gca,'clim');
+            %                 set(gca,'clim',[obj.framePixelThreshold,clim(2)])
+            %             end
+            
         end
         
         function slopesAndIntensityDisplay(obj,varargin)
@@ -594,14 +604,14 @@ classdef shackHartmann < handle
             nLenslet = obj.lenslets.nLenslet;
             nMap     = 2*nLenslet+1;
             nValidLenslet ...
-                     = obj.nValidLenslet;
+                = obj.nValidLenslet;
             
             i0x = [1:3 1:3]; % x stencil row subscript
             j0x = [ones(1,3) ones(1,3)*3]; % x stencil col subscript
             i0y = [1 3 1 3 1 3]; % y stencil row subscript
             j0y = [1 1 2 2 3 3]; % y stencil col subscript
-%             s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
-%             s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
+            %             s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
+            %             s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
             s0x = [-1 -1 -1  1 1  1]/3; % x stencil weight
             s0y = -[ 1 -1  1 -1 1 -1]/3; % y stencil weight
             
@@ -658,7 +668,8 @@ classdef shackHartmann < handle
         function gridMask = validLensletSamplingMask(obj,sample)
             %% VALIDLENSLETSAMPLINGMASK
             %
-            % mask = validLensletSamplingMask(obj)
+            % mask = validLensletSamplingMask(obj,n) computes the mask
+            % corresponding to the nXn pixel sampling of the lenslets
             
             nLenslet = obj.lenslets.nLenslet;
             nMap     = (sample-1)*nLenslet+1;
@@ -683,7 +694,204 @@ classdef shackHartmann < handle
             end
             
         end
-
+        
+        function out = validLensletArea(obj,R)
+            nLenslet ...
+                = obj.lenslets.nLenslet;
+            validLenslet ...
+                = obj.validLenslet;
+            nValidLenslet ...
+                = obj.nValidLenslet;
+            d   = obj.lenslets.pitch;
+            
+            u   = d*(1-nLenslet:2:nLenslet-1)/2;
+            [xLenslet,yLenslet] = meshgrid( u );
+            xLenslet = xLenslet(validLenslet);
+            yLenslet = yLenslet(validLenslet);
+            
+            lensletCoordX = ...
+                [xLenslet+d/2 xLenslet-d/2 xLenslet-d/2 xLenslet+d/2];
+            lensletCoordY = ...
+                [yLenslet+d/2 yLenslet+d/2 yLenslet-d/2 yLenslet-d/2];
+            rLenslet = hypot(lensletCoordX,lensletCoordY);
+            
+            out = zeros(nValidLenslet,1);
+            for kLenslet = 1:nValidLenslet
+                
+                plot(lensletCoordX(kLenslet,:),lensletCoordY(kLenslet,:))
+                pause
+                if any(rLenslet(kLenslet,:)>R)
+                    xA = lensletCoordX(kLenslet,2);
+                    xB = lensletCoordX(kLenslet,4);
+                    yA = lensletCoordY(kLenslet,2);
+                    out(kLenslet) = yA*(xB-xA);
+                    xA = xA/R;
+                    xB = xB/R;
+                    out(kLenslet) = out(kLenslet) - ...
+                        R.^2.*( asin(xB) - asin(xA) - ...
+                        xA*sqrt(1-xA^2) + xB*sqrt(1-xB^2) )/2;
+                else
+                    out(kLenslet) = obj.lenslets.pitch^2;
+                end
+                
+            end
+            
+        end
+        
+        function out = phaseToSlopes(obj,xo,yo,do,sample,alpha,beta,tel)
+            %% PHASETOSLOPES
+            
+            xo = xo(:)';
+            yo = yo(:)';
+            
+            if nargin<6
+                alpha = 1;
+                beta  = zeros(1,2);
+            end
+            
+            nLenslet ...
+                = obj.lenslets.nLenslet;
+            validLenslet ...
+                = obj.validLenslet;
+            nValidLenslet ...
+                = obj.nValidLenslet;
+            d   = alpha*obj.lenslets.pitch;
+            
+            u   = d*(1-nLenslet:2:nLenslet-1)/2;
+            [xLenslet,yLenslet] = meshgrid( u );
+            xLenslet = xLenslet(validLenslet);
+            yLenslet = yLenslet(validLenslet);
+            
+            edge   = linspace(-d/2,d/2,sample)';
+            unit   = ones(1,sample-1)*d/2;
+            % lenslet contour (x coordinates)
+            contourX_ = ...
+                [fliplr(edge(2:end)') -unit  edge(1:end-1)'  unit];
+            % lenslet contour (y coordinates)
+            contourY_ = ...
+                [unit   fliplr(edge(2:end)') -unit edge(1:end-1)'];
+            % normal to lenslet contour ( X gradient)
+            xNormal_ = [ zeros(1,sample-1) -ones(1,sample-1) ...
+                zeros(1,sample-1) ones(1,sample-1)];
+            % normal to lenslet contour ( Y gradient)
+            yNormal_ = [ ones(1,sample-1) zeros(1,sample-1)  ...
+                -ones(1,sample-1) zeros(1,sample-1)];
+            
+            z_  = cell(2*nValidLenslet,1);
+            partialLenslet = 0;
+            fprintf(' @(shackHartmann.phaseToSlopes)> #%4d/    ', nValidLenslet);
+            figure('Name','Truncated lenslet')
+            u = linspace(-1,1,obj.lenslets.nLenslet+1).*tel.R;
+            axes('xlim',[-1,1]*tel.R,'ylim',[-1,1]*tel.R,...
+                'xtick',u,'ytick',u,...
+                'xtickLabel',[],'ytickLabel',[],...
+                'xgrid','on','ygrid','on')
+            axis square
+            for kLenslet=1:nValidLenslet
+                
+                fprintf('\b\b\b\b%4d',kLenslet)
+                
+                %                 vertex = hypot( ...
+                %                     xLenslet(kLenslet) + [ +d -d -d +d]/2 , ...
+                %                     yLenslet(kLenslet) + [ +d +d -d -d]/2 );
+                
+                %                 if any(vertex>tel.R)
+                %                     partialLenslet = partialLenslet + 1;
+                % lenslet contour (x coordinates)
+                contourX = xLenslet(kLenslet) + contourX_;
+                % lenslet contour (y coordinates)
+                contourY = yLenslet(kLenslet) + contourY_;
+                % normal to lenslet contour ( X gradient)
+                xNormal = xNormal_;
+                % normal to lenslet contour ( Y gradient)
+                yNormal = yNormal_;
+                % polar coordinate contour
+                [contourO,contourR] = cart2pol( contourX , contourY);
+                % contour out of pupil
+                index   = contourR>tel.R;
+                if any(index)
+                    contourR(index) = tel.R;
+                    xNormal(index) = cos(contourO(index));
+                    yNormal(index) = sin(contourO(index));
+                    [contourX,contourY] = pol2cart(contourO,contourR);
+                    partialLenslet = partialLenslet + 1;
+                    line(contourX,contourY,'Marker','.','MarkerEdgeColor','r')
+                    drawnow
+                end
+                % contour steps
+                ds = abs( diff( ...
+                    complex( ...
+                    [contourX contourX(1)] , ...
+                    [contourY contourY(1)] ) ... % complex
+                    ) ... % diff
+                    ); % abs
+                A(kLenslet,:) = [ sum(ds.*contourX.*xNormal) , sum(ds.*contourY.*yNormal) ];
+                
+                
+                x_ = bsxfun( @minus , contourX' + beta(1), xo )/do;
+                y_ = bsxfun( @minus , contourY' + beta(2), yo )/do;
+                zs = bsxfun( @times , ds' , linearSpline(x_).*linearSpline(y_) );
+                % contour sum ( X gradient)
+                z_{kLenslet} = ...
+                    sum( bsxfun( @times , zs , xNormal' ) );
+                % contour sum ( Y gradient)
+                z_{kLenslet+nValidLenslet} = ...
+                    sum( bsxfun( @times , zs , yNormal' ) );
+                
+                %                 end
+                
+                %                 x_m = (xLenslet(kLenslet) - d/2 - xo)/do;
+                %                 x_p = (xLenslet(kLenslet) + d/2 - xo)/do;
+                %                 y_ = bsxfun( @minus , edge + yLenslet(kLenslet), yo )/do;
+                %                 z_{kLenslet} = sum(linearSpline(y_)).*...
+                %                     ( linearSpline(x_p) - linearSpline(x_m) );
+                %
+                %                 y_m = (yLenslet(kLenslet) - d/2 - yo)/do;
+                %                 y_p = (yLenslet(kLenslet) + d/2 - yo)/do;
+                %                 x_ = bsxfun( @minus , edge + xLenslet(kLenslet), xo )/do;
+                %                 z_{kLenslet+nValidLenslet} = sum(linearSpline(x_)).*...
+                %                     ( linearSpline(y_p) - linearSpline(y_m) );
+                
+            end
+            
+            fprintf(' (%d truncated lenslet)\n',partialLenslet)
+            out = cell2mat(z_)/d;
+            
+            %             [n,m] = size(out);
+            %             [i,j,s] = find(out);
+            %             as = abs(s);
+            %             index = as > 1e-12*as;
+            %             out = sparse(i(index),j(index),s(index),n,m);
+            
+        end
+        
     end
     
+end
+
+function y = linearSpline(x)
+%% LINEARSPLINE Linear spline function
+%
+% y = linearSpline(x) computes the function y = 1 - |x| for |x|<1 and y = 0
+% elsewhere
+
+[m,n] = size(x);
+x     = abs(x);
+index = x < 1;
+[i,j] = find(index);
+s     = 1 - x(index);
+y = sparse(i,j,s,m,n);
+% y = zeros(size(x));
+% y(index) = 1 - x(index);
+
+end
+
+
+function y = linearSplineInt(x)
+%% LINEARSPLINEINT Linear spline integral
+%
+% y = linearSplineInt(x) computes the function y = -(x-sign(x))^2/(2sign(x))
+
+y = -(x-sign(x)).^2./(2.*sign(x));
+
 end

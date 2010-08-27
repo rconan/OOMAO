@@ -91,9 +91,14 @@ classdef (Sealed) logBook < handle
                 localObj = logBook;
             end
             obj = localObj;
-            if nargin>0 && isvalid(src)
-                obj.nCougarObj = obj.nCougarObj + 1;
-                add(obj,src,'Created!')
+            if nargin>0 %&& isvalid(src)
+                nSrc = numel(src);
+                obj.nCougarObj = obj.nCougarObj + nSrc;
+                if nSrc>1
+                    add(obj,src(1),sprintf('%d created!',nSrc))
+                else
+                    add(obj,src,'Created!')
+                end
             end
         end
       

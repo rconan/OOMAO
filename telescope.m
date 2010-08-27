@@ -100,6 +100,7 @@ classdef telescope < telescopeAbstract
             obj.samplingTime = p.Results.samplingTime;
             obj.log = logBook.checkIn(obj);
             obj.opticalAberration = p.Results.opticalAberration;
+            display(obj)
         end
         
         %% Destructor
@@ -299,8 +300,8 @@ classdef telescope < telescopeAbstract
                             else
                                 layerR = obj.R*(1-obj.atm.layer(kLayer).altitude./src.height);
                                 u = obj.sampler*layerR;
-                                xc = obj.atm.layer(kLayer).altitude.*src.directionVector.x;
-                                yc = obj.atm.layer(kLayer).altitude.*src.directionVector.y;
+                                xc = obj.atm.layer(kLayer).altitude.*src.directionVector(1);
+                                yc = obj.atm.layer(kLayer).altitude.*src.directionVector(2);
                                 out = out + ...
                                     spline2({obj.layerSampling{kLayer},obj.layerSampling{kLayer}},...
                                     obj.atm.layer(kLayer).phase,{u+yc,u+xc});
@@ -310,6 +311,7 @@ classdef telescope < telescopeAbstract
                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
+                
             end
             
         end
@@ -471,18 +473,18 @@ classdef telescope < telescopeAbstract
                     if ~isempty(src)
                         kLayer = 1;
                         for kSrc=1:numel(src)
-                            xSrc = src(kSrc).directionVector.x.*...
+                            xSrc = src(kSrc).directionVector(1).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
-                            ySrc = src(kSrc).directionVector.y.*...
+                            ySrc = src(kSrc).directionVector(2).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
                             plot(xSrc+xP+(n1+1)/2,ySrc+yP+(n1+1)/2,'color',ones(1,3)*0.8)
                         end
                     else
-                        plot(xP+m1,yP+(n1+1)/2,'k:')
+                        plot(xP+(n1+1)/2,yP+(n1+1)/2,'k:')
                     end
                 text(m1/2,n1+0.5,...
                     sprintf('%.1fkm: %.1f%%\n%.2fm - %dpx',...
@@ -502,11 +504,11 @@ classdef telescope < telescopeAbstract
                     obj.imageHandle(kLayer) = imagesc([1,m]+m1,[1+offset,n1-offset],map);
                     if ~isempty(src)
                         for kSrc=1:numel(src)
-                            xSrc = src(kSrc).directionVector.x.*...
+                            xSrc = src(kSrc).directionVector(1).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
-                            ySrc = src(kSrc).directionVector.y.*...
+                            ySrc = src(kSrc).directionVector(2).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
@@ -547,11 +549,13 @@ classdef telescope < telescopeAbstract
             obj.sampler = linspace(-1,1,obj.resolution);
             add(obj.log,obj,'Initializing phase screens making parameters:')
             obj.log.verbose = false;
+            do = obj.D/(obj.resolution-1);
             for kLayer=1:obj.atm.nLayer
                 if isempty(obj.atm.layer(kLayer).phase)
                     D = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
-                    obj.atm.layer(kLayer).D = D;
-                    nPixel = round(1 + (obj.resolution-1)*D./obj.D);
+                    nPixel = 1 + ceil(D./do);
+                    obj.atm.layer(kLayer).D = do*(nPixel-1);
+%                     nPixel = round(1 + (obj.resolution-1)*D./Do);
                     obj.atm.layer(kLayer).nPixel = nPixel;
                     obj.layerSampling{kLayer}  = D*0.5*linspace(-1,1,nPixel);
                     % ---------

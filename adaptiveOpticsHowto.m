@@ -152,7 +152,7 @@ figure(10)
 subplot(1,2,1)
 imagesc(interactionMatrix)
 xlabel('DM actuators')
-ylabel('WFS slopes [px]')
+ylabel('WFS slopes')
 ylabel(colorbar,'slopes/actuator stroke')
 
 

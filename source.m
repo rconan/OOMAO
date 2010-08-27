@@ -54,10 +54,12 @@ classdef source < stochasticWave & hgsetget
         log;
         % source tag
         tag;
+        % source #
+        n;
     end
     
     properties (SetAccess=private)
-        directionVector;
+        directionVector = zeros(3,1);
         wavefront;
     end
     
@@ -97,9 +99,9 @@ classdef source < stochasticWave & hgsetget
             p.parse(varargin{:});
             persistent nCall
             if ~isempty(p.Results.zenithInArcsec)
-                obj.Results.zenith      = p.Results.zenithInArcsec./cougarConstants.radian2arcsec;
+                obj.zenith      = p.Results.zenithInArcsec./cougarConstants.radian2arcsec;
             elseif ~isempty(p.Results.zenithInArcmin)
-                obj.Results.zenith      = p.Results.zenithInArcmin./cougarConstants.radian2arcmin;
+                obj.zenith      = p.Results.zenithInArcmin./cougarConstants.radian2arcmin;
             end
             if nargin>0 || isempty(nCall)
                 nCall = 1;
@@ -143,6 +145,7 @@ classdef source < stochasticWave & hgsetget
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
                         obj(1,kObj,kHeight).tag        = p.Results.tag;
+                        obj(1,kObj,kHeight).n          = nObj*nHeight;
                         setDirectionVector(obj(1,kObj,kHeight))
                    end
                 end
@@ -157,20 +160,31 @@ classdef source < stochasticWave & hgsetget
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
                 obj.tag        = p.Results.tag;
+                obj.n          = 1;
                 setDirectionVector(obj)
             end
             % Here we are registering the source object(s) into the log
             % book
             if isempty(nCall)
-                for k=1:numel(obj)
-                    obj(k).log = logBook.checkIn(obj(k));
-                end
+                set(obj,'log',logBook.checkIn(obj));
+                display(obj)
             end
          end
         
         %% Destructor
         function delete(obj)
+            persistent countObj
+            if isempty(countObj)
+                countObj = obj.n;
+            end
             if ~isempty(obj.log)
+                countObj = countObj - 1;
+                if countObj==0
+                    obj.log.verbose = true;
+                    countObj = [];
+                else
+                    obj.log.verbose = false;
+                end
                 checkOut(obj.log,obj)
             end
         end
@@ -225,14 +239,23 @@ classdef source < stochasticWave & hgsetget
             %% DISP Display object information
             %
             % disp(obj) prints information about the source object
-            nObj = numel(obj);
+            [n,m,k] = size(obj);
+            nObj = n*m;
             fprintf('___ %s ___\n',obj(1).tag)
             fprintf(' Obj   zen[arcsec] azim[deg]  height[m]  lambda[micron] magnitude\n')
             for kObj=1:nObj
-                fprintf(' %2d     %5.2f      %6.2f    %8.2f     %5.2f          %5.2f\n',...
-                    kObj,obj(kObj).zenith*cougarConstants.radian2arcsec,...
-                    obj(kObj).azimuth*180/pi,obj(kObj).height,...
-                    obj(kObj).wavelength*1e6,obj(kObj).magnitude)
+                if k>1
+                    fprintf(' %2d     %5.2f      %6.2f    [%g %g]     %5.3f          %5.2f\n',...
+                        kObj,obj(kObj).zenith*cougarConstants.radian2arcsec,...
+                        obj(kObj).azimuth*180/pi,obj(kObj).height,...
+                        obj(1,kObj,k).height,...
+                        obj(kObj).wavelength*1e6,obj(kObj).magnitude)
+                else
+                    fprintf(' %2d     %5.2f      %6.2f    %8.2f     %5.3f          %5.2f\n',...
+                        kObj,obj(kObj).zenith*cougarConstants.radian2arcsec,...
+                        obj(kObj).azimuth*180/pi,obj(kObj).height,...
+                        obj(kObj).wavelength*1e6,obj(kObj).magnitude)
+                end
             end
             if ~isempty(obj(1).opticalPath)
                 fprintf(' Optical path: ')
@@ -267,9 +290,9 @@ classdef source < stochasticWave & hgsetget
         end
         
         function setDirectionVector(obj)
-            obj.directionVector.x = tan(obj.zenith)*cos(obj.azimuth);
-            obj.directionVector.y = tan(obj.zenith)*sin(obj.azimuth);
-            obj.directionVector.z = 1;
+            obj.directionVector(1) = tan(obj.zenith)*cos(obj.azimuth);
+            obj.directionVector(2) = tan(obj.zenith)*sin(obj.azimuth);
+            obj.directionVector(3) = 1;
         end
         
         function val = get.waveNumber(obj)
