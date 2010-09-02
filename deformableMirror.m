@@ -69,6 +69,7 @@ classdef deformableMirror < handle
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator);
             end
             obj.log = logBook.checkIn(obj);
+            display(obj)
         end
         
         %% Destructor
