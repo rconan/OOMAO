@@ -438,11 +438,11 @@ classdef shackHartmann < handle
             % adding noise if any and process the frame to get the
             % wavefront slopes
             
-            if isempty(src(1).magnitude)
-                obj.camera.photonNoise = false;
-            else
-                obj.camera.photonNoise = true;
-            end
+%             if isempty(src(1).magnitude)
+%                 obj.camera.photonNoise = false;
+%             else
+%                 obj.camera.photonNoise = true;
+%             end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
             grab(obj.camera)

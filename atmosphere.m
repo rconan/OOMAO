@@ -302,6 +302,10 @@ classdef atmosphere < hgsetget
     methods (Static)
         
         function out = r0VsWavelength(r0Wavelength,r0,wavelength)
+            %% R0VSWAVELENGTH r0 versus wavelength
+            %
+            % out = r0VsWavelength(r0Wavelength,r0,wavelength) computes the
+            % value of r0(r0Wavelength) at the new wavelength
         
             if ischar(r0Wavelength)
                 r0Wavelength = eval(['photometry.',r0Wavelength]);
