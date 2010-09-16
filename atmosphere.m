@@ -76,6 +76,12 @@ classdef atmosphere < hgsetget
         theta0InArcsec;
         % tau0
         tau0InMs;
+        % mean height
+        meanHeight;
+        % mean velocity
+        meanWind;
+        % Greenwood frequency
+        greenwoodFrequency;
     end
     
     properties (Access=private)
@@ -246,6 +252,26 @@ classdef atmosphere < hgsetget
                 end
             end
             out = out*1e3;
+        end
+        
+        %% Get mean height
+        function out = get.meanHeight(obj)
+            z = [obj.layer.altitude];
+            out = sum( [obj.layer.fractionnalR0].*z.^(5./3) )^(3/5);
+        end
+        
+        %% Get mean wind velocity
+        function out = get.meanWind(obj)
+            v = [obj.layer.windSpeed];
+            out = sum( [obj.layer.fractionnalR0].*v.^(5./3) )^(3/5);
+        end
+        
+        %% Get Greenwood frequency
+        function out = get.greenwoodFrequency(obj)
+            v = [obj.layer.windSpeed];
+            out = 0.4292*...
+                sum( [obj.layer.fractionnalR0].*v.^(5./3) )^(3/5)/...
+                obj.r0;
         end
         
         function map = fourierPhaseScreen(atm,D,nPixel)

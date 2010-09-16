@@ -41,8 +41,6 @@ classdef source < stochasticWave & hgsetget
         azimuth;
         % source height
         height;
-        % source wavelength
-        wavelength;
         % source full-width-half-max
         width;
         % source view point
@@ -55,7 +53,7 @@ classdef source < stochasticWave & hgsetget
         % source tag
         tag;
         % source #
-        n;
+        nSrc;
     end
     
     properties (SetAccess=private)
@@ -65,7 +63,10 @@ classdef source < stochasticWave & hgsetget
     
     properties (Dependent)
         waveNumber;
+        % source magnitudde
         magnitude;
+        % source wavelength
+        wavelength;
     end
     
     properties (Dependent,SetAccess=private)
@@ -75,6 +76,7 @@ classdef source < stochasticWave & hgsetget
     properties (Access=private)
 %         p_nPhoton;
         p_magnitude;
+        p_wavelength;
         tel;
     end
         
@@ -145,7 +147,7 @@ classdef source < stochasticWave & hgsetget
                         obj(1,kObj,kHeight).width      = p.Results.width;
                         obj(1,kObj,kHeight).viewPoint  = p.Results.viewPoint;
                         obj(1,kObj,kHeight).tag        = p.Results.tag;
-                        obj(1,kObj,kHeight).n          = nObj*nHeight;
+                        obj(1,kObj,kHeight).nSrc       = nObj*nHeight;
                         setDirectionVector(obj(1,kObj,kHeight))
                    end
                 end
@@ -160,7 +162,7 @@ classdef source < stochasticWave & hgsetget
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
                 obj.tag        = p.Results.tag;
-                obj.n          = 1;
+                obj.nSrc       = 1;
                 setDirectionVector(obj)
             end
             % Here we are registering the source object(s) into the log
@@ -175,7 +177,7 @@ classdef source < stochasticWave & hgsetget
         function delete(obj)
             persistent countObj
             if isempty(countObj)
-                countObj = obj.n;
+                countObj = obj.nSrc;
             end
             if ~isempty(obj.log)
                 countObj = countObj - 1;
@@ -189,36 +191,35 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
-        %% Get and Set nPhoton
-%         function set.nPhoton(obj,val)
-%             obj.p_nPhoton = val;
-%         end
-        function out = get.nPhoton(obj)
-            if isempty(obj.nPhoton)
-                if ~isempty(obj.p_magnitude)
-                    index = abs(photometry.wavelengths-photometry.R)<=eps(max(photometry.wavelengths));
-                    out = photometry.deltaWavelengths(index).*...
-                        1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                        10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
-                else
-                    out = [];
-                end
-            else
-                out = obj.nPhoton;
-            end
-        end
         %% Get and Set magnitude
         function out = get.magnitude(obj)
             out = obj.p_magnitude;
         end
         function set.magnitude(obj,val)
-            obj.nPhoton = [];
             obj.p_magnitude = val;
+            if ~isempty(obj.p_wavelength)
+                index = abs(photometry.wavelengths-obj.p_wavelength)<=eps(max(photometry.wavelengths));
+                obj.nPhoton = photometry.deltaWavelengths(index).*...
+                    1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
+                    10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
+            end
         end
         
         %% Get the wavelength in micron
         function out = get.wavelengthInMicron(obj)
-            out = obj.wavelength*1e6;
+            out = obj.p_wavelength*1e6;
+        end
+        function out = get.wavelength(obj)
+            out = obj.p_wavelength;
+        end
+        function set.wavelength(obj,val)
+            obj.p_wavelength = val;
+            if ~isempty(obj.p_magnitude)
+                index = abs(photometry.wavelengths-obj.p_wavelength)<=eps(max(photometry.wavelengths));
+                obj.nPhoton = photometry.deltaWavelengths(index).*...
+                    1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
+                    10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
+            end
         end
         
         
@@ -449,7 +450,7 @@ classdef source < stochasticWave & hgsetget
                 h = polar([obj.azimuth],[obj.zenith]*constants.radian2arcsec,'.');
                 delete(h)
                 nObj = numel(obj);
-                a = max([obj.magnitude]);
+%                 a = max([obj.magnitude]);
                 hold on
                 for kObj = 1:nObj
                     h(kObj) = polar(obj(kObj).azimuth,obj(kObj).zenith*constants.radian2arcsec,lineSpec);
