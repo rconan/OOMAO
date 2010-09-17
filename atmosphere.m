@@ -281,7 +281,17 @@ classdef atmosphere < hgsetget
             % phase screen of D meter and sampled with nPixel using the
             % Fourier method
             %
+            % map = fourierPhaseScreen(atm) Computes a square phase screen
+            % of atm.layer.D meter and sampled with atm.layer.nPixel using
+            % the Fourier method; atm must contain only one turbulent
+            % layer!
+            %
             % See also atmosphere
+            
+            if nargin<2
+                D = atm.layer.D;
+                nPixel = atm.layer.nPixel;
+            end
             
             N = 4*nPixel;
             L = (N-1)*D/(nPixel-1);

@@ -165,62 +165,77 @@ classdef telescope < telescopeAbstract
             %
             % obj = update(obj) moves the phase screens and returns the
             % object
+            
+            
             %             disp(' (@telescope) > Layer translation')
-            if ~isempty(obj.atm) &&  ~(obj.atm.nLayer==1 && obj.atm.layer.windSpeed==0)
-                %                 disp('HERE')
-                for kLayer=1:obj.atm.nLayer
+            
+            if ~isempty(obj.atm) % uncorrelated phase screens
+                
+                if isinf(obj.samplingTime)
                     
-                    pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
-                    % 1 pixel increased phase sampling vector
-                    u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-                    %                     [xu0,yu0] = meshgrid(u0);
-                    % phase sampling vector
-                    u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
-                    
-                    % phase displacement in meter
-                    leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
-                    % phase displacement in pixel
-                    pixelLeap = leap/pixelLength;
-                    
-                    notDoneOnce = true;
-                    
-%                     fprintf(' >>> Layer #%d: nShift=%d ; count=%d ; pixelLeap=(%4.2f,%4.2f) ; pixelLength=%4.2f ; leap=(%4.2f,%4.2f)\n',...
-%                        kLayer, obj.nShift(kLayer), obj.count(kLayer) , pixelLeap(1) , pixelLeap(2) , pixelLength , leap)
-%                     fprintf(' ------> Starting while loop\n');
-                    
-                    while any(pixelLeap>1) || notDoneOnce
-                        notDoneOnce = false;
+                    for kLayer=1:obj.atm.nLayer
                         
-                        if obj.count(kLayer)==0
-%                             fprintf(' ------>      : expanding!\n')
-                            % 1 pixel around phase increase
-                            Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
-                            X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(size(obj.B{kLayer},2),1);
-                            obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
-                            obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
-                        end
-                        
-                        % phase displacement (not more than 1 pixel)
-                        step   = min(abs(leap),pixelLength).*sign(leap);
-                        xShift = u - step(1);
-                        yShift = u - step(2);
-                        obj.atm.layer(kLayer).phase ...
-                            = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-                        %                         obj.atm.layer(kLayer).phase ...
-                        %                                = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
-                        
-                        leap = leap - step;
-                        pixelLeap = leap/pixelLength;
-                        
-%                         fprintf(' ------>      : count=%d ; pixelLeap=(%4.2f,%4.2f) ; step=(%4.2f,%4.2f)\n',...
-%                             obj.count(kLayer) , pixelLeap(1) , pixelLeap(2), step)
+                        obj.atm.layer(kLayer).phase = ...
+                            fourierPhaseScreen(slab(obj.atm,kLayer));
                         
                     end
                     
-                    obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
+                elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
+                    %                 disp('HERE')
+                    for kLayer=1:obj.atm.nLayer
+                        
+                        pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
+                        % 1 pixel increased phase sampling vector
+                        u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
+                        %                     [xu0,yu0] = meshgrid(u0);
+                        % phase sampling vector
+                        u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
+                        
+                        % phase displacement in meter
+                        leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
+                        % phase displacement in pixel
+                        pixelLeap = leap/pixelLength;
+                        
+                        notDoneOnce = true;
+                        
+                        %                     fprintf(' >>> Layer #%d: nShift=%d ; count=%d ; pixelLeap=(%4.2f,%4.2f) ; pixelLength=%4.2f ; leap=(%4.2f,%4.2f)\n',...
+                        %                        kLayer, obj.nShift(kLayer), obj.count(kLayer) , pixelLeap(1) , pixelLeap(2) , pixelLength , leap)
+                        %                     fprintf(' ------> Starting while loop\n');
+                        
+                        while any(pixelLeap>1) || notDoneOnce
+                            notDoneOnce = false;
+                            
+                            if obj.count(kLayer)==0
+                                %                             fprintf(' ------>      : expanding!\n')
+                                % 1 pixel around phase increase
+                                Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
+                                X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(size(obj.B{kLayer},2),1);
+                                obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
+                                obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
+                            end
+                            
+                            % phase displacement (not more than 1 pixel)
+                            step   = min(abs(leap),pixelLength).*sign(leap);
+                            xShift = u - step(1);
+                            yShift = u - step(2);
+                            obj.atm.layer(kLayer).phase ...
+                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                            %                         obj.atm.layer(kLayer).phase ...
+                            %                                = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
+                            
+                            leap = leap - step;
+                            pixelLeap = leap/pixelLength;
+                            
+                            %                         fprintf(' ------>      : count=%d ; pixelLeap=(%4.2f,%4.2f) ; step=(%4.2f,%4.2f)\n',...
+                            %                             obj.count(kLayer) , pixelLeap(1) , pixelLeap(2), step)
+                            
+                        end
+                        
+                        obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
+                        
+                    end
                     
                 end
-                
                 
             end
             
