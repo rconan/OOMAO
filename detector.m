@@ -75,6 +75,7 @@ classdef detector < handle
 %             end
             %             obj.frameRate = 1;
             obj.log = logBook.checkIn(obj);
+            display(obj)
         end
         
         %% Destructor
@@ -99,6 +100,10 @@ classdef detector < handle
             fprintf('___ %s ___\n',obj.tag)
             fprintf(' %dx%d pixels camera \n',...
                 obj.resolution)
+            if ~isempty(obj.pixelScale)
+            fprintf('  . pixel scale: %4.2f milli-arcsec \n',...
+                obj.pixelScale*constants.radian2arcsec*1000)                
+            end            
             fprintf('  . quantum efficiency: %3.1f \n',...
                 obj.quantumEfficiency)
             if obj.photonNoise
@@ -166,6 +171,23 @@ classdef detector < handle
             if nargout>0
                 varargout{1} = obj.frame;
             end
+        end
+        
+        function relay(obj,src)
+            
+            % Here we check the last object the source went through before
+            % the detector
+            srcLastPath = src.opticalPath{end-1};
+            switch class(srcLastPath) 
+                case 'telescope'
+                    f = utilities.cartAndPol(obj.resolution(1),...
+                        'output','radius');
+                    % pixel scale in radian
+                    f = obj.pixelScale*f.*(obj.resolution(1)-1)./src.wavelength/2;
+                    obj.frame = psf(srcLastPath,f);
+                otherwise
+            end
+            
         end
         
     end

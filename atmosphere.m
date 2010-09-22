@@ -349,7 +349,7 @@ classdef atmosphere < hgsetget
             if ischar(wavelength)
                 wavelength = eval(['photometry.',wavelength]);
             end
-            out = r0*(wavelength/r0Wavelength)^1.2;
+            out = r0.*(wavelength./r0Wavelength).^1.2;
             
         end
         

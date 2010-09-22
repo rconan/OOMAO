@@ -326,11 +326,11 @@ classdef source < stochasticWave & hgsetget
             % multiplying the source amplitude by the otherObj transmitance
             % and adding the otherObj phase to the source phase
             
-            relay(otherObj,obj);
             nObj = numel(obj);
             for kObj = 1:nObj
                 obj(kObj).opticalPath{ length(obj(kObj).opticalPath)+1 } = otherObj;
             end
+            relay(otherObj,obj);
         end
         
          function uplus(obj)
