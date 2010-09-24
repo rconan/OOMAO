@@ -195,7 +195,7 @@ classdef shackHartmann < handle
             validLenslet = obj.p_validLenslet;
         end
         function set.validLenslet(obj,val)
-            obj.p_validLenslet = val;
+            obj.p_validLenslet = logical(val);
             index = ~[obj.p_validLenslet(:);obj.p_validLenslet(:)];
             obj.p_referenceSlopes(index) = [];
             obj.slopes(index) = [];

@@ -42,7 +42,7 @@ classdef zernike < telescopeAbstract
         % angle
         o;
         % Noll normalisation
-        q;
+        nollNorm;
         % coefficients
         c;
         % lexicographic ordering of frames (default: true)
@@ -98,8 +98,8 @@ classdef zernike < telescopeAbstract
             obj.r = p.Results.radius;
             obj.o = p.Results.angle;
             [obj.n,obj.m] = findNM(obj);
-            obj.q = (sqrt((2-(obj.m==0)).*(obj.n+1)))';
-            obj.q(1)=[];
+            obj.nollNorm = (sqrt((2-(obj.m==0)).*(obj.n+1)))';
+            obj.nollNorm(1)=[];
             if isempty(obj.r)
                 [obj.r,obj.o] = utilities.cartAndPol(p.Results.resolution,'output','polar');
             else
@@ -159,7 +159,7 @@ classdef zernike < telescopeAbstract
             % the polynomials of the zernike object
             
             if isa(phaseMap,'shackHartmann')
-                u = logical(phaseMap.validLenslet);
+                u = phaseMap.validLenslet;
                 obj = zernike(1:obj.j(end),...
                     'resolution',phaseMap.lenslets.nLenslet,...
                     'pupil',double(u));
