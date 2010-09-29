@@ -43,8 +43,6 @@ classdef source < stochasticWave & hgsetget
         height;
         % source full-width-half-max
         width;
-        % source view point
-        viewPoint;
         % # of photon [m^{-2}.s^{-1}] 
         nPhoton;
         % cell array of handles of objects the source is propagating through  
@@ -67,6 +65,8 @@ classdef source < stochasticWave & hgsetget
         magnitude;
         % source wavelength
         wavelength;
+        % source view point
+        viewPoint;
     end
     
     properties (Dependent,SetAccess=private)
@@ -77,6 +77,7 @@ classdef source < stochasticWave & hgsetget
 %         p_nPhoton;
         p_magnitude;
         p_wavelength;
+        p_viewPoint;
         tel;
     end
         
@@ -222,6 +223,14 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
+        %% Get the wavelength in micron
+        function out = get.viewPoint(obj)
+            out = obj.p_viewPoint;
+        end
+        function set.viewPoint(obj,val)
+            obj.p_viewPoint = val;
+            obj.tel         = [];
+        end
         
         %         function bool = eq(obj1,obj2)
         %             % == (EQ) Sources comparison

@@ -166,9 +166,11 @@ classdef lensletArray < handle
             % setting fftPad=1, fieldStopSize should be set to default
             % n/nLenslet/nyquistSampling/2
             
-            obj.nArray = numel(src);
             if ndims(src)==3
                 obj.sumStack = true;
+                obj.nArray = 1;
+            else
+                obj.nArray = numel(src);
             end
             val = src.catWave;
             if isscalar(val) % if source amplitude and phase not set, set a default one
