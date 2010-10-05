@@ -61,10 +61,10 @@ classdef utilities
         function varargout = cartAndPol(u,varargin)
             %% CARTANDPOL Cartesian and polar coordinate arrays
             %
-            % [x,y,r,o] = cartAndPol(n) Shortcuts to u = linspace(-1,1,n);
+            % [x,y,r,o] = cartAndPol(n) Shortcuts to u = ((1-n):2:(n-1))/n;
             % [x,y] = meshgrid(u);[o,r] = cart2pol(x,y);
             %
-            % [x,y,r,o] = cartAndPol(n,R) Shortcuts to u = linspace(-R,R,n);
+            % [x,y,r,o] = cartAndPol(n,R) Shortcuts to u = R*((1-n):2:(n-1))/n;
             % [x,y] = meshgrid(u);[o,r] = cart2pol(x,y);
             %
             % [x,y,r,o] = cartAndPol(u) Shortcuts to [x,y] = meshgrid(u);[o,r] =

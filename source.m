@@ -94,7 +94,7 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('azimuth',0,@isnumeric);
             p.addParamValue('height',Inf,@isnumeric);
             p.addParamValue('wavelength',photometry.V,@isnumeric);
-            p.addParamValue('magnitude',[],@isnumeric);
+            p.addParamValue('magnitude',0,@isnumeric); % Vega magnitude (default)
             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);

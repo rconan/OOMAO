@@ -60,6 +60,11 @@ classdef telescope < telescopeAbstract
         opticalAberration;
     end
     
+    properties (Dependent , SetAccess = private)
+        % telescope pupil mask
+        pupil;
+    end
+    
     properties (Access=private)
         atm;
         innerMask;
@@ -77,6 +82,7 @@ classdef telescope < telescopeAbstract
         layerSampling;
         sampler;
         log;
+        p_pupil;
     end
     
     methods
@@ -141,6 +147,21 @@ classdef telescope < telescopeAbstract
             end
             fprintf('----------------------------------------------------\n')
             
+        end
+
+        %% Get and Set the pupil
+        function pupil = get.pupil(obj)
+            pupil = obj.p_pupil;
+            if isempty(pupil) && ~isempty(obj.resolution)
+                pupil = utilities.piston(obj.resolution);
+                if obj.obstructionRatio>0
+                    pupil = pupil - ...
+                        utilities.piston(...
+                        round(obj.resolution.*obj.obstructionRatio),...
+                        obj.resolution);
+                end
+                obj.p_pupil = pupil;
+            end
         end
         
         %% Set/Get for opticalAberration property

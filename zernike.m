@@ -68,11 +68,14 @@ classdef zernike < telescopeAbstract
         xDerivative
         % Zernike Y derivative
         yDerivative
+        % telescope pupil mask
+        pupil;
     end
     
     properties (Access=private)
         p_p;
         log;
+        p_pupil;
     end
     
     methods
@@ -83,17 +86,19 @@ classdef zernike < telescopeAbstract
             p = inputParser;
             p.addRequired('j', @isnumeric);
             p.addOptional('D', 2, @isnumeric);
+            p.addParamValue('obstructionRatio', 0, @isnumeric);
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('radius', [], @isnumeric);
             p.addParamValue('angle', [], @isnumeric);
             p.addParamValue('pupil', [], @isnumeric);
             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
-            p.addParamValue('logging', true, @islogical);            
+            p.addParamValue('logging', true, @islogical);
             p.parse(j,varargin{:});
             obj = obj@telescopeAbstract(p.Results.D,...
+                'obstructionRatio',p.Results.obstructionRatio,...
                 'resolution',p.Results.resolution,...
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin);
-            obj.pupil = p.Results.pupil;
+%             obj.pupil = p.Results.pupil;
             obj.j = p.Results.j;
             obj.r = p.Results.radius;
             obj.o = p.Results.angle;
@@ -115,6 +120,15 @@ classdef zernike < telescopeAbstract
         function delete(obj)
             if ~isempty(obj.log)
                 checkOut(obj.log,obj)
+            end
+        end
+
+        %% Get and Set the pupil
+        function pupil = get.pupil(obj)
+            pupil = obj.p_pupil;
+            if isempty(pupil) && ~isempty(obj.resolution)
+                pupil = obj.r>=obj.obstructionRatio & obj.r<=1;
+                obj.p_pupil = pupil;
             end
         end
         

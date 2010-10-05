@@ -36,26 +36,22 @@ classdef telescopeAbstract < handle
         tag;
     end
     
-    properties (Dependent)
+    properties (Abstract , Dependent , SetAccess = private)
         % telescope pupil mask
         pupil;
     end
-    
+        
     properties (Dependent,SetAccess=private)
         % radius
         R;
         % telescope pupil mask
         pupilLogical;
-        % telescope area
-        area;
+%         % telescope area
+%         area;
         % telescope area in pixels
         pixelArea;
     end
-    
-    properties (Access=protected)
-        p_pupil;
-    end
-    
+        
     methods
         
         %% Constructor
@@ -82,23 +78,6 @@ classdef telescopeAbstract < handle
             end
             obj.resolution       = p.Results.resolution;
         end      
-
-        %% Get and Set the pupil
-        function pupil = get.pupil(obj)
-            pupil = obj.p_pupil;
-            if isempty(pupil) && ~isempty(obj.resolution)
-                pupil = utilities.piston(obj.resolution);
-                if obj.obstructionRatio>0
-                    pupil = pupil - ...
-                        utilities.piston(...
-                        round(obj.resolution.*obj.obstructionRatio),...
-                        obj.resolution);
-                end
-            end
-        end
-        function set.pupil(obj,val)
-            obj.p_pupil = val;
-        end
         
         %% Get the logical pupil mask
         function pupilLogical = get.pupilLogical(obj)
@@ -111,7 +90,7 @@ classdef telescopeAbstract < handle
         end
         
         %% Get telescope surface
-        function out = get.area(obj)
+        function out = area(obj)
             out = pi*obj.R^2*(1-obj.obstructionRatio^2);
         end
         
