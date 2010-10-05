@@ -150,6 +150,32 @@ classdef deformableMirror < handle
             end
         end
         
+        function out = fittingError(obj,telAtm,src,unit)
+            %% FITTING ERROR deformable mirror fitting error
+            %
+            % out = fittingError(telAtm) computes the deformable mirror
+            % fitting error variance in radian^2 for the given
+            % telescope+atmosphere system 
+            % out = fittingError(telAtm,src) computes the deformable mirror
+            % fitting error rms in meter for the given telescope+atmosphere
+            % system
+            % out = fittingError(telAtm,src,unit) computes the deformable
+            % mirror fitting error rms in meterX10^-unit for the given
+            % telescope+atmosphere system
+                        
+            d = telAtm.D/(obj.nActuator-1);
+            fc = 1/d/2;
+            out = phaseStats.variance(telAtm.opticalAberration) - ...
+                dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
+                -fc,fc,-fc,fc);
+            if nargin>2
+                if nargin<4
+                    unit = 1;
+                end
+                out = 10^-unit*out/src.waveNumber;
+            end            
+        end
+        
         function varargout = imagesc(obj,varargin)
             %% IMAGESC Display the lenslet imagelets
             %
