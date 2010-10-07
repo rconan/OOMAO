@@ -43,7 +43,7 @@ classdef zernike < telescopeAbstract
         o;
         % Noll normalisation
         nollNorm;
-        % coefficients
+        % coefficients in meter
         c;
         % lexicographic ordering of frames (default: true)
         lex = true;
@@ -115,7 +115,9 @@ classdef zernike < telescopeAbstract
             if p.Results.logging
                 obj.log = logBook.checkIn(obj);
             end
+            display(obj)
         end
+        
         %% Destructor
         function delete(obj)
             if ~isempty(obj.log)
@@ -135,14 +137,21 @@ classdef zernike < telescopeAbstract
         function display(obj)
             %% DISPLAY Display object information
             %
-            % display(obj) prints information about the zernike object
+            % display(obj) prints information about the atmosphere+telescope object
             
             fprintf('___ %s ___\n',obj.tag)
-            disp(obj)
+            fprintf(' . %d modes\n',obj.nMode)
+            fprintf('----------------------------------------------------\n')
+            
         end
 
         function obj = minus(obj,val)
-            index = obj.j==val;
+            %% - Modes cancellation
+            %
+            % obj = obj - cancelMode removes the polynomials matching 
+            % cancelMode from the Zernike basis
+            
+            index = ismember(obj.j,val);
             obj.j(index) = [];
             obj.n(index) = [];            
             obj.m(index) = [];            
@@ -151,11 +160,33 @@ classdef zernike < telescopeAbstract
                 obj.p_p(:,index) = [];
             end
         end
+
+        function obj = plus(obj,val)
+            %% - Modes expansion
+            %
+            % obj = obj + newMode adds polynomials matching 
+            % newMode to the Zernike basis
+            
+            newObj = zernike(val,obj.D,...
+                'resolution',obj,resolution,...
+                'radius',obj.r,...
+                'angle',obj.o,...
+                'pupil',obj.pupil,...
+                'logging',false);
+            j = [obj.j newObj.j];
+            n = [obj.n newObj.n];
+            m = [obj.m newObj.m];
+            p = [obj.p newObj.p];
+            [obj.j,index] = sort(j);
+            obj.n = n(index);
+            obj.m = m(index);
+            obj.p = p(index);
+        end
         
         function obj = ldivide(obj,phaseMap)
             %% .\ Orthogonal projection onto the Zernike polynomials
             %
-            % obj = projection(obj,phaseMap) projects the 2D phase map onto
+            % obj = obj.\phaseMap projects the 2D phase map onto
             % the polynomials of the zernike object and store the
             % projection coefficients into the object coefficients vector
             
@@ -166,26 +197,54 @@ classdef zernike < telescopeAbstract
             end
         end
         
-        function obj = mldivide(obj,phaseMap) 
+        function obj = mldivide(obj,val) 
             %% \ Least square fit to the Zernike polynomials
             %
-            % out = obj\phaseMap projects the 2D phase map onto
-            % the polynomials of the zernike object
+            % out = obj\phaseMap fits to the least square the 2D phase map
+            % onto the polynomials of the zernike object and store the
+            % projection coefficients into the object coefficients vector
             
-            if isa(phaseMap,'shackHartmann')
-                u = phaseMap.validLenslet;
+            if isa(val,'shackHartmann')
+                u = val.validLenslet;
                 obj = zernike(1:obj.j(end),...
-                    'resolution',phaseMap.lenslets.nLenslet,...
+                    'resolution',val.lenslets.nLenslet,...
                     'pupil',double(u));
-                phaseMap.zern2slopes = [obj.xDerivative(u,:);obj.yDerivative(u,:)];
-                obj.c = phaseMap.zern2slopes\phaseMap.slopes;
+                val.zern2slopes = [obj.xDerivative(u,:);obj.yDerivative(u,:)];
+                obj.c = val.zern2slopes\val.slopes;
                 obj = obj - 1;
             else
+                if isa(val,'source')
+                    phaseMap = val.phase/val.waveNumber;
+                else
+                    phaseMap = val;
+                end
                 if size(obj.p_p,1)==size(phaseMap,1)
                     obj.c = obj.p_p\phaseMap;
                 else
                     obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
                 end
+            end
+        end
+        
+        function obj = times(obj,factor)
+            %% * Zernike coefficients multiplication
+            %
+            % obj = obj*factor multiplies the Zernike coefficients by
+            % factor; factor is either a scalar or a vector the same size
+            % than Zernike coefficients
+            
+            obj.c = obj.c.*factor;
+            
+        end
+        
+        function varargout = uminus(obj) 
+            %% uminus Coefficient negation
+            %
+            % -obj multiplies the Zernike coefficients by -1
+            
+            obj.c = -obj.c;
+            if nargout>0
+                varargout{1} = obj;
             end
         end
         
@@ -210,7 +269,7 @@ classdef zernike < telescopeAbstract
             
             src.mask      = obj.pupilLogical;
             src.amplitude = obj.pupil;
-            src.phase     = utilities.toggleFrame(obj.p_p*obj.c,3);
+            src.phase     = utilities.toggleFrame(obj.p_p*obj.c*src.waveNumber,3);
         end
         
         function out = fourier(obj,f,o)

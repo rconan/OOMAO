@@ -419,7 +419,7 @@ classdef zernikeStats
                     mask  = triu(true(nGs,mGs));
                     index = index(mask);
                     buffer = cell(1,length(index));
-                    parfor kGs = 1:length(index)
+                    for kGs = 1:length(index)
                         ijGs = index(kGs);
                         [iGs,jGs] = ind2sub(nmGs,ijGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
@@ -444,7 +444,7 @@ classdef zernikeStats
 %                         fprintf('\b\b\b\n')
 %                     end
                     nmGs  = [nGs mGs];
-                    parfor kGs = 1:nGs*mGs
+                    for kGs = 1:nGs*mGs
                         [iGs,jGs] = ind2sub(nmGs,kGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
                         aiaj{kGs} = zernikeStats.angularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
@@ -478,7 +478,7 @@ classdef zernikeStats
                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
                         fr0     = [atm.layer.fractionnalR0]';
                         aiajFun = @ (znmi,znmj) ...
-                            quadgk(@(x) integrandNgs(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
 %                         n = 201;
 %                         r = linspace(0,20,n);

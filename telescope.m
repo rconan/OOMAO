@@ -171,7 +171,9 @@ classdef telescope < telescopeAbstract
                 obj.phaseListener = addlistener(obj.atm.layer(1),'phase','PostSet',...
                     @(src,evnt) obj.imagesc );
                 obj.phaseListener.Enabled = false;
-                init(obj);
+                if ~isempty(obj.samplingTime)
+                    init(obj);
+                end
             end
         end        
         function out = get.opticalAberration(obj)

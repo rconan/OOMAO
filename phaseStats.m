@@ -642,7 +642,7 @@ classdef phaseStats
                     mask  = triu(true(nGs,mGs));
                     index = index(mask);
                     buffer = cell(1,length(index));
-                    parfor kGs = 1:length(index)
+                    for kGs = 1:length(index)
                         ijGs = index(kGs);
                         [iGs,jGs] = ind2sub(nmGs,ijGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);

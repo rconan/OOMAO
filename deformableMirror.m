@@ -151,7 +151,7 @@ classdef deformableMirror < handle
         end
         
         function out = fittingError(obj,telAtm,src,unit)
-            %% FITTING ERROR deformable mirror fitting error
+            %% FITTINGERROR deformable mirror fitting error
             %
             % out = fittingError(telAtm) computes the deformable mirror
             % fitting error variance in radian^2 for the given
@@ -161,7 +161,7 @@ classdef deformableMirror < handle
             % system
             % out = fittingError(telAtm,src,unit) computes the deformable
             % mirror fitting error rms in meterX10^-unit for the given
-            % telescope+atmosphere system
+            % telescope+atmosphere system (nanometer: unit=-9)
                         
             d = telAtm.D/(obj.nActuator-1);
             fc = 1/d/2;
@@ -172,7 +172,7 @@ classdef deformableMirror < handle
                 if nargin<4
                     unit = 1;
                 end
-                out = 10^-unit*out/src.waveNumber;
+                out = 10^-unit*sqrt(out)/src.waveNumber;
             end            
         end
         
