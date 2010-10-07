@@ -1,4 +1,4 @@
-classdef shackHartmann < handle
+classdef shackHartmann < hgsetget
     % SHACKHARTMANN Create a Shack-Hartmann object
     %
     % obj = shackHartmann(nLenslet,detectorResolution) creates a
@@ -378,7 +378,7 @@ classdef shackHartmann < handle
                 if any(index(:)) % if all pixels threshold
                     warning('OOMAO:shackHartmann:dataProcessing',...
                         'Threshold (%f) is probably too high or simply there is no light on some of the lenslets',obj.framePixelThreshold)
-                    if ~isempty(obj.slopes)
+                    if ~isempty(obj.slopes) && all(size(sBuffer)==size(obj.slopes))
                         sBuffer(index) = obj.slopes(index);
                     end
                 end
