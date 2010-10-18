@@ -22,6 +22,8 @@ classdef detector < handle
         frameRate = 1;
         % Exposure time [second]
         exposureTime = 1;
+        %  Delay after which the camera start integrating
+        startDelay = 0;
         % detector timer
         paceMaker;
         % frame update listener
@@ -30,6 +32,7 @@ classdef detector < handle
         frameGrabber;
         % detector tag
         tag= 'DETECTOR';
+        frameBuffer = 0;;
     end
     
     properties (SetObservable=true)
@@ -142,9 +145,9 @@ classdef detector < handle
                 obj.frameHandle = image(obj.frame,...
                     'CDataMApping','Scaled',...
                     varargin{:});
-                colormap(pink)
+%                 colormap(pink)
                 axis xy equal tight
-                colorbar('location','NorthOutside')
+                colorbar('location','SouthOutside')
             end
         end
         
@@ -186,6 +189,15 @@ classdef detector < handle
                     f = obj.pixelScale*f.*(obj.resolution(1)-1)./src.wavelength/2;
                     obj.frame = psf(srcLastPath,f);
                 otherwise
+                    if src.timeStamp>=obj.startDelay
+                        obj.startDelay = -Inf;
+                        obj.frameBuffer = obj.frameBuffer + src.intensity;
+                        if src.timeStamp>=obj.exposureTime
+                            src.timeStamp = 0;
+                            readOut(obj,obj.frameBuffer)
+                            obj.frameBuffer = 0*obj.frameBuffer;
+                        end
+                    end
             end
             
         end
@@ -201,7 +213,7 @@ classdef detector < handle
             % photonNoise property is true and readout noise if
             % readOutNoise property is greater than 0
             
-            image = image.*obj.exposureTime; % flux integration
+%             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
             if license('checkout','statistics_toolbox')
                 if obj.photonNoise
                     image = poissrnd(image);

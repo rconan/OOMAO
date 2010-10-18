@@ -244,15 +244,19 @@ classdef influenceFunction < handle
             u0 = ratioTelDm.*linspace(-1,1,resolution)*(nIF-1)/2;
 %             w = zeros(resolution,nIF);
             w = spalloc(resolution,nIF,nIF*resolution);
+            fprintf('::::::::::\n @(influenceFunction)> Spline interpolation of the bezier curves... (%4d:     ',nIF)
             for kIF = 1:nIF
                 u = u0 - z(kIF);
                 index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
                 w(index,kIF) = ppval(obj.splineP,u(index));
+                fprintf('\b\b\b\b%4d',kIF)
             end
+            fprintf(')\n')
 %             obj.modes = zeros(resolution^2,sum(validActuator(:)));
             nValid = sum(validActuator(:));
             obj.modes = spalloc(resolution^2,nValid,resolution^2*nValid);
             kIF = 0;
+            fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d:     ',nIF^2)
             for jIF = 1:nIF
                 for iIF = 1:nIF
                     if validActuator(iIF,jIF)
@@ -261,7 +265,9 @@ classdef influenceFunction < handle
                         obj.modes(:,kIF) = buffer(:);
                     end
                 end
+                fprintf('\b\b\b\b%4d',(jIF-1)*nIF+iIF)
             end
+            fprintf(')\n::::::::::\n')
         end
     end
     

@@ -612,10 +612,10 @@ classdef shackHartmann < hgsetget
             j0x = [ones(1,3) ones(1,3)*3]; % x stencil col subscript
             i0y = [1 3 1 3 1 3]; % y stencil row subscript
             j0y = [1 1 2 2 3 3]; % y stencil col subscript
-            %             s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
-            %             s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
-            s0x = [-1 -1 -1  1 1  1]/3; % x stencil weight
-            s0y = -[ 1 -1  1 -1 1 -1]/3; % y stencil weight
+                        s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
+                        s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
+%             s0x = [-1 -1 -1  1 1  1]/3; % x stencil weight
+%             s0y = -[ 1 -1  1 -1 1 -1]/3; % y stencil weight
             
             i_x = zeros(1,6*nValidLenslet);
             j_x = zeros(1,6*nValidLenslet);

@@ -1,4 +1,15 @@
 classdef deformableMirror < handle
+    % Create a deformableMirror object
+    %
+    % dm = deformableMirror(nActuator,'modes',ifObject) creates a
+    % deformableMirror object from the number of actuator across the mirror
+    % diameter and from the influence function object
+    %
+    % dm = deformableMirror(nActuator,'modes',IF) creates a
+    % deformableMirror object from the number of actuator across the mirror
+    % diameter and from the influence function matrix
+    %
+    % See also influenceFunction
    
     properties
         % conjugation altitude
@@ -11,8 +22,6 @@ classdef deformableMirror < handle
         driver;
         % coefficients default
         coefsDefault;
-        % valid actuator
-        validActuator;
         % surface listener
         surfaceListener;
         % lexicographic ordering of DM surface map (default: false)
@@ -33,6 +42,11 @@ classdef deformableMirror < handle
         nValidActuator;
    end
     
+    properties (Dependent)
+        % valid actuator
+        validActuator;
+   end
+    
     properties (Dependent, SetObservable=true)
         % coefficients
         coefs;
@@ -41,6 +55,7 @@ classdef deformableMirror < handle
     properties (Access=private)
         p_coefs; 
         p_surface;
+        p_validActuator;
         imageHandle;
         log;
     end
@@ -57,7 +72,7 @@ classdef deformableMirror < handle
             p.addParamValue('zLocation', 0, @isnumeric);
             p.parse(nActuator, varargin{:});
             obj.nActuator         = p.Results.nActuator;
-            obj.validActuator     = p.Results.validActuator;
+            obj.p_validActuator     = p.Results.validActuator;
             obj.modes             = p.Results.modes;
             obj.zLocation             = p.Results.zLocation;
             obj.surfaceListener = addlistener(obj,'surface','PostSet',...
@@ -90,7 +105,9 @@ classdef deformableMirror < handle
             fprintf(' %dX%d actuators deformable mirror: \n  . %d controlled actuators\n',...
                 obj.nActuator,obj.nActuator,obj.nValidActuator)
             fprintf('----------------------------------------------------\n')
-            display(obj.modes)
+            if isa(obj.modes,'influenceFunction')
+                display(obj.modes)
+            end
 
         end
         
@@ -116,6 +133,22 @@ classdef deformableMirror < handle
                 imagesc(obj);
             end
         end
+        
+        %% Set and Get validActuator
+        function out = get.validActuator(obj)
+            out = obj.p_validActuator;
+        end
+        function set.validActuator(obj,val)
+            if obj.nValidActuator>=sum(val(:))
+                val(~obj.p_validActuator)  = [];
+                obj.coefsDefault(~val)     = [];
+                obj.p_coefs(~val)          = [];
+                obj.modes.modes(:,~val)    = [];
+                obj.p_validActuator        = val;
+            else
+                error('oomao:deformableMirror:set.validActuator','Sorry only downsizing is possible!')
+            end
+        end        
         
         %% Get the dm shape
         function dmShape = get.surface(obj)

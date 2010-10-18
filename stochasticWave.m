@@ -23,6 +23,8 @@ classdef stochasticWave < handle
         amplitude;
         % wave phase        
         phase;   
+        % intensity
+        intensity;
         % buffer sequence
         bufSeq
     end
@@ -69,6 +71,7 @@ classdef stochasticWave < handle
         function set.amplitude(obj,val)
             obj.p_amplitude = bsxfun( @times, obj.p_amplitude , val);
         end
+    
         %% Get/Set phase
         function out = get.phase(obj)
             out = obj.p_phase;
@@ -97,6 +100,11 @@ classdef stochasticWave < handle
         %% Get the wave
         function out = get.wave(obj)
             out = bsxfun( @times , obj.amplitude , exp(1i.*obj.phase) );
+        end
+        
+        %% Get intensity
+        function out = get.intensity(obj)
+            out = obj.wave.*conj(obj.wave);
         end
         
         %% Get the meanRmPhase propertye
@@ -143,6 +151,14 @@ classdef stochasticWave < handle
             % stochasticWave objects
             
             out = cat( ndims(obj) , obj.phase);
+        end
+        function out = catMeanRmPhase(obj)
+            %% CATPHASE Concatenate mean removed phases
+            %
+            % out = catMeanRmPhase(obj) concatenates the mean removed
+            % phases of an array of stochasticWave objects
+            
+            out = cat( ndims(obj) , obj.meanRmPhase);
         end
         function out = catWave(obj)
             %% CATWAVE Concatenate waves

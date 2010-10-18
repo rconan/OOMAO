@@ -82,7 +82,7 @@ classdef zernike < telescopeAbstract
         
         %% Constructor
         function obj = zernike(j,varargin)
-            error(nargchk(1,8,nargin));
+            error(nargchk(1,16,nargin));
             p = inputParser;
             p.addRequired('j', @isnumeric);
             p.addOptional('D', 2, @isnumeric);
@@ -114,8 +114,8 @@ classdef zernike < telescopeAbstract
             obj.c = ones(length(obj.j),1);
             if p.Results.logging
                 obj.log = logBook.checkIn(obj);
+                display(obj)
             end
-            display(obj)
         end
         
         %% Destructor
@@ -130,7 +130,7 @@ classdef zernike < telescopeAbstract
             pupil = obj.p_pupil;
             if isempty(pupil) && ~isempty(obj.resolution)
                 pupil = obj.r>=obj.obstructionRatio & obj.r<=1;
-                obj.p_pupil = pupil;
+                obj.p_pupil = double(pupil);
             end
         end
         
@@ -168,7 +168,7 @@ classdef zernike < telescopeAbstract
             % newMode to the Zernike basis
             
             newObj = zernike(val,obj.D,...
-                'resolution',obj,resolution,...
+                'resolution',obj.resolution,...
                 'radius',obj.r,...
                 'angle',obj.o,...
                 'pupil',obj.pupil,...
@@ -176,11 +176,11 @@ classdef zernike < telescopeAbstract
             j = [obj.j newObj.j];
             n = [obj.n newObj.n];
             m = [obj.m newObj.m];
-            p = [obj.p newObj.p];
+            p = [obj.p_p newObj.p_p];
             [obj.j,index] = sort(j);
             obj.n = n(index);
             obj.m = m(index);
-            obj.p = p(index);
+            obj.p_p = p(:,index);
         end
         
         function obj = ldivide(obj,phaseMap)

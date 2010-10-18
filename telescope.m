@@ -325,7 +325,7 @@ classdef telescope < telescopeAbstract
                 if isempty(src.nPhoton)
                     src.amplitude = obj.pupil;
                 else
-                    src.amplitude = obj.pupil.*sqrt(src.nPhoton.*obj.area/sum(obj.pupil(:)));
+                    src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:))); 
                 end
                 out = 0;
                 if ~isempty(obj.atm) % Set phase if an atmosphere is defined
@@ -349,7 +349,7 @@ classdef telescope < telescopeAbstract
                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
-                
+                src.timeStamp = src.timeStamp + obj.samplingTime;
             end
             
         end
@@ -591,7 +591,7 @@ classdef telescope < telescopeAbstract
             for kLayer=1:obj.atm.nLayer
                 if isempty(obj.atm.layer(kLayer).phase)
                     D = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
-                    nPixel = 1 + ceil(D./do);
+                    nPixel = 1 + round(D./do);
                     obj.atm.layer(kLayer).D = do*(nPixel-1);
 %                     nPixel = round(1 + (obj.resolution-1)*D./Do);
                     obj.atm.layer(kLayer).nPixel = nPixel;

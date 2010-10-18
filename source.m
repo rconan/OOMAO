@@ -52,6 +52,8 @@ classdef source < stochasticWave & hgsetget
         tag;
         % source #
         nSrc;
+        % time stamp
+        timeStamp = 0;
     end
     
     properties (SetAccess=private)
@@ -322,6 +324,24 @@ classdef source < stochasticWave & hgsetget
                 obj(kObj).p_amplitude = 1;
                 obj(kObj).p_phase     = 0;
                 obj(kObj).opticalPath = [];
+            end
+            if nargout>0
+                varargout{1} = obj;
+            end
+        end
+        
+        function varargout = resetAmplitudeAndPhase(obj)
+            %% RESET Reset wave properties
+            %
+            % reset(obj) resets the mask to [], the amplitude to 1, the
+            % phase to 0 and the optical path to [];
+            %
+            % obj = reset(obj) resets and returns the reset object
+            
+            for kObj = 1:numel(obj);
+                obj(kObj).mask        = [];
+                obj(kObj).p_amplitude = 1;
+                obj(kObj).p_phase     = 0;
             end
             if nargout>0
                 varargout{1} = obj;
