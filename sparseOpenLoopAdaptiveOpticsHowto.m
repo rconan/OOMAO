@@ -42,11 +42,11 @@ atm = atmosphere(photometry.V,0.15,30,...
 % * the field of view either in arcminute or arcsecond
 % * the pupil sampling or resolution in pixels
 % * the atmopheric layer motion sampling time [s]
-nPx = 120;
-tel = telescope(3.6,...
+nPx = 160;
+tel = telescope(8,...
     'fieldOfViewInArcMin',2.5,...
     'resolution',nPx,...
-    'samplingTime',1/100);
+    'samplingTime',1/500);
 
 %% Definition of a calibration source
 % The source class constructor has parameters/value pairs of optional inputs:
@@ -70,7 +70,7 @@ ngs = source('wavelength',photometry.J);
 %
 % * the minimum light ratio that is the ratio between a partially
 % illuminated subaperture and a fully illuminated aperture
-nLenslet = 10;
+nLenslet = 16;
 wfs = shackHartmann(nLenslet,nPx,0.75);
 %%
 % Propagation of the calibration source to the WFS through the telescope
@@ -284,12 +284,13 @@ d = tel.D/nLenslet;
 Gamma = Gamma/d;
 %%
 % Laplacian matrix (approx. of inverse of phase covariance matrix)
-L = gallery('poisson',nGeom);
-L(~gridMask,:) = [];
-L(:,~gridMask) = [];
-L2 = L'*L;
-% L2 = L2.*(441/(sum(sum(Gatm*L2))));
-L2 = L2./(phaseStats.variance(atm)*sum(L2(:)));
+% L = gallery('poisson',nGeom);
+% L(~gridMask,:) = [];
+% L(:,~gridMask) = [];
+% L2 = L'*L;
+% % L2 = L2.*(441/(sum(sum(Gatm*L2))));
+% L2 = L2./(phaseStats.variance(atm)*sum(L2(:)));
+L2 = phaseStats.sparseInverseCovarianceMatrix({gridMask},atm);
 %%
 % WFS noise covariance matrix
 wfs.camera.readOutNoise = 1;
@@ -331,7 +332,7 @@ for kIteration=1:nIteration
     % phase estimation
     psEst = M * (wfs.slopes*q);
     % Computing the DM residual coefficients
-    dm.coefs = (dmGeom.modes.modes(gridMask(:),:)\psEst(:))/ngs.waveNumber/2;
+    dm.coefs = (dmGeom.modes.modes(gridMask(:),:)\psEst(:))/ngs.waveNumber;
     
     % Display of turbulence and residual phase
     set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
@@ -342,4 +343,4 @@ end
 set(0,'CurrentFigure',13)
 hold on
 plot(u,rmsMicron(total),'b--',u,rmsMicron(residue),'r--')
-legend('Full','Full (theory)','Residue','Full (noise)','Residue (noise)',0)
+legend('Full','Full (theory)','Residue (Poke Matrix)','Full (noise)','Residue (Sparse Matrix)',0)
