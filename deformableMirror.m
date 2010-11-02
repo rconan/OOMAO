@@ -66,7 +66,7 @@ classdef deformableMirror < handle
         function obj = deformableMirror(nActuator,varargin)
             p = inputParser;
             p.addRequired('nActuator', @isnumeric);
-            p.addParamValue('modes', [], @(x) isnumeric(x) || isa(x,'influenceFunction') );
+            p.addParamValue('modes', [], @(x) isnumeric(x) || (isa(x,'influenceFunction') || isa(x,'zernike')) );
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('validActuator', ones(nActuator), @islogical);
             p.addParamValue('zLocation', 0, @isnumeric);
@@ -78,11 +78,13 @@ classdef deformableMirror < handle
             obj.surfaceListener = addlistener(obj,'surface','PostSet',...
                 @(src,evnt) obj.imagesc );
             obj.surfaceListener.Enabled = false;
+            if isa(obj.modes,'influenceFunction') && ~isempty(p.Results.resolution)
+                setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
+            elseif isa(obj.modes,'zernike')
+                obj.p_validActuator = true(1,obj.modes.nMode);
+            end
             obj.coefsDefault      = zeros(obj.nValidActuator,1);
             obj.coefs             = zeros(obj.nValidActuator,1);
-            if isa(obj.modes,'influenceFunction') && ~isempty(p.Results.resolution)
-                setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator);
-            end
             obj.log = logBook.checkIn(obj);
             display(obj)
         end
@@ -195,12 +197,16 @@ classdef deformableMirror < handle
             % out = fittingError(telAtm,src,unit) computes the deformable
             % mirror fitting error rms in meterX10^-unit for the given
             % telescope+atmosphere system (nanometer: unit=-9)
-                        
-            d = telAtm.D/(obj.nActuator-1);
-            fc = 1/d/2;
-            out = phaseStats.variance(telAtm.opticalAberration) - ...
-                dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
-                -fc,fc,-fc,fc);
+            
+            if isa(obj.modes,'zernike')
+                out = zernikeStats.residualVariance(obj.modes.nMode,telAtm.opticalAberration,telAtm);
+            else
+                d = telAtm.D/(obj.nActuator-1);
+                fc = 1/d/2;
+                out = phaseStats.variance(telAtm.opticalAberration) - ...
+                    dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
+                    -fc,fc,-fc,fc);
+            end
             if nargin>2
                 if nargin<4
                     unit = 1;

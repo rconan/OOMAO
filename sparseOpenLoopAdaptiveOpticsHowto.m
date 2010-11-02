@@ -246,7 +246,7 @@ ylabel('Wavefront rms [\mum]')
 %% WFS noise
 % Noise can be added to the wavefront sensor but first we need to set the
 % star magnitude.
-ngs.magnitude = 18;
+ngs.magnitude = 0;
 %%
 % It can be useful to know the number of photon per subaperture. To do so,
 % let separate the atmosphere from the telescope
@@ -293,7 +293,7 @@ L2 = L2./(phaseStats.variance(atm)*sum(L2(:)));
 %%
 % WFS noise covariance matrix
 wfs.camera.readOutNoise = 1;
-wfs.framePixelThreshold = 2.*wfs.camera.readOutNoise;
+wfs.framePixelThreshold = 0;wfs.camera.readOutNoise;
 nMeas = 250;
 slopes = zeros(wfs.nSlope,nMeas);
 ngs = ngs.*tel*wfs;

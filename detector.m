@@ -194,6 +194,7 @@ classdef detector < handle
                         obj.frameBuffer = obj.frameBuffer + src.intensity;
                         if src.timeStamp>=obj.exposureTime
                             src.timeStamp = 0;
+                            disp(' @(detector:relay)> reading out and emptying buffer!')
                             readOut(obj,obj.frameBuffer)
                             obj.frameBuffer = 0*obj.frameBuffer;
                         end

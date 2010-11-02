@@ -599,13 +599,13 @@ classdef phaseStats
             L0 = atm.L0;
             D  = tel.D;
             aiVar = phaseStats.zernikeVariance(zern,atm);
-            
+            atmVar = phaseStats.variance(atm);
             if isinf(L0)
                 Delta1 = -(2.*gamma(11./6).^2./pi.^1.5).*(24.*gamma(6./5)./5).^(5./6).*...
                     (D./r0).^(5./3).*newGamma([-5./6,7./3],[23./6,17./6]);
                 out = Delta1 - sum(aiVar(2:end));
             else
-                out = phaseStats.variance(atm) - sum(aiVar);
+                out = atmVar - sum(aiVar);
             end
         end
         

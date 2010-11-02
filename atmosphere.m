@@ -315,7 +315,7 @@ classdef atmosphere < hgsetget
             map = map(u,u);
         end
         
-        function map = choleskyPhaseScreen(atm,D,nPixel)
+        function varargout = choleskyPhaseScreen(atm,D,nPixel,nMap)
             %% CHOLESKYPHASESCREEN Phase screen computation 
             %
             % map = choleskyPhaseScreen(obj,D,nPixel) Computes a square
@@ -323,14 +323,25 @@ classdef atmosphere < hgsetget
             % Cholesky factorisation of the atmospheric phase covariance
             % matrix
             %
+            % map = choleskyPhaseScreen(obj,D,nPixel,covarianceMatrix)
+            % Computes a square phase screen of D meter and sampled with
+            % nPixel using the Cholesky factorisation of the atmospheric
+            % phase covariance matrix covarianceMatrix
+            %
             % See also chol and atmosphere
             
+            if nargin<4
+                nMap = 1;
+            end
             [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
             L = phaseStats.covarianceMatrix(complex(x,y),atm);
+            if nargout>1
+                varargout{2} = L;
+            end
             L = chol(L,'lower');
-            map = L*randn(nPixel^2,1);
-            map = reshape(map,nPixel,nPixel);
-            
+            map = L*randn(nPixel^2,nMap);
+            map = reshape(map,nPixel,nPixel,nMap);
+            varargout{1} = map;
         end
         
     end

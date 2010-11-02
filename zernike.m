@@ -70,6 +70,8 @@ classdef zernike < telescopeAbstract
         yDerivative
         % telescope pupil mask
         pupil;
+        % alias to polynomials p
+        modes
     end
     
     properties (Access=private)
@@ -92,6 +94,7 @@ classdef zernike < telescopeAbstract
             p.addParamValue('angle', [], @isnumeric);
             p.addParamValue('pupil', [], @isnumeric);
             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
+            p.addParamValue('unitNorm', false, @islogical);
             p.addParamValue('logging', true, @islogical);
             p.parse(j,varargin{:});
             obj = obj@telescopeAbstract(p.Results.D,...
@@ -104,13 +107,13 @@ classdef zernike < telescopeAbstract
             obj.o = p.Results.angle;
             [obj.n,obj.m] = findNM(obj);
             obj.nollNorm = (sqrt((2-(obj.m==0)).*(obj.n+1)))';
-            obj.nollNorm(1)=[];
+%             obj.nollNorm(1)=[];
             if isempty(obj.r)
                 [obj.r,obj.o] = utilities.cartAndPol(p.Results.resolution,'output','polar');
             else
                 obj.resolution = length(obj.r);
             end
-            obj.p_p = polynomials(obj);
+            obj.p_p = polynomials(obj,p.Results.unitNorm);
             obj.c = ones(length(obj.j),1);
             if p.Results.logging
                 obj.log = logBook.checkIn(obj);
@@ -133,6 +136,21 @@ classdef zernike < telescopeAbstract
                 obj.p_pupil = double(pupil);
             end
         end
+        
+        %% Get modes
+        function modes = get.modes(obj)
+            modes = obj.p_p;
+        end
+        
+        function out = mtimes(obj,c)
+            %% MTIMES Zernike multiplication
+            %
+            % v = obj*c multiply the Zernike modes in obj by the
+            % vector c
+            
+            out = obj.modes*c;
+        end
+
         
         function display(obj)
             %% DISPLAY Display object information
@@ -629,7 +647,7 @@ classdef zernike < telescopeAbstract
         end
         
         
-        function fun = polynomials(obj)
+        function fun = polynomials(obj,unitNorm)
             % POLYNOMIALS Zernike polynomials
             % fun = polynomes(obj) Computes the Zernike polynomials for the
             % Zernike object  sampled on the polar coordinates arrays radius and
@@ -675,6 +693,10 @@ classdef zernike < telescopeAbstract
                 
             end
             % disp(' ===>> DONE')
+            
+            if unitNorm
+                fun = fun*diag(1./obj.nollNorm);
+            end
             
             % Radial function
             function R = R_fun(r,n,m)
