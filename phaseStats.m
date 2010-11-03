@@ -113,15 +113,19 @@ classdef phaseStats
             L2 = cell(1,nGrid);
             for kGrid=1:nGrid
                 gridMask = layerGrid{kGrid};
-                L = gallery('poisson',length(gridMask));
+                [n,m] = size(gridMask);
+                if any([n,m])==1
+                    n = sqrt(numel(gridMask));
+                end
+                L = gallery('poisson',n);
                 L(~gridMask,:) = [];
                 L(:,~gridMask) = [];
                 L = (L'*L);
                 L2{kGrid} = L./(phaseStats.variance(slab(atm,kGrid))*sum(L(:)));
             end
-            if nGrid==1
-                L2 = cell2mat(L2);
-            end
+%             if nGrid==1
+%                 L2 = cell2mat(L2);
+%             end
 
         end
         

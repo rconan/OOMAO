@@ -243,6 +243,16 @@ legend('Full','Full (theory)','Residue',0)
 xlabel('Time [s]')
 ylabel('Wavefront rms [\mum]')
 
+%%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+%%% SPARSE METHOD
+%%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+%% Guide Stars
+gs = source('asterism',{[3,arcmin(1),0]},'wavelength',ngs.wavelength);
+nGs = length(gs);
+%% Science stars ( on-axis oan in GS#1 direction)
+ss = source('zenith',[0,gs(1).zenith],'azimuth',[0,gs(1).azimuth],'wavelength',gs(1).wavelength);
+nSs = length(ss);
 %% WFS noise
 % Noise can be added to the wavefront sensor but first we need to set the
 % star magnitude.
@@ -282,12 +292,22 @@ dmGeom = deformableMirror(nActuator,...
 [Gamma,gridMask] = sparseGradientMatrix(wfs);
 d = tel.D/nLenslet;
 Gamma = Gamma/d;
-%%
-% Laplacian matrix (approx. of inverse of phase covariance matrix)
-L2 = phaseStats.sparseInverseCovarianceMatrix({gridMask},atm);
-L2 = cell2mat(L2);
+Gamma = repmat({Gamma},1,nGs);
+Gamma = blkdiag(Gamma{:});
+%% Bilinear interpolation operator
+[H,mask] = bilinearSplineInterpMat([gs,ss],atm,tel,gridMask);
+Hss = H(nGs+1:end,:);
+Hss = cell2mat(Hss);
+Hss(:,~cell2mat(mask)) = [];
+H(nGs+1:end,:) = [];
+H = cell2mat(H);
+H(:,~cell2mat(mask)) = [];
+%% Biharmonic operator (approx. of inverse of phase covariance matrix)
+L2 = phaseStats.sparseInverseCovarianceMatrix(mask,atm);
+L2 = blkdiag(L2{:});
 %%
 % WFS noise covariance matrix
+fprintf(' Computing the WFS noise covariance matrix ...\n');
 wfs.camera.readOutNoise = 1;
 wfs.framePixelThreshold = 0;wfs.camera.readOutNoise;
 nMeas = 250;
@@ -303,41 +323,67 @@ Cn = slopes*slopes'/nMeas;
 Cn = diag(diag(Cn));
 % iCn = diag(1./diag(Cn));
 iCn = sparse(1:wfs.nSlope,1:wfs.nSlope, 1./diag(Cn) );
+iCn = repmat({iCn},1,nGs);
+iCn = blkdiag(iCn{:});
 %%
 % The loop is closed again
 nIteration = 200;
-total  = zeros(1,nIteration);
-residue = zeros(1,nIteration);
+total  = zeros(nIteration,nSs);
+residue = zeros(nIteration,nSs);
 dm.coefs = 0;
 tel = tel + atm;
-% M = (Gamma'*iCn*Gamma+L2)\(Gamma'*iCn);
-A = Gamma'*iCn*Gamma+L2;
-b = Gamma'*iCn;
+G = Gamma*H;
+% M = (G'*iCn*G+L2)\(G'*iCn);
+A = G'*iCn*G+L2;
+b = G'*iCn;
+L = chol(A,'lower');
+figure(21)
+ss = ss.*tel;
+h = imagesc([ss.catMeanRmPhase;ss.catMeanRmPhase]);
+axis equal tight
+colorbar
+psLayerEst = zeros(sum(cellfun(@(x)sum(x(:)),mask)),1);
+Ha = dmGeom.modes.modes(gridMask(:),:);
+nHa = size(Ha,1);
+% R = Ha'*Ha + 1e-1*speye(dm.nValidActuator);
+% iR = inv(R);
+% Hass = Ha'*Hss;
+fprintf(' Loop running: %4d:    ',nIteration)
 for kIteration=1:nIteration
+    fprintf('\b\b\b\b%4d',kIteration)
     % Propagation throught the atmosphere to the telescope, +tel means that
     % all the layers move of one step based on the sampling time and the
     % wind vectors of the layers
-    ngs=ngs.*+tel; 
+    gs=gs.*+tel; 
     % Saving the turbulence aberrated phase
-    turbPhase = ngs.meanRmPhase;
+    ss = ss.*tel;
+    turbPhase = ss.catMeanRmPhase;
     % Variance of the atmospheric wavefront
-    total(kIteration) = var(ngs);
+    total(kIteration,:) = var(ss);
     % Propagation to the WFS
-    ngs=ngs*wfs*dm; 
+    gs=gs*wfs*dm; 
     % Variance of the residual wavefront
-    residue(kIteration) = var(ngs);
+    ss = ss*dm;
+    residue(kIteration,:) = var(ss);
     % phase estimation
-    psEst = A\( b* (wfs.slopes*q) );
+%     psLayerEst = A\( b * (wfs.slopes(:)*q)); % Gauss elimination
+%     [psLayerEst,flag] = ...  % Conjugate gradient
+%         cgs(A,b*(wfs.slopes(:)*q),[],50,[],[],psLayerEst);
+    psLayerEst = L'\(L\( b * (wfs.slopes(:)*q))); % Cholesky back-solve
+    psEst = Hss*psLayerEst;
+    psEst = reshape(psEst,nHa,nSs);
     % Computing the DM residual coefficients
-    dm.coefs = (dmGeom.modes.modes(gridMask(:),:)\psEst(:))/ngs.waveNumber;
+    dm.coefs = (Ha\psEst)/ss(1).waveNumber;
+%     dm.coefs = ( iR * (Ha'*psEst) )/ss(1).waveNumber;
     
     % Display of turbulence and residual phase
-    set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
+    set(h,'Cdata',[turbPhase;ss.catMeanRmPhase])
     drawnow
 end
+fprintf('\n')
 %%
 % Updating the display
 set(0,'CurrentFigure',13)
-hold on
-plot(u,rmsMicron(total),'b--',u,rmsMicron(residue),'r--')
-legend('Full','Full (theory)','Residue (Poke Matrix)','Full (noise)','Residue (Sparse Matrix)',0)
+hold all
+plot(u,rmsMicron(total),u,rmsMicron(residue))
+legend('Full','Full (theory)','Residue (Poke Matrix)','On-Axis Full','GS#1 Full','On-Axis Residue (Sparse)','GS#1 Residue (Sparse)',0)

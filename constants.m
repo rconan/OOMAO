@@ -9,4 +9,12 @@ classdef constants
         c             = 299792458; % light of speed m/s
     end
     
+    methods (Static)
+        
+        function radian = arcmin(val)
+            radian = val*constants.arcmin2radian;
+        end
+        
+    end
+    
 end

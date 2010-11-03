@@ -382,7 +382,9 @@ classdef zernikeStats
                     (D./r0).^(5./3).*newGamma([-5./6,7./3],[23./6,17./6]);
                 out = Delta1 - sum(aiVar(2:end));
             else
-                out = phaseStats.variance(atm) - sum(aiVar);
+                a = phaseStats.variance(atm);
+                b = sum(aiVar);
+                out = a - b;
             end
         end
         
