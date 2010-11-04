@@ -250,13 +250,13 @@ totalTheory = phaseStats.zernikeResidualVariance(1,atm,tel);
 atm.wavelength = photometry.V;
 %%
 % Phase variance to micron rms converter 
-rmsMicron = @(x) 1e6*sqrt(x).*ngs.wavelength/2/pi;
+rmsMicron = @(x) 1e9*sqrt(x).*ngs.wavelength/2/pi;
 figure(13)
 plot(u,rmsMicron(total),u([1,end]),rmsMicron(totalTheory)*ones(1,2),u,rmsMicron(residue))
 grid
 legend('Full','Full (theory)','Residue',0)
 xlabel('Time [s]')
-ylabel('Wavefront rms [\mum]')
+ylabel('Wavefront rms [nm]')
 
 %%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 %%% SPARSE METHOD
