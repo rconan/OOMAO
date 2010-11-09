@@ -105,7 +105,7 @@ slopesDisplay(wfs)
 % function types. As examples two influence functions are pre--defined, the
 % "monotonic" and "overshoot" models. The second parameter is the
 % mechanical coupling between two adjacent actuators
-bif = influenceFunction('monotonic',25/100);
+bif = influenceFunction('monotonic',50/100);
 %%
 % Cut of the influence function
 figure
@@ -248,7 +248,7 @@ ylabel('Wavefront rms [\mum]')
 %% WFS noise
 % Noise can be added to the wavefront sensor but first we need to set the
 % star magnitude.
-ngs.magnitude = 18;
+ngs.magnitude = 10;
 %%
 % It can be useful to know the number of photon per subaperture. To do so,
 % let separate the atmosphere from the telescope

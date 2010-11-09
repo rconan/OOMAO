@@ -11,8 +11,10 @@ nGs         = length(gs);
 nPxGround   = length(groundGrid);
 
 % Ground sampling
+% [xGround,yGround] ...
+%            = utilities.cartAndPol(nPxGround,tel.R);
 [xGround,yGround] ...
-           = utilities.cartAndPol(nPxGround,tel.R);
+           = meshgrid(linspace(-1,1,nPxGround)*tel.R);
 xGround    = xGround(groundGrid);
 yGround    = yGround(groundGrid);
 groundGrid = groundGrid(:)';
@@ -30,9 +32,17 @@ for kLayer = 1:nLayer
     
     % Layer sampling
     D = atm.layer(kLayer).D;
-    nPxLayer        = ceil(D/pitchGround) + 1;
+%     nPxLayer        = ceil(D/pitchGround) + 1;
+    nPxLayer        = floor(D/pitchGround) + 1
+    newD = (nPxLayer-1)*pitchGround;
+    while newD<D
+        nPxLayer        = nPxLayer + 2;
+        newD = (nPxLayer-1)*pitchGround
+    end       
+    D = newD;
     [xLayer,yLayer] = utilities.cartAndPol(nPxLayer,D/2);
-    
+%     [xLayer,yLayer] = meshgrid(linspace(-1,1,nPxLayer)*D/2);
+
     mask{kLayer} = false;
     
     for kGs=1:nGs

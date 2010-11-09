@@ -205,6 +205,7 @@ classdef source < stochasticWave & hgsetget
                 obj.nPhoton = photometry.deltaWavelengths(index).*...
                     1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
                     10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
+                fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
             end
         end
         

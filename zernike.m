@@ -76,8 +76,6 @@ classdef zernike < telescopeAbstract
     
     properties (Access=private)
         p_p;
-        log;
-        p_pupil;
     end
     
     methods

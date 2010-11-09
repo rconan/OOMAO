@@ -203,9 +203,11 @@ classdef deformableMirror < handle
             else
                 d = telAtm.D/(obj.nActuator-1);
                 fc = 1/d/2;
-                out = phaseStats.variance(telAtm.opticalAberration) - ...
-                    dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
+                a = phaseStats.variance(telAtm.opticalAberration);
+                b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
                     -fc,fc,-fc,fc);
+                out = a - b;
+                    
             end
             if nargin>2
                 if nargin<4

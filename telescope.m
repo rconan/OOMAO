@@ -47,43 +47,35 @@ classdef telescope < telescopeAbstract
     % See also telescopeAbstract, atmosphere and source
     
     properties
-        % wind shifted turbulence sampling time
-        samplingTime;
-        % phase listener
-        phaseListener;
         % telescope tag
         tag = 'TELESCOPE';
     end
     
-    properties (Dependent)
-        % optical aberrations seen by the telescope
-        opticalAberration;
-    end
     
     properties (Dependent , SetAccess = private)
         % telescope pupil mask
         pupil;
     end
     
-    properties (Access=private)
-        atm;
-        innerMask;
-        outerMask;
-        A;
-        B;
-        windVx;
-        windVy;
-        count;
-        mapShift;
-        nShift;
-        x;
-        y;
-        imageHandle;
-        layerSampling;
-        sampler;
-        log;
-        p_pupil;
-    end
+%     properties (Access=private)
+%         atm;
+%         innerMask;
+%         outerMask;
+%         A;
+%         B;
+%         windVx;
+%         windVy;
+%         count;
+%         mapShift;
+%         nShift;
+%         x;
+%         y;
+%         imageHandle;
+%         layerSampling;
+%         sampler;
+%         log;
+%         p_pupil;
+%     end
     
     methods
         
@@ -102,10 +94,9 @@ classdef telescope < telescopeAbstract
                 'obstructionRatio',p.Results.obstructionRatio,...
                 'fieldOfViewInArcsec',p.Results.fieldOfViewInArcsec,...
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin,...
-                'resolution',p.Results.resolution);
-            obj.samplingTime = p.Results.samplingTime;
-            obj.log = logBook.checkIn(obj);
-            obj.opticalAberration = p.Results.opticalAberration;
+                'resolution',p.Results.resolution,...
+                'samplingTime',p.Results.samplingTime,...
+                'opticalAberration',p.Results.opticalAberration);
             display(obj)
         end
         
@@ -118,6 +109,10 @@ classdef telescope < telescopeAbstract
                 end
             end
             checkOut(obj.log,obj)
+        end
+        
+        function obj = saveobj(obj)
+            obj.phaseListener = [];
         end
         
         function display(obj)
@@ -164,207 +159,6 @@ classdef telescope < telescopeAbstract
             end
         end
         
-        %% Set/Get for opticalAberration property
-        function set.opticalAberration(obj,val)
-            obj.atm = val;
-            if ~isempty(val) && isa(val,'atmosphere')
-                obj.phaseListener = addlistener(obj.atm.layer(1),'phase','PostSet',...
-                    @(src,evnt) obj.imagesc );
-                obj.phaseListener.Enabled = false;
-                if ~isempty(obj.samplingTime)
-                    init(obj);
-                end
-            end
-        end        
-        function out = get.opticalAberration(obj)
-            out = obj.atm;
-        end
-        
-        function varargout = update(obj)
-            %% UPDATE Phase screens deplacement
-            %
-            % update(obj) moves the phase screens of each layer of one time
-            % step in the direction of the corresponding wind vectors
-            %
-            % obj = update(obj) moves the phase screens and returns the
-            % object
-            
-            
-            %             disp(' (@telescope) > Layer translation')
-            
-            if ~isempty(obj.atm) % uncorrelated phase screens
-                
-                if isinf(obj.samplingTime)
-                    
-                    for kLayer=1:obj.atm.nLayer
-                        
-                        obj.atm.layer(kLayer).phase = ...
-                            fourierPhaseScreen(slab(obj.atm,kLayer));
-                        
-                    end
-                    
-                elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
-                    %                 disp('HERE')
-                    for kLayer=1:obj.atm.nLayer
-                        
-                        pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
-                        % 1 pixel increased phase sampling vector
-                        u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-                        %                     [xu0,yu0] = meshgrid(u0);
-                        % phase sampling vector
-                        u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
-                        
-                        % phase displacement in meter
-                        leap = [obj.windVx(kLayer) obj.windVy(kLayer)].*(obj.count(kLayer)+1).*obj.samplingTime;
-                        % phase displacement in pixel
-                        pixelLeap = leap/pixelLength;
-                        
-                        notDoneOnce = true;
-                        
-                        %                     fprintf(' >>> Layer #%d: nShift=%d ; count=%d ; pixelLeap=(%4.2f,%4.2f) ; pixelLength=%4.2f ; leap=(%4.2f,%4.2f)\n',...
-                        %                        kLayer, obj.nShift(kLayer), obj.count(kLayer) , pixelLeap(1) , pixelLeap(2) , pixelLength , leap)
-                        %                     fprintf(' ------> Starting while loop\n');
-                        
-                        while any(pixelLeap>1) || notDoneOnce
-                            notDoneOnce = false;
-                            
-                            if obj.count(kLayer)==0
-                                %                             fprintf(' ------>      : expanding!\n')
-                                % 1 pixel around phase increase
-                                Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
-                                X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(size(obj.B{kLayer},2),1);
-                                obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
-                                obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
-                            end
-                            
-                            % phase displacement (not more than 1 pixel)
-                            step   = min(abs(leap),pixelLength).*sign(leap);
-                            xShift = u - step(1);
-                            yShift = u - step(2);
-                            obj.atm.layer(kLayer).phase ...
-                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-                            %                         obj.atm.layer(kLayer).phase ...
-                            %                                = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
-                            
-                            leap = leap - step;
-                            pixelLeap = leap/pixelLength;
-                            
-                            %                         fprintf(' ------>      : count=%d ; pixelLeap=(%4.2f,%4.2f) ; step=(%4.2f,%4.2f)\n',...
-                            %                             obj.count(kLayer) , pixelLeap(1) , pixelLeap(2), step)
-                            
-                        end
-                        
-                        obj.count(kLayer)       = rem(obj.count(kLayer)+1,obj.nShift(kLayer));
-                        
-                    end
-                    
-                end
-                
-            end
-            
-            if nargout>0
-                varargout{1} = obj;
-            end
-        end
-        function varargout = uplus(obj)
-            %% UPLUS + Update operator
-            %
-            % +obj updates the atmosphere phase screens
-            %
-            % obj = +obj returns the telescope object
-            
-            update(obj)
-            if nargout>0
-                varargout{1} = obj;
-            end
-        end
-        
-        function obj = plus(obj,otherObj)
-            %% + Add a component to the telescope
-            %
-            % obj = obj + otherObj adds an other object to the telescope
-            % object 
-            
-            obj.opticalAberration = otherObj;
-        end
-        
-        function obj = minus(obj,otherObj)
-            %% - Remove a component from the telescope
-            %
-            % obj = obj - otherObj removes an other object to the telescope
-            % object 
-            
-            if isa(obj.opticalAberration,class(otherObj))
-            obj.opticalAberration = [];
-            else
-                warning('cougar:telescope:minus',...
-                    'The current and new objet must be from the same class (current: %s ~= new: %s)',...
-                    class(obj.opticalAberration),class(otherObj))
-            end
-        end
-        
-        function relay(obj,srcs)
-            %% RELAY Telescope to source relay
-            %
-            % relay(obj,srcs) writes the telescope amplitude and phase into
-            % the properties of the source object(s)
-            
-            if isempty(obj.resolution) % Check is resolution has been set
-                if isscalar(srcs(1).amplitude) % if the src is not set either, do nothing
-                    return
-                else % if the src is set, set the resolution according to src wave resolution
-                    obj.resolution = length(srcs(1).amplitude);
-                end
-            end
-            
-            nSrc = numel(srcs);
-            for kSrc=1:nSrc % Browse the srcs array
-                src = srcs(kSrc);
-                % Set mask and pupil first
-                src.mask      = obj.pupilLogical;
-                if isempty(src.nPhoton)
-                    src.amplitude = obj.pupil;
-                else
-                    src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:))); 
-                end
-                out = 0;
-                if ~isempty(obj.atm) % Set phase if an atmosphere is defined
-                    if obj.fieldOfView==0 && isNgs(src)
-                        out = out + sum(cat(3,obj.atm.layer.phase),3);
-                    else
-                        atm_m           = obj.atm;
-                        nLayer          = atm_m.nLayer;
-                        altitude_m      = [atm_m.layer.altitude];
-                        sampler_m       = obj.sampler;
-                        phase_m         = { atm_m.layer.phase };
-                        R_              = obj.R;
-                        layerSampling_m = obj.layerSampling;
-                        srcDirectionVector1 = src.directionVector(1);
-                        srcDirectionVector2 = src.directionVector(2);
-                        srcHeight = src.height;
-                        out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
-                        parfor kLayer = 1:nLayer
-                            height = altitude_m(kLayer);
-                            sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
-                            if height==0
-                                out(:,:,kLayer) = phase_m{kLayer};
-                            else
-                                layerR = R_*(1-height./srcHeight);
-                                u = sampler_m*layerR;
-                                xc = height.*srcDirectionVector1;
-                                yc = height.*srcDirectionVector2;
-                                out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u-yc,u-xc});
-                            end
-                        end
-                        out = sum(out,3);
-                    end
-                    out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
-                end
-                src.phase = fresnelPropagation(src,obj) + out;
-                src.timeStamp = src.timeStamp + obj.samplingTime;
-            end
-            
-        end
                  
         function out = otf(obj, r)
             %% OTF Telescope optical transfert function
@@ -589,82 +383,7 @@ classdef telescope < telescopeAbstract
         
     end
     
-    
-    methods (Access=private)
         
-        function obj = init(obj)
-            %% INIT
-            
-            nInner = 2;
-            obj.sampler = linspace(-1,1,obj.resolution);
-            add(obj.log,obj,'Initializing phase screens making parameters:')
-            obj.log.verbose = false;
-            do = obj.D/(obj.resolution-1);
-            for kLayer=1:obj.atm.nLayer
-                if isempty(obj.atm.layer(kLayer).phase)
-                    D = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
-                    nPixel = 1 + round(D./do);
-                    obj.atm.layer(kLayer).D = do*(nPixel-1);
-%                     nPixel = round(1 + (obj.resolution-1)*D./Do);
-                    obj.atm.layer(kLayer).nPixel = nPixel;
-                    obj.layerSampling{kLayer}  = D*0.5*linspace(-1,1,nPixel);
-                    % ---------
-                    fprintf('   Layer %d:\n',kLayer)
-                    fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',D,nPixel)
-                    m_atm = slab(obj.atm,kLayer);
-                    obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,D,nPixel);
-                    fprintf('  Done \n')
-                    % ---------
-                    obj.outerMask{kLayer} = ...
-                        ~utilities.piston(nPixel,nPixel+2,...
-                        'shape','square','type','logical');
-                    obj.innerMask{kLayer} =  ...
-                        ~( obj.outerMask{kLayer} | ...
-                        utilities.piston(nPixel-2*nInner,nPixel+2,...
-                        'shape','square','type','logical') );
-                    fprintf('            -> # of elements for the outer maks: %d and for the inner mask %d\n',...
-                        sum(obj.outerMask{kLayer}(:)),sum(obj.innerMask{kLayer}(:)));
-                    fprintf('            -> Computing matrix A and B for layer %d: ',kLayer)
-                    [u,v] = meshgrid( (0:nPixel+1).*D/(nPixel-1) );
-                    % ---------
-                    innerZ = complex(u(obj.innerMask{kLayer}),v(obj.innerMask{kLayer}));
-                    fprintf('ZZt ...')
-                    ZZt = phaseStats.covarianceMatrix(innerZ,m_atm);
-                    % ---------
-                    outerZ = complex(u(obj.outerMask{kLayer}),v(obj.outerMask{kLayer}));
-                    fprintf('\b\b\b, ZXt ...')
-                    ZXt = phaseStats.covarianceMatrix(innerZ,outerZ,m_atm);
-                    clear innerZ
-                    % ---------
-                    obj.A{kLayer}   = ZXt'/ZZt;
-                    % ---------
-                    clear ZZt
-                    fprintf('\b\b\b, XXt ...')
-                    XXt = phaseStats.covarianceMatrix(outerZ,m_atm);
-                    clear outerZ
-                    % ---------
-                    BBt = XXt - obj.A{kLayer}*ZXt;
-                    clear XXt ZXt
-                    obj.B{kLayer} = chol(BBt,'lower');
-                    fprintf('  Done \n')
-                    % ---------
-                    obj.windVx(kLayer) = m_atm.layer.windSpeed.*cos(m_atm.layer.windDirection);
-                    obj.windVy(kLayer) = m_atm.layer.windSpeed.*sin(m_atm.layer.windDirection);
-                    obj.count(kLayer) = 0;
-                    obj.mapShift{kLayer} = zeros(nPixel+2);
-                    pixelStep = [obj.windVx obj.windVy].*obj.samplingTime*(nPixel-1)/D;
-                    obj.nShift(kLayer) = max(floor(min(1./pixelStep)),1);
-                    u = (0:nPixel+1).*D./(nPixel-1);
-                    %                 [u,v] = meshgrid(u);
-                    obj.x{kLayer} = u;
-                    obj.y{kLayer} = u;%v;
-                end
-            end
-            obj.log.verbose = true;
-        end
-        
-    end
-    
     methods (Static)
         function sys = demo(action)
             sys = telescope(2.2e-6,0.8,30,25,...
@@ -706,81 +425,4 @@ classdef telescope < telescopeAbstract
         end
     end
     
-end
-
-function F = spline2(x,v,xi)
-%2-D spline interpolation
-
-% % Determine abscissa vectors
-% varargin{1} = varargin{1}(1,:);
-% varargin{2} = varargin{2}(:,1).';
-%
-% %
-% % Check for plaid data.
-% %
-% xi = varargin{4}; yi = varargin{5};
-% xxi = xi(1,:); yyi = yi(:,1);
-%
-% %     F = splncore(varargin(2:-1:1),varargin{3},{yyi(:).' xxi},'gridded');
-%     x = varargin(2:-1:1);
-%     v = varargin{3};
-%     xi = {yyi(:).' xxi};
-% gridded spline interpolation via tensor products
-nv = size(v);
-d = length(x);
-values = v;
-sizeg = zeros(1,d);
-for i=d:-1:1
-    values = spline(x{i},reshape(values,prod(nv(1:d-1)),nv(d)),xi{i}).';
-    sizeg(i) = length(xi{i});
-    nv = [sizeg(i), nv(1:d-1)];
-end
-F = reshape(values,sizeg);
-
-    function output = spline(x,y,xx)
-        % disp('Part 1')
-        % tStart = tic;
-        output=[];
-        
-        sizey = size(y,1);
-        n = length(x); yd = prod(sizey);
-        
-        % Generate the cubic spline interpolant in ppform
-        
-        dd = ones(yd,1); dx = diff(x); divdif = diff(y,[],2)./dx(dd,:);
-        b=zeros(yd,n);
-        b(:,2:n-1)=3*(dx(dd,2:n-1).*divdif(:,1:n-2)+dx(dd,1:n-2).*divdif(:,2:n-1));
-        x31=x(3)-x(1);xn=x(n)-x(n-2);
-        b(:,1)=((dx(1)+2*x31)*dx(2)*divdif(:,1)+dx(1)^2*divdif(:,2))/x31;
-        b(:,n)=...
-            (dx(n-1)^2*divdif(:,n-2)+(2*xn+dx(n-1))*dx(n-2)*divdif(:,n-1))/xn;
-        dxt = dx(:);
-        c = spdiags([ [x31;dxt(1:n-2);0] ...
-            [dxt(2);2*[dxt(2:n-1)+dxt(1:n-2)];dxt(n-2)] ...
-            [0;dxt(2:n-1);xn] ],[-1 0 1],n,n);
-        
-        % sparse linear equation solution for the slopes
-        mmdflag = spparms('autommd');
-        spparms('autommd',0);
-        s=b/c;
-        spparms('autommd',mmdflag);
-        % toc(tStart)
-        % construct piecewise cubic Hermite interpolant
-        % to values and computed slopes
-        %    disp('Part pwch')
-        %    tStart = tic;
-        pp = pwch(x,y,s,dx,divdif); pp.dim = sizey;
-        % toc(tStart)
-        
-        % end
-        
-        %      disp('Part ppval')
-        %  tStart = tic;
-        output = ppval(pp,xx);
-        % toc(tStart)
-        
-        
-        
-    end
-
 end
