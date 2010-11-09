@@ -134,6 +134,8 @@ classdef influenceFunction < handle
         end
         
         function show(obj)
+            %% SHOW 
+            
             P = obj.p_P;
             P(:,1) = P(:,1)/obj.p_xScale;
             if ishandle(obj.displayHandle)
@@ -246,6 +248,8 @@ classdef influenceFunction < handle
         end
         
         function setInfluenceFunction(obj,nIF,resolution,validActuator,ratioTelDm,offset)
+            %% SETINFLUENCEFUNCTION
+            
 %             if nargin<5
 %                 ratioTelDm = 1;
 %             end

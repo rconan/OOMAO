@@ -33,11 +33,11 @@ for kLayer = 1:nLayer
     % Layer sampling
     D = atm.layer(kLayer).D;
 %     nPxLayer        = ceil(D/pitchGround) + 1;
-    nPxLayer        = floor(D/pitchGround) + 1
+    nPxLayer        = floor(D/pitchGround) + 1;
     newD = (nPxLayer-1)*pitchGround;
     while newD<D
         nPxLayer        = nPxLayer + 2;
-        newD = (nPxLayer-1)*pitchGround
+        newD = (nPxLayer-1)*pitchGround;
     end       
     D = newD;
     [xLayer,yLayer] = utilities.cartAndPol(nPxLayer,D/2);
