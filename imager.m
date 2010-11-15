@@ -20,18 +20,35 @@ classdef imager < detector
         imgCcd;
         % Strehl ratio
         strehl;
+        % entrapped energy
+        ee;
+        % entrapped energy slit width
+        eeWidth;
     end
-    
+        
     properties (Access=private)
         % integration count;
         frameCount=0;
+        % telescope
+        tel;
     end
     
     methods
         
         %% Constructor
-        function obj = imager(resolution)
+        function obj = imager(in)
+            if isa(in,'telescope')
+                resolution = in.resolution;
+            elseif isnumeric(in)
+                resolution = in;
+            else
+                error('oomao:imager','Inputer is either numeric or a telescope class')
+            end
             obj = obj@detector(resolution);
+            if isa(in,'telescope')
+                obj.tel = in;
+                obj.exposureTime = in.samplingTime;
+            end
             obj.imgLens = lens;
         end
         
@@ -49,13 +66,28 @@ classdef imager < detector
                     readOut(obj,obj.frameBuffer)
                     obj.frameBuffer = 0*obj.frameBuffer;
                     if ~isempty(obj.referenceFrame)
+                        obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize*2;
                         src_ = source.*obj.referenceFrame*obj.imgLens;
                         otf =  src_.amplitude;
                         src_ = src_.*(obj.frame/obj.frameCount)*obj.imgLens;
+                        obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize/2;
                         otfAO =  src_.amplitude;
+%                         figure, imagesc(real(otfAO)/max(otfAO(:)))
+                        % strehl ratio
                         obj.strehl = sum(otfAO(:))/sum(otf(:));
+                        % entrapped energy
+                        a      = (obj.eeWidth/(src.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;
+                        nOtf   = length(otfAO);
+                        u      = linspace(-1,1,nOtf).*obj.tel.D;
+                        [x,y]  = meshgrid(u);
+                        eeFilter ...
+                               = a^2*(sin(pi.*x.*a)./(pi.*x.*a)).*...
+                            (sin(pi.*y.*a)./(pi.*y.*a));
+                        otfAO = otfAO/max(otfAO(:));
+                        obj.ee = real(trapz(u,trapz(u,otfAO.*eeFilter)));
                     end
                 end
+                disp(obj.frameCount)
                 obj.frameCount = 0;
             end
         end
