@@ -52,7 +52,7 @@ classdef telescope < telescopeAbstract
     end
     
     
-    properties (Dependent , SetAccess = private)
+    properties (Dependent)% , SetAccess = private)
         % telescope pupil mask
         pupil;
     end
@@ -157,6 +157,9 @@ classdef telescope < telescopeAbstract
                 end
                 obj.p_pupil = pupil;
             end
+        end
+        function obj = set.pupil(obj,val)
+            obj.p_pupil = val;
         end
         
                  

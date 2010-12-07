@@ -40,7 +40,7 @@ classdef telescopeAbstract < handle
         tag;
     end
     
-    properties (Abstract , Dependent , SetAccess = private)
+    properties (Abstract , Dependent)% , SetAccess = private)
         % telescope pupil mask
         pupil;
     end
@@ -79,6 +79,7 @@ classdef telescopeAbstract < handle
         sampler;
         log;
         p_pupil;
+        ppp;
     end
     
     methods
@@ -245,6 +246,7 @@ classdef telescopeAbstract < handle
                         pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                         % 1 pixel increased phase sampling vector
                         u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
+                        [x0,y0] = meshgrid(u0);
                         %                     [xu0,yu0] = meshgrid(u0);
                         % phase sampling vector
                         u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
@@ -267,19 +269,24 @@ classdef telescopeAbstract < handle
                                 %                             fprintf(' ------>      : expanding!\n')
                                 % 1 pixel around phase increase
                                 Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
-                                X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(size(obj.B{kLayer},2),1);
+                                X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
                                 obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
                                 obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
                             end
                             
                             % phase displacement (not more than 1 pixel)
                             step   = min(abs(leap),pixelLength).*sign(leap);
+                            
                             xShift = u - step(1);
                             yShift = u - step(2);
                             obj.atm.layer(kLayer).phase ...
                                 = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-                            %                         obj.atm.layer(kLayer).phase ...
-                            %                                = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
+%                                                     obj.atm.layer(kLayer).phase ...
+%                                                            = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
+                            
+%                             F = TriScatteredInterp(x0(:), y0(:), obj.mapShift{kLayer}(:));
+%                             [xi,yi] = meshgrid(xShift,yShift);
+%                             obj.atm.layer(kLayer).phase = F(xi,yi);
                             
                             leap = leap - step;
                             pixelLeap = leap/pixelLength;
@@ -369,9 +376,10 @@ classdef telescopeAbstract < handle
                     else
                         atm_m           = obj.atm;
                         nLayer          = atm_m.nLayer;
-                        altitude_m      = [atm_m.layer.altitude];
+                        layers          = atm_m.layer;
+                        altitude_m      = [layers.altitude];
                         sampler_m       = obj.sampler;
-                        phase_m         = { atm_m.layer.phase };
+                        phase_m         = { layers.phase };
                         R_              = obj.R;
                         layerSampling_m = obj.layerSampling;
                         srcDirectionVector1 = src.directionVector(1);
@@ -381,6 +389,7 @@ classdef telescopeAbstract < handle
                         for kLayer = 1:nLayer
                             height = altitude_m(kLayer);
                             sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
+%                             [xs,ys] = meshgrid(layerSampling_m{kLayer});
                             if height==0
                                 out(:,:,kLayer) = phase_m{kLayer};
                             else
@@ -388,7 +397,10 @@ classdef telescopeAbstract < handle
                                 u = sampler_m*layerR;
                                 xc = height.*srcDirectionVector1;
                                 yc = height.*srcDirectionVector2;
-                                out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u-yc,u-xc});
+                                out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
+%                                 F = TriScatteredInterp(xs(:),ys(:),phase_m{kLayer}(:));
+%                                 [xi,yi] = meshgrid(u+xc,u+yc);
+%                                 out(:,:,kLayer) = F(xi,yi);
                             end
                         end
                         out = sum(out,3);
@@ -626,15 +638,19 @@ d = length(x);
 values = v;
 sizeg = zeros(1,d);
 for i=d:-1:1
-    values = spline(x{i},reshape(values,prod(nv(1:d-1)),nv(d)),xi{i}).';
+    ppp = spline(x{i},reshape(values,prod(nv(1:d-1)),nv(d)));
+    values = ppval(ppp,xi{i}).';
     sizeg(i) = length(xi{i});
     nv = [sizeg(i), nv(1:d-1)];
 end
 F = reshape(values,sizeg);
 
-    function output = spline(x,y,xx)
+end
+
+    function output = spline(x,y)
         % disp('Part 1')
         % tStart = tic;
+        
         output=[];
         
         sizey = size(y,1);
@@ -671,11 +687,62 @@ F = reshape(values,sizeg);
         
         %      disp('Part ppval')
         %  tStart = tic;
-        output = ppval(pp,xx);
+        output = pp;%ppval(pp,xx);
         % toc(tStart)
         
         
         
     end
 
-end
+    
+    function F = linear(arg1,arg2,arg3,arg4,arg5)
+    %LINEAR 2-D bilinear data interpolation.
+    %   ZI = LINEAR(EXTRAPVAL,X,Y,Z,XI,YI) uses bilinear interpolation to
+    %   find ZI, the values of the underlying 2-D function in Z at the points
+    %   in matrices XI and YI.  Matrices X and Y specify the points at which
+    %   the data Z is given.  X and Y can also be vectors specifying the
+    %   abscissae for the matrix Z as for MESHGRID. In both cases, X
+    %   and Y must be equally spaced and monotonic.
+    %
+    %   Values of EXTRAPVAL are returned in ZI for values of XI and YI that are
+    %   outside of the range of X and Y.
+    %
+    %   If XI and YI are vectors, LINEAR returns vector ZI containing
+    %   the interpolated values at the corresponding points (XI,YI).
+    %
+    %   ZI = LINEAR(EXTRAPVAL,Z,XI,YI) assumes X = 1:N and Y = 1:M, where
+    %   [M,N] = SIZE(Z).
+    %
+    %   ZI = LINEAR(EXTRAPVAL,Z,NTIMES) returns the matrix Z expanded by
+    %   interleaving bilinear interpolates between every element, working
+    %   recursively for NTIMES. LINEAR(EXTRAPVAL,Z) is the same as
+    %   LINEAR(EXTRAPVAL,Z,1).
+    %
+    %   See also INTERP2, CUBIC.
+    
+    [nrows,ncols] = size(arg3);
+%     mx = numel(arg1); my = numel(arg2);
+    s = 1 + (arg4-arg1(1))/(arg1(end)-arg1(1))*(ncols-1);
+    t = 1 + (arg5-arg2(1))/(arg2(end)-arg2(1))*(nrows-1);
+    
+    
+    % Matrix element indexing
+    ndx = floor(t)+floor(s-1)*nrows;
+    
+    % Compute intepolation parameters, check for boundary value.
+    if isempty(s), d = s; else d = find(s==ncols); end
+    s(:) = (s - floor(s));
+    if ~isempty(d), s(d) = s(d)+1; ndx(d) = ndx(d)-nrows; end
+    
+    % Compute intepolation parameters, check for boundary value.
+    if isempty(t), d = t; else d = find(t==nrows); end
+    t(:) = (t - floor(t));
+    if ~isempty(d), t(d) = t(d)+1; ndx(d) = ndx(d)-1; end
+    
+    % Now interpolate.
+    onemt = 1-t;
+        F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
+            ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+    
+    
+    end

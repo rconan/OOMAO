@@ -55,7 +55,7 @@ classdef zernike < telescopeAbstract
         tag = 'ZERNIKE POLYNOMIALS';
     end
     
-    properties (Dependent, SetAccess=private)
+    properties (Dependent)%, SetAccess=private)
         % polynomials
         p;
         % # of modes
