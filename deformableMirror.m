@@ -198,17 +198,21 @@ classdef deformableMirror < handle
             % mirror fitting error rms in meterX10^-unit for the given
             % telescope+atmosphere system (nanometer: unit=-9)
             
+            add(obj.log,obj,' Computing the fitting error ...')
+            atm = telAtm.opticalAberration;
+            atmWavelength  = atm.wavelength;
+            atm.wavelength = src.wavelength; 
             if isa(obj.modes,'zernike')
-                out = zernikeStats.residualVariance(obj.modes.nMode,telAtm.opticalAberration,telAtm);
+                out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
             else
                 d = telAtm.D/(obj.nActuator-1);
                 fc = 1/d/2;
                 a = phaseStats.variance(telAtm.opticalAberration);
-                b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , telAtm.opticalAberration ) , ...
+                b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
                     -fc,fc,-fc,fc);
                 out = a - b;
-                    
             end
+            atm.wavelength = atmWavelength;
             if nargin>2
                 if nargin<4
                     unit = 1;

@@ -145,7 +145,7 @@ classdef detector < handle
                 obj.frameHandle = image(obj.frame,...
                     'CDataMApping','Scaled',...
                     varargin{:});
-%                 colormap(pink)
+                colormap(pink)
                 axis xy equal tight
                 colorbar('location','SouthOutside')
             end
@@ -221,7 +221,7 @@ classdef detector < handle
                 end
                 image = obj.quantumEfficiency*image;
                 if obj.readOutNoise>0
-                    image = normrnd(image,obj.readOutNoise);
+                    image = image + randn(size(image)).*obj.readOutNoise;
                 end
             else
                 if obj.photonNoise

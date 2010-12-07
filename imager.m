@@ -37,7 +37,7 @@ classdef imager < detector
         
         %% Constructor
         function obj = imager(in)
-            if isa(in,'telescope')
+            if isa(in,'telescopeAbstract')
                 resolution = in.resolution;
             elseif isnumeric(in)
                 resolution = in;

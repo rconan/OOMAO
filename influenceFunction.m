@@ -278,11 +278,11 @@ classdef influenceFunction < handle
                 index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
                 wu(index) = ppval(obj.splineP,u(index));
                 for iIF = 1:nIF
-                    v = u0 - yIF(iIF);
-                    wv = zeros(resolution,1);
-                    index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
-                    wv(index) = ppval(obj.splineP,v(index));
                     if validActuator(iIF,jIF)
+                        v = u0 - yIF(iIF);
+                        wv = zeros(resolution,1);
+                        index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+                        wv(index) = ppval(obj.splineP,v(index));
                         buffer = sparse(wv*wu');
                         kIF = kIF + 1;
                         obj.modes(:,kIF) = buffer(:);
@@ -290,6 +290,32 @@ classdef influenceFunction < handle
                     end
                 end
             end
+%             indIF = 1:nIF^2;
+%             indIF(~validActuator) = [];
+%             wReset = zeros(resolution,1);
+%             iii = zeros(4*ceil(resolution/(nIF-1))^2,1);
+%             jjj = iii;
+%             ss  = iii;
+%             indIii = 0;
+%             for kIF = 1:nValid
+%                 [iIF,jIF] = ind2sub([nIF,nIF],indIF(kIF));
+%                 u = u0 - xIF(jIF);
+%                 wu = wReset;
+%                 index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
+%                 wu(index) = ppval(obj.splineP,u(index));
+%                 v = u0 - yIF(iIF);
+%                 wv = wReset;
+%                 index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+%                 wv(index) = ppval(obj.splineP,v(index));
+%                 buffer = wv*wu';
+%                 [ii,jj,s] = find(buffer(:));
+%                 indIii = (1:length(ii)) + indIii(end);
+%                 iii(indIii) = ii;
+%                 jjj(indIii) = jj*kIF;
+%                 ss(indIii)  = s;
+%                 fprintf('\b\b\b\b%4d',kIF)
+%             end
+%             obj.modes = sparse(iii,jjj,ss,resolution^2,nValid);
             fprintf(')\n::::::::::\n')
         end
     end

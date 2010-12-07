@@ -62,6 +62,8 @@ classdef atmosphere < hgsetget
         % . Roddier (default): coherence function 1/e decay
         % . Fried: structure function equal 1rd^2 (1/\sqrt(e) decay)
         coherenceFunctionDecay = exp(-1);
+        % random number generator stream
+        rngStream = RandStream('mt19937ar','Seed',1234);
     end
     
     properties (Dependent)
@@ -221,7 +223,7 @@ classdef atmosphere < hgsetget
         %% Get theta0InArcsec property
         function out = get.theta0InArcsec(obj)
             z = [obj.layer.altitude];
-            if numel(z)==1 && z==0
+            if (numel(z)==1 && z==0) || all([obj.layer.altitude]==0)
                 out  = Inf;
             else
                 if isinf(obj.L0)
@@ -309,7 +311,7 @@ classdef atmosphere < hgsetget
             %             numericalVar    = trapz(trapz(amp.^2)).*fourierSampling.^2;
             %             disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
             %             % -------------------------------
-            map = map.*fft2(randn(N))./N; % White noise filtering
+            map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
             map = real(ifft2(map).*fourierSampling).*N.^2;
             u = 1:nPixel;
             map = map(u,u);
@@ -339,7 +341,7 @@ classdef atmosphere < hgsetget
                 varargout{2} = L;
             end
             L = chol(L,'lower');
-            map = L*randn(nPixel^2,nMap);
+            map = L*randn(atm.rngStream,nPixel^2,nMap);
             map = reshape(map,nPixel,nPixel,nMap);
             varargout{1} = map;
         end
