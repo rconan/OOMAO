@@ -6,6 +6,7 @@ function relay(wave,src)
 
 nSrc = numel(src);
 for kSrc = 1:nSrc
+    src(kSrc).mask      = abs(wave)>0;
     src(kSrc).amplitude = abs(wave);
     src(kSrc).phase     = angle(wave);
 end

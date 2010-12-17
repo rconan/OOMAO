@@ -63,7 +63,9 @@ classdef atmosphere < hgsetget
         % . Fried: structure function equal 1rd^2 (1/\sqrt(e) decay)
         coherenceFunctionDecay = exp(-1);
         % random number generator stream
-        rngStream = RandStream('mt19937ar','Seed',1234);
+        rngStream;
+        % state at initialization of the atmosphere random number generator stream
+        initState;
     end
     
     properties (Dependent)
@@ -124,6 +126,8 @@ classdef atmosphere < hgsetget
                 obj.p_log = logBook.checkIn(obj);
                 display(obj);
             end
+            obj.rngStream = RandStream('mt19937ar');
+            obj.initState = obj.rngStream.State;
         end
         
         % Destructor

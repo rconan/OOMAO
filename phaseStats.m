@@ -13,7 +13,8 @@ classdef phaseStats
             L0r0ratio= (atm.L0./atm.r0).^(5./3);
             out   = (24.*gamma(6./5)./5).^(5./6).*...
                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
-            out = sum([atm.layer.fractionnalR0]).*out;
+            layers = atm.layer;
+            out = sum([layers.fractionnalR0]).*out;
         end
         
         function out = covariance(rho,atm)
@@ -33,7 +34,8 @@ classdef phaseStats
             index         = rho~=0;
             u             = 2.*pi.*rho(index)./atm.L0;
             out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-            out = sum([atm.layer.fractionnalR0]).*out;
+            layers = atm.layer;
+            out = sum([layers.fractionnalR0]).*out;
         end
         
         function out = angularCovariance(theta,atm)
@@ -103,7 +105,7 @@ classdef phaseStats
         function L2 = sparseInverseCovarianceMatrix(layerGrid,pitch,atm)
             %% SPARSEINVERSECOVARIANCEMATRIX 
             %
-            % out = sparseInverseCovarianceMatrix(gridMask,atm)
+            % out = sparseInverseCovarianceMatrix(gridMask,pitch,atm)
             % computes a sparse approximation of the inverse of the
             % covariance matrix from the pupil grid mask and the atmosphere
             %
@@ -181,7 +183,8 @@ classdef phaseStats
                 (gamma(11./6).^2./(2.*pi.^(11./3))).*...
                 atm.r0.^(-5./3);
             out = out.*(f.^2 + 1./atm.L0.^2).^(-11./6);
-            out = sum([atm.layer.fractionnalR0]).*out;
+            layers = atm.layer;
+            out = sum([layers.fractionnalR0]).*out;
         end
         
         function out = symSpectrum(symf)
@@ -271,8 +274,87 @@ classdef phaseStats
                 index         = rho~=0;
                 u             = 2.*pi.*rho(index)./atm.L0;
                 out(index) = cst.*u.^(5./6).*besselk(5./6,u);
-                out = sum([atm.layer.fractionnalR0]).*out;
+                layers = atm.layer;
+                out = sum([layers.fractionnalR0]).*out;
             end
+        end
+        
+        function out = covarianceToeplitzMatrix(atm,z1,varargin)
+            %% COVARIANCETOEPLITZMATRIX Phase covariance matrix
+            %
+            % out = phaseStats.covarianceMatrix(atm,rho1) Computes the phase
+            % auto-covariance matrix from the vector rho1 and an atmosphere
+            % object
+            %
+            % out = phaseStats.covarianceMatrix(atm,rho1,rho2) Computes the phase
+            % cross-covariance matrix from the vectors rho1 and rho2 and an
+            % atmosphere object
+            %
+            % out = phaseStats.covarianceMatrix(...,'mask',pupil) 
+            %
+            % Examples:
+            % covariance matrix on a 1 metre square grid sampled on 16
+            % pixels :
+            % [x,y] = meshgrid((0:15)*1/15);
+            % g = phaseStats.covarianceMatrix(complex(x,y),atm);
+            % imagesc(g), axis square, colorbar
+            % covariance matrix on a 1 meter square grid sampled on 16
+            % pixels with the same grid but displaced of 1 meter:
+            % [x,y] = meshgrid((0:15)*1/15);
+            % z = complex(x,y);
+            % g = phaseStats.covarianceMatrix(z,z+1,atm);
+            % imagesc(g), axis square, colorbar
+            %
+            % See also atmosphere
+                        
+            inputs = inputParser; 
+            inputs.addRequired('atm',@isobject);
+            inputs.addRequired('z1',@isnumeric);
+            inputs.addOptional('z2',z1,@isnumeric);
+            inputs.addParamValue('mask',[],@islogical);
+            inputs.parse(atm,z1,varargin{:});
+            
+            atm  = inputs.Results.atm;
+            z1   = inputs.Results.z1;
+            z2   = inputs.Results.z2;
+            mask = inputs.Results.mask;
+            
+            [nz,mz] = size( z1 );
+            
+            % First Row
+            r  =  phaseStats.covariance( abs(z2-z1(1)) , atm );
+            r   = mat2cell( r  , nz , ones(mz,1));
+            % First column in first blocks fow
+            c  =  phaseStats.covariance( abs( bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' ) ) , atm );
+            c   = mat2cell( c , nz , ones(mz,1) );
+            % First block rows
+            rr   = cellfun( @(x,y) localToeplitz(x,y) , c , r , 'UniformOutput' , false);
+            
+            % First Column
+            c  =  phaseStats.covariance( abs(z1-z2(1)) , atm );
+            c   = mat2cell( c  , nz , ones(mz,1));
+            % First row in first blocks column
+            r  =  phaseStats.covariance( abs( bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' ) ) , atm );
+            r   = mat2cell( r , nz , ones(mz,1) );
+            % First blocks column
+            cc   = cellfun( @(x,y) localToeplitz(x,y) , c , r , 'UniformOutput' , false);
+           
+            out = cell2mat( localToeplitz(cc,rr) );
+            out(~mask,:) = [];
+            out(:,~mask) = [];
+            
+            function t = localToeplitz(c,r)
+                % this version works on numeric vector as well as on cells vector
+                r = r(:);                               % force column structure
+                p = length(r);
+                m = length(c);
+                x = [r(p:-1:2) ; c(:)];                 % build vector of user data
+                cidx = uint16(0:m-1)';
+                ridx = uint16(p:-1:1);
+                subscripts = cidx(:,ones(p,1)) + ridx(ones(m,1),:);  % Toeplitz subscripts
+                t = x(subscripts);                                   % actual data
+            end
+            
         end
         
         function out = zernikeVariance(zern,atm)

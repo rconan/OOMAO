@@ -131,7 +131,7 @@ classdef deformableMirror < handle
                 obj.driver(obj.p_coefs);
                 return
             end
-            if obj.surfaceListener.Enabled
+            if isvalid(obj.surfaceListener) && obj.surfaceListener.Enabled
                 imagesc(obj);
             end
         end

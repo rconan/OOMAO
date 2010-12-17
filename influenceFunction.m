@@ -271,26 +271,62 @@ classdef influenceFunction < handle
             nValid = sum(validActuator(:));
             obj.modes = spalloc(resolution^2,nValid,resolution^2*nValid);
             kIF = 0;
+%             fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d:     ',nValid)
+%             for jIF = 1:nIF
+%                 u = u0 - xIF(jIF);
+%                 wu = zeros(resolution,1);
+%                 index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
+%                 wu(index) = ppval(obj.splineP,u(index));
+%                 
+%                 for iIF = 1:nIF
+%                     if validActuator(iIF,jIF)
+%                         v = u0 - yIF(iIF);
+%                         wv = zeros(resolution,1);
+%                         index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+%                         wv(index) = ppval(obj.splineP,v(index));
+%                         buffer = sparse(wv*wu');
+%                         kIF = kIF + 1;
+%                         obj.modes(:,kIF) = buffer(:);
+%                         fprintf('\b\b\b\b%4d',kIF)
+%                     end
+%                 end
+%                 
+%             end
+            
+            u = bsxfun( @minus , u0' , xIF );
+            wu = zeros(resolution,nIF);
+            index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
+            wu(index) = ppval(obj.splineP,u(index));
+           
+            v = bsxfun( @minus , u0' , yIF);
+            wv = zeros(resolution,nIF);
+            index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+            wv(index) = ppval(obj.splineP,v(index));
+
             fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d:     ',nValid)
             for jIF = 1:nIF
-                u = u0 - xIF(jIF);
-                wu = zeros(resolution,1);
-                index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
-                wu(index) = ppval(obj.splineP,u(index));
+                
                 for iIF = 1:nIF
                     if validActuator(iIF,jIF)
-                        v = u0 - yIF(iIF);
-                        wv = zeros(resolution,1);
-                        index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
-                        wv(index) = ppval(obj.splineP,v(index));
-                        buffer = sparse(wv*wu');
+                        buffer = sparse(wv(:,iIF)*wu(:,jIF)');
                         kIF = kIF + 1;
                         obj.modes(:,kIF) = buffer(:);
-                        fprintf('\b\b\b\b%4d',kIF)
+%                         fprintf('\b\b\b\b%4d',kIF)
                     end
                 end
+                
             end
+            
 %             indIF = 1:nIF^2;
+%             indIF(~validActuator) = [];
+%             [iIF,jIF] = ind2sub([nIF,nIF],indIF);
+%             fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d:     ',nValid)
+%             parfor kIF = 1:nValid
+% %                 fprintf('\b\b\b\b%4d',kIF)
+%                 buffer = sparse(wv(:,iIF(kIF))*wu(:,jIF(kIF))');
+%                 obj.modes(:,kIF) = buffer(:);
+%             end                
+                        %             indIF = 1:nIF^2;
 %             indIF(~validActuator) = [];
 %             wReset = zeros(resolution,1);
 %             iii = zeros(4*ceil(resolution/(nIF-1))^2,1);

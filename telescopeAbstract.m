@@ -80,6 +80,7 @@ classdef telescopeAbstract < handle
         log;
         p_pupil;
         ppp;
+        layerStep;
     end
     
     methods
@@ -136,6 +137,24 @@ classdef telescopeAbstract < handle
         
         function out = diameterAt(obj,height)
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
+        end
+        
+        function reset(obj)
+            %% RESET Reset the atmosphere phase screens
+            %
+            % reset(obj) resets the atmosphere random stream generator and
+            % re-computes the initial phase screens of the layers. These
+            % are the same than the phase screens computed during the
+            % atmosphere initialization process
+            
+            obj.atm.rngStream.State = obj.atm.initState;
+            for kLayer=1:obj.atm.nLayer
+                m_atm = slab(obj.atm,kLayer);
+                fprintf('   Layer %d:\n',kLayer)
+                fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',m_atm.layer.D,m_atm.layer.nPixel)
+                obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,m_atm.layer.D,m_atm.layer.nPixel);
+                fprintf('  Done \n')
+            end
         end
         
         function out = FT(obj,f)
@@ -242,11 +261,11 @@ classdef telescopeAbstract < handle
                 elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
                     %                 disp('HERE')
                     for kLayer=1:obj.atm.nLayer
-                        
+
                         pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                         % 1 pixel increased phase sampling vector
                         u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-                        [x0,y0] = meshgrid(u0);
+%                         [x0,y0] = meshgrid(u0);
                         %                     [xu0,yu0] = meshgrid(u0);
                         % phase sampling vector
                         u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
@@ -266,7 +285,7 @@ classdef telescopeAbstract < handle
                             notDoneOnce = false;
                             
                             if obj.count(kLayer)==0
-                                %                             fprintf(' ------>      : expanding!\n')
+%                                                             fprintf(' ------>      : expanding!\n')
                                 % 1 pixel around phase increase
                                 Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
                                 X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
@@ -276,16 +295,22 @@ classdef telescopeAbstract < handle
                             
                             % phase displacement (not more than 1 pixel)
                             step   = min(abs(leap),pixelLength).*sign(leap);
+%                             obj.layerStep(kLayer) = step;
                             
                             xShift = u - step(1);
                             yShift = u - step(2);
+%                             [xi,yi] = meshgrid(xShift,yShift);
                             obj.atm.layer(kLayer).phase ...
                                 = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+%                             obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
 %                                                     obj.atm.layer(kLayer).phase ...
 %                                                            = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
+
+% [FX,FY] = gradient(obj.mapShift{kLayer},pixelLength);
+% buf = obj.mapShift{kLayer} - step(1)*FX - step(2)*FY;
+% obj.atm.layer(kLayer).phase = buf(2:end-1,2:end-1);
                             
 %                             F = TriScatteredInterp(x0(:), y0(:), obj.mapShift{kLayer}(:));
-%                             [xi,yi] = meshgrid(xShift,yShift);
 %                             obj.atm.layer(kLayer).phase = F(xi,yi);
                             
                             leap = leap - step;
@@ -388,8 +413,8 @@ classdef telescopeAbstract < handle
                         out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
                         for kLayer = 1:nLayer
                             height = altitude_m(kLayer);
-                            sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
-%                             [xs,ys] = meshgrid(layerSampling_m{kLayer});
+%                             sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
+                            [xs,ys] = meshgrid(layerSampling_m{kLayer});
                             if height==0
                                 out(:,:,kLayer) = phase_m{kLayer};
                             else
@@ -397,9 +422,11 @@ classdef telescopeAbstract < handle
                                 u = sampler_m*layerR;
                                 xc = height.*srcDirectionVector1;
                                 yc = height.*srcDirectionVector2;
-                                out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
+                                [xi,yi] = meshgrid(u+xc,u+yc);
+%                                 out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
+                                out(:,:,kLayer) = nearest(xs,ys,phase_m{kLayer},xi,yi);
+
 %                                 F = TriScatteredInterp(xs(:),ys(:),phase_m{kLayer}(:));
-%                                 [xi,yi] = meshgrid(u+xc,u+yc);
 %                                 out(:,:,kLayer) = F(xi,yi);
                             end
                         end
@@ -449,6 +476,7 @@ classdef telescopeAbstract < handle
                     if ~isempty(src)
                         kLayer = 1;
                         for kSrc=1:numel(src)
+                            q = 1 - obj.atm.layer(kLayer).altitude/src(kSrc).height;
                             xSrc = src(kSrc).directionVector(1).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
@@ -457,7 +485,7 @@ classdef telescopeAbstract < handle
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
-                            plot(xSrc+xP+(n1+1)/2,ySrc+yP+(n1+1)/2,'color',ones(1,3)*0.8)
+                            plot(xSrc+xP*q+(n1+1)/2,ySrc+yP*q+(n1+1)/2,'color',ones(1,3)*0.8)
                         end
                     else
                         plot(xP+(n1+1)/2,yP+(n1+1)/2,'k:')
@@ -480,6 +508,7 @@ classdef telescopeAbstract < handle
                     obj.imageHandle(kLayer) = imagesc([1,m]+m1,[1+offset,n1-offset],map);
                     if ~isempty(src)
                         for kSrc=1:numel(src)
+                            q = 1 - obj.atm.layer(kLayer).altitude/src(kSrc).height;
                             xSrc = src(kSrc).directionVector(1).*...
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
@@ -488,7 +517,7 @@ classdef telescopeAbstract < handle
                                 obj.atm.layer(kLayer).altitude.*...
                                 obj.atm.layer(kLayer).nPixel/...
                                 obj.atm.layer(kLayer).D;
-                            plot(xSrc+xP+m1+m/2,ySrc+yP+(n1+1)/2,'color',ones(1,3)*0.8)
+                            plot(xSrc+xP*q+m1+m/2,ySrc+yP*q+(n1+1)/2,'color',ones(1,3)*0.8)
                         end
                     else
                         plot(xP+m1+m/2,yP+(n1+1)/2,'k:')
@@ -743,6 +772,62 @@ end
     onemt = 1-t;
         F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
             ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+    
+    
+    end
+
+    
+    %------------------------------------------------------
+    function F = nearest(arg1,arg2,arg3,arg4,arg5)
+    %NEAREST 2-D Nearest neighbor interpolation.
+    %   ZI = NEAREST(EXTRAPVAL,X,Y,Z,XI,YI) uses nearest neighbor interpolation
+    %   to find ZI, the values of the underlying 2-D function in Z at the points
+    %   in matrices XI and YI.  Matrices X and Y specify the points at which
+    %   the data Z is given.  X and Y can also be vectors specifying the
+    %   abscissae for the matrix Z as for MESHGRID. In both cases, X
+    %   and Y must be equally spaced and monotonic.
+    %
+    %   Values of EXTRAPVAL are returned in ZI for values of XI and YI that are
+    %   outside of the range of X and Y.
+    %
+    %   If XI and YI are vectors, NEAREST returns vector ZI containing
+    %   the interpolated values at the corresponding points (XI,YI).
+    %
+    %   ZI = NEAREST(EXTRAPVAL,Z,XI,YI) assumes X = 1:N and Y = 1:M, where
+    %   [M,N] = SIZE(Z).
+    %
+    %   F = NEAREST(EXTRAPVAL,Z,NTIMES) returns the matrix Z expanded by
+    %   interleaving interpolates between every element.  NEAREST(EXTRAPVAL,Z)
+    %   is the same as NEAREST(EXTRAPVAL,Z,1).
+    %
+    %   See also INTERP2, LINEAR, CUBIC.
+    
+    [nrows,ncols] = size(arg3);
+    mx = numel(arg1); my = numel(arg2);
+%     if nrows > 1 && ncols > 1
+        u = 1 + (arg4-arg1(1))/(arg1(mx)-arg1(1))*(ncols-1);
+        v = 1 + (arg5-arg2(1))/(arg2(my)-arg2(1))*(nrows-1);
+%     else
+%         u = 1 + (arg4-arg1(1));
+%         v = 1 + (arg5-arg2(1));
+%     end
+    
+    % Check for out of range values of u and set to 1
+    uout = (u<.5)|(u>=ncols+.5);
+    anyuout = any(uout(:));
+    if anyuout, u(uout) = 1; end
+    
+    % Check for out of range values of v and set to 1
+    vout = (v<.5)|(v>=nrows+.5);
+    anyvout = any(vout(:));
+    if anyvout, v(vout) = 1; end
+    
+    % Interpolation parameters
+    u = round(u); v = round(v);
+    
+    % Now interpolate
+    ndx = v+(u-1)*nrows;
+    F = arg3(ndx);
     
     
     end
