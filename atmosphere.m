@@ -340,7 +340,7 @@ classdef atmosphere < hgsetget
                 nMap = 1;
             end
             [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
-            L = phaseStats.covarianceMatrix(complex(x,y),atm);
+            L = phaseStats.covarianceToeplitzMatrix(atm,complex(x,y));
             if nargout>1
                 varargout{2} = L;
             end

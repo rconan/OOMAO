@@ -40,7 +40,7 @@ classdef detector < handle
         frame;
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         frameHandle;
         log;
     end

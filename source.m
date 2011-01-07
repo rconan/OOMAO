@@ -35,10 +35,6 @@ classdef source < stochasticWave & hgsetget
     % See also: constants, photometry, telescope and atmosphere
     
     properties
-        % source zenith angle
-        zenith;
-        % source azimuth angle
-        azimuth;
         % source height
         height;
         % source full-width-half-max
@@ -62,6 +58,11 @@ classdef source < stochasticWave & hgsetget
     end
     
     properties (Dependent)
+        % source zenith angle
+        zenith;
+        % source azimuth angle
+        azimuth;
+        % source wavenumber
         waveNumber;
         % source magnitudde
         magnitude;
@@ -77,6 +78,8 @@ classdef source < stochasticWave & hgsetget
     
     properties (Access=private)
 %         p_nPhoton;
+        p_zenith;
+        p_azimuth;
         p_magnitude;
         p_wavelength;
         p_viewPoint;
@@ -103,11 +106,11 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('tag','SOURCE',@ischar);
             p.parse(varargin{:});
             persistent nCall
-            if ~isempty(p.Results.zenithInArcsec)
-                obj.zenith      = p.Results.zenithInArcsec./cougarConstants.radian2arcsec;
-            elseif ~isempty(p.Results.zenithInArcmin)
-                obj.zenith      = p.Results.zenithInArcmin./cougarConstants.radian2arcmin;
-            end
+%             if ~isempty(p.Results.zenithInArcsec)
+%                 obj.zenith      = p.Results.zenithInArcsec./cougarConstants.radian2arcsec;
+%             elseif ~isempty(p.Results.zenithInArcmin)
+%                 obj.zenith      = p.Results.zenithInArcmin./cougarConstants.radian2arcmin;
+%             end
             if nargin>0 || isempty(nCall)
                 nCall = 1;
                 nAst    = numel(p.Results.asterism);
@@ -139,8 +142,8 @@ classdef source < stochasticWave & hgsetget
                 obj( 1 , nObj , nHeight ) = source;
                 for kObj = 1:nObj
                     for kHeight = 1:nHeight
-                        obj(1,kObj,kHeight).zenith     = z(kObj);
-                        obj(1,kObj,kHeight).azimuth    = a(kObj);
+                        obj(1,kObj,kHeight).p_zenith     = z(kObj);
+                        obj(1,kObj,kHeight).p_azimuth    = a(kObj);
                         obj(1,kObj,kHeight).height     = p.Results.height(kHeight);
                         obj(1,kObj,kHeight).wavelength = p.Results.wavelength;
                         obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
@@ -156,8 +159,8 @@ classdef source < stochasticWave & hgsetget
                 end
                 nCall = [];
             else
-                obj.zenith     = p.Results.zenith;
-                obj.azimuth    = p.Results.azimuth;
+                obj.p_zenith     = p.Results.zenith;
+                obj.p_azimuth    = p.Results.azimuth;
                 obj.height     = p.Results.height;
                 obj.wavelength = p.Results.wavelength;
                 obj.nPhoton    = p.Results.nPhoton;
@@ -192,6 +195,24 @@ classdef source < stochasticWave & hgsetget
                 end
                 checkOut(obj.log,obj)
             end
+        end
+        
+        %% Get and Set zenith
+        function out = get.zenith(obj)
+            out = obj.p_zenith;
+        end
+        function set.zenith(obj,val)
+            obj.p_zenith = val;
+            setDirectionVector(obj)
+        end
+        
+        %% Get and Set azimuth
+        function out = get.azimuth(obj)
+            out = obj.p_azimuth;
+        end
+        function set.azimuth(obj,val)
+            obj.p_azimuth = val;
+            setDirectionVector(obj)
         end
         
         %% Get and Set magnitude

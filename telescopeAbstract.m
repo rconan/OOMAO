@@ -424,7 +424,7 @@ classdef telescopeAbstract < handle
                                 yc = height.*srcDirectionVector2;
                                 [xi,yi] = meshgrid(u+xc,u+yc);
 %                                 out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
-                                out(:,:,kLayer) = nearest(xs,ys,phase_m{kLayer},xi,yi);
+                                out(:,:,kLayer) = linear(xs,ys,phase_m{kLayer},xi,yi);
 
 %                                 F = TriScatteredInterp(xs(:),ys(:),phase_m{kLayer}(:));
 %                                 out(:,:,kLayer) = F(xi,yi);
