@@ -81,7 +81,7 @@ classdef source < stochasticWave & hgsetget
         p_zenith;
         p_azimuth;
         p_magnitude;
-        p_wavelength;
+        photometry;
         p_viewPoint;
         tel;
     end
@@ -98,7 +98,7 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('zenithInArcmin',[],@isnumeric);
             p.addParamValue('azimuth',0,@isnumeric);
             p.addParamValue('height',Inf,@isnumeric);
-            p.addParamValue('wavelength',photometry.V,@isnumeric);
+            p.addParamValue('wavelength',photometry.V,@(x) isa(x,'photometry'));
             p.addParamValue('magnitude',0,@isnumeric); % Vega magnitude (default)
             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
@@ -217,33 +217,30 @@ classdef source < stochasticWave & hgsetget
         
         %% Get and Set magnitude
         function out = get.magnitude(obj)
-            out = obj.p_magnitude;
+            out = obj.photometry.magnitude;
         end
         function set.magnitude(obj,val)
-            obj.p_magnitude = val;
-            if ~isempty(obj.p_wavelength)
-                index = abs(photometry.wavelengths-obj.p_wavelength)<=eps(max(photometry.wavelengths));
-                obj.nPhoton = photometry.deltaWavelengths(index).*...
-                    1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                    10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
+            obj.photometry.magnitude = val;
+            if ~isempty(obj.photometry)
+                obj.nPhoton = obj.photometry.nPhoton;
                 fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
             end
         end
         
         %% Get the wavelength in micron
         function out = get.wavelengthInMicron(obj)
-            out = obj.p_wavelength*1e6;
+            out = obj.photometry.wavelength*1e6;
         end
         function out = get.wavelength(obj)
-            out = obj.p_wavelength;
+            out = obj.photometry.wavelength;
         end
         function set.wavelength(obj,val)
-            obj.p_wavelength = val;
-            if ~isempty(obj.p_magnitude)
-                index = abs(photometry.wavelengths-obj.p_wavelength)<=eps(max(photometry.wavelengths));
-                obj.nPhoton = photometry.deltaWavelengths(index).*...
-                    1e6.*photometry.wavelengths(index).*photometry.e0(index).*...
-                    10.^(-0.4*obj.p_magnitude)./(constants.plank*constants.c);
+            if ~isa(val,'photometry')
+                error('oomao:source:wavelength','The wavelength must be set with the photometry class!')
+            end
+            obj.photometry = val;
+            if ~isempty(obj.photometry.magnitude)
+                obj.nPhoton = obj.photometry.nPhoton;
             end
         end
         

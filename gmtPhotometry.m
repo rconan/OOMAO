@@ -1,4 +1,4 @@
-classdef photometry < handle
+classdef gmtPhotometry < handle
     
     properties
         wavelength % [micron]
@@ -19,7 +19,7 @@ classdef photometry < handle
     methods
         
         %% Constructor
-        function obj = photometry(w,bw,zp)
+        function obj = gmtPhotometry(w,bw,zp)
             obj.wavelength = w;
             obj.bandwidth  = bw;
             obj.zeroPoint  = zp/368;
@@ -32,7 +32,7 @@ classdef photometry < handle
         function set.magnitude(obj,val)
             obj.p_magnitude = val;
             obj.p_nPhoton = obj.zeroPoint*10^(-0.4*val);
-            fprintf(' @(photometry)> # of photon s^{-1}: %g\n',obj.p_nPhoton)
+            fprintf(' @(gmtPhotometry)> # of photon s^{-1}: %g\n',obj.p_nPhoton)
         end
         
         %% Get and Set nPhoton
@@ -42,7 +42,7 @@ classdef photometry < handle
         function set.nPhoton(obj,val)
             obj.p_nPhoton = val;
             obj.p_magnitude = -2.5*log10(val/obj.zeroPoint);
-            fprintf(' @(photometry)> magnitude %4.2f\n',obj.p_magnitude)
+            fprintf(' @(gmtPhotometry)> magnitude %4.2f\n',obj.p_magnitude)
         end
         
         function obj = plus(obj1,obj2)
@@ -68,7 +68,6 @@ classdef photometry < handle
         K  ( 2.179e-6 , 0.410e-6 , 7.0e11 )
         L  ( 3.547e-6 , 0.570e-6 , 2.5e11 )
         M  ( 4.769e-6 , 0.450e-6 , 8.4e10 )
-        Na ( 0.589e-6 , 0        , 3.3e12 )
     end
     
 end
