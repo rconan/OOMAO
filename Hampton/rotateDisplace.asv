@@ -1,0 +1,73 @@
+function [rotatedPhase] = rotateDisplace(phase, theta, x, y, varargin)
+    p = inputParser;
+    % the following 4 variables are for the case where the user wants the
+    % output to be smaller than the input. One case is where the phase of
+    % an optic is much bigger than the beam of light. Only the area in the
+    % beam needs to be calculated and all area outside is redundant.
+    
+    p.addParamValue('outRows', size(phase,1),@isnumeric);
+    p.addParamValue('outCols', size(phase,2),@isnumeric);
+    p.addParamValue('rowStart', 1,@isnumeric);
+    p.addParamValue('colStart', 1,@isnumeric);
+    
+    p.parse(varargin{:});
+
+    outRows = p.Results.outRows;
+    outCols = p.Results.outCols;
+    rowStart = p.Results.rowStart;
+    colStart = p.Results.colStart;
+    
+[nRows nColumns] = size(phase);         % row and column used individually to allow for rectangular input data
+offsetx = (nColumns+1)/2;               % offsets are used to change the following meshgrids back to indices
+offsety = (nRows+1)/2;
+[X Y] = meshgrid(-(offsetx-1):(offsetx-1),-(offsety-1):(offsety-1));
+[T R] = cart2pol(X-x,Y-y);              % Shifts the center point of the following rotation
+[Xr Yr] = pol2cart(T+theta,R);          % Rotates the grid by theta
+
+Xr = Xr(rowStart:(rowStart+outRows-1),colStart:colStart+outCols-1);
+Yr = Yr(rowStart:(rowStart+outRows-1),colStart:colStart+outCols-1);
+
+nTerms = zeros(outRows,outCols);
+rotatedPhase = nan*ones(outRows,outCols);% NaN is used in order to block light if the optical element is displaced too much
+for k = 1:4
+    if k == 1
+        testx = floor(Xr+offsetx);      % Xr and Yr contains negative values the offsets make the smallest value be 1 for index usage
+        testy = floor(Yr+offsety);      % testx and testy are rounded differently for each k to consider 4 grid points that surround the rotated grid point.
+        delx = abs(Xr+offsetx-testx);   % delx is the horizontal distance from the grid lines to the left 
+        dely = abs(Yr+offsety-testy);   % dely is the verticle distance from the grid line above
+        px = 1-delx;                    % px is a weighting factor that approaches 1 as the rotated grid point approaches an original grid point 
+        py = 1-dely;                    % py is a weighting factor that approaches 1 as the rotated grid point approaches an original grid point
+    elseif k == 2
+        testx = ceil(Xr+offsetx);
+        testy = floor(Yr+offsety);
+        px = delx;
+        py = 1-dely;
+    elseif k == 3
+        testx = floor(Xr+offsetx);
+        testy = ceil(Yr+offsety);
+        px = 1-delx;
+        py = dely;
+    else
+        testx = ceil(Xr+offsetx);
+        testy = ceil(Yr+offsety);
+        px = delx;
+        py = dely;
+    end
+    useInd = (testx>=1).*...
+        (testy>=1).*...
+        (testx<=nColumns).*...
+        (testy<=nRows);
+    useInd = logical(useInd(:));
+    testInd = nRows*(testx(useInd)-1) + testy(useInd);
+    nTerms(useInd) = nTerms(useInd) + px(useInd).*py(useInd);
+    
+    nanMask = isnan(rotatedPhase);
+    workMask = zeros(size(rotatedPhase));
+    workMask(useInd) = 1;
+    rotatedPhase(logical(nanMask.*workMask)) = 0;       % force NaN to become 0 if the NaN element is in the work space
+    rotatedPhase(useInd) = rotatedPhase(useInd) + phase(testInd).*px(useInd).*py(useInd);
+end
+scaleInd = nTerms > 0;
+rotatedPhase(scaleInd) = rotatedPhase(scaleInd)./nTerms(scaleInd);
+
+end
