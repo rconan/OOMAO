@@ -273,7 +273,16 @@ classdef telescope < telescopeAbstract
             %
             % obj = +obj returns the telescope object
             
+            % by swapping random states, the atmosphere maintains an
+            % independant random data stream from all other processes.
+            
+            global_state = randn('state');      % Save global random state
+            randn('state',obj.atm.randn_state); % Load atmospheric random state
+            
             update(obj)
+            
+            obj.atm.randn_state = randn('state'); % Save atmospheric random state
+            randn('state',global_state);          % Load global random state
             if nargout>0
                 varargout{1} = obj;
             end
@@ -332,19 +341,31 @@ classdef telescope < telescopeAbstract
                     if obj.fieldOfView==0 && isNgs(src)
                         out = out + sum(cat(3,obj.atm.layer.phase),3);
                     else
-                        for kLayer = 1:obj.atm.nLayer
-                            if obj.atm.layer(kLayer).altitude==0
-                                out = out + obj.atm.layer(kLayer).phase;
+                        atm_m           = obj.atm;
+                        nLayer          = atm_m.nLayer;
+                        altitude_m      = [atm_m.layer.altitude];
+                        sampler_m       = obj.sampler;
+                        phase_m         = { atm_m.layer.phase };
+                        R_              = obj.R;
+                        layerSampling_m = obj.layerSampling;
+                        srcDirectionVector1 = src.directionVector(1);
+                        srcDirectionVector2 = src.directionVector(2);
+                        srcHeight = src.height;
+                        out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
+                        parfor kLayer = 1:nLayer
+                            height = altitude_m(kLayer);
+                            sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
+                            if height==0
+                                out(:,:,kLayer) = phase_m{kLayer};
                             else
-                                layerR = obj.R*(1-obj.atm.layer(kLayer).altitude./src.height);
-                                u = obj.sampler*layerR;
-                                xc = obj.atm.layer(kLayer).altitude.*src.directionVector(1);
-                                yc = obj.atm.layer(kLayer).altitude.*src.directionVector(2);
-                                out = out + ...
-                                    spline2({obj.layerSampling{kLayer},obj.layerSampling{kLayer}},...
-                                    obj.atm.layer(kLayer).phase,{u+yc,u+xc});
+                                layerR = R_*(1-height./srcHeight);
+                                u = sampler_m*layerR;
+                                xc = height.*srcDirectionVector1;
+                                yc = height.*srcDirectionVector2;
+                                out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u-yc,u-xc});
                             end
                         end
+                        out = sum(out,3);
                     end
                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end

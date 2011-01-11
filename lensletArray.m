@@ -184,6 +184,7 @@ classdef lensletArray < handle
                 end
                 val = src.catWave;
             end
+            
             [nLensletsWavePx,nLensletsWavePxNGuideStar,nWave] = size(val);
             % Resize the 3D input into a 2D input
             nLensletsWavePxNGuideStar = nLensletsWavePxNGuideStar*nWave;

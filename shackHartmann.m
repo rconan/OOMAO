@@ -49,6 +49,22 @@ classdef shackHartmann < hgsetget
         zern2slopes;
         % wavefront sensor tag
         tag = 'SHACK-HARTMANN';
+        
+        %Misalignment Variables
+        % the tilt of the WFS in the horizontal and vertical direction
+        
+        % one unit of tilt has a max phase of +/- 1.9778 microns at the edge when the resolution is 90.
+        % Since there are no physical units for detector width, it is up to
+        % the user to determine appropriate magnitude of tilt inputs.
+        
+        horizontalTilt;             % magnitude multiplied by normalized tilt mode
+        verticalTilt;               % magnitude multiplied by normalized tilt mode
+        % the displacement of the DM in the horizontal and vertical directions
+        horizontalDisplacement;     % in pixels (can be non-integer)
+        verticalDisplacement;       % in pixels (can be non-integer)
+        % the rotation of the DM normal to the DM
+        rotationAngle;              % in radians
+        zern                        % tilt zernike modes
     end
     
     properties (SetObservable=true)
@@ -92,8 +108,26 @@ classdef shackHartmann < hgsetget
     methods
         
         %% Constructor
-        function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
-            error(nargchk(1, 4, nargin))
+        function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio,varargin)
+            %error(nargchk(1, 4, nargin))
+            
+            p = inputParser;
+            % Misalignment
+            p.addParamValue('horizontalTilt', 0, @isnumeric);                  
+            p.addParamValue('verticalTilt', 0, @isnumeric);             
+            p.addParamValue('horizontalDisplacement', 0, @isnumeric);
+            p.addParamValue('verticalDisplacement', 0, @isnumeric);
+            p.addParamValue('rotationAngle', 0, @isnumeric);              
+            p.parse(varargin{:});
+            p.Results
+            
+            obj.horizontalTilt          = p.Results.horizontalTilt;
+            obj.verticalTilt            = p.Results.verticalTilt;
+            obj.horizontalDisplacement  = p.Results.horizontalDisplacement;
+            obj.verticalDisplacement    = p.Results.verticalDisplacement;
+            obj.rotationAngle           = p.Results.rotationAngle;
+            
+            
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
             obj.lenslets.nLensletWavePx = ...
@@ -125,6 +159,9 @@ classdef shackHartmann < hgsetget
             obj.paceMaker.BusyMode = 'drop';
             obj.paceMaker.Period = 1e-1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
+            
+            obj.zern = zernike(1:3,'resolution',detectorResolution);
+            
             obj.log = logBook.checkIn(obj);
             %             function timerCallBack( timerObj, event, a)
             %                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
@@ -155,6 +192,7 @@ classdef shackHartmann < hgsetget
             end
             delete(obj.lenslets)
             delete(obj.camera)
+            delete(obj.zern)
             checkOut(obj.log,obj)
         end
         
@@ -443,10 +481,37 @@ classdef shackHartmann < hgsetget
 %             else
 %                 obj.camera.photonNoise = true;
 %             end
+            wavenumber = (2*pi/src(1).wavelength)*10^-6;
+            
+            if obj.rotationAngle ~= 0 || obj.horizontalDisplacement ~= 0 || obj.verticalDisplacement ~= 0 || obj.horizontalTilt ~=0 || obj.verticalTilt ~=0
+                originalPhase = src.phase;
+                originalAmplitude = src.amplitude;
+                % rotateDisplace outputs NaN wherever data is shifted or
+                % rotated into the data set
+                if obj.horizontalTilt ~=0 || obj.verticalTilt ~=0
+                    wfsTilt = obj.horizontalTilt*reshape(obj.zern.modes(:,2),size(originalPhase)) +...
+                              obj.verticalTilt*reshape(obj.zern.modes(:,3),size(originalPhase));
+                    wfsTilt = -2*wfsTilt*wavenumber;
+                    misalignedPhase = originalPhase + wfsTilt;
+                else
+                    misalignedPhase = originalPhase;
+                end
+                misalignedPhase = rotateDisplace(misalignedPhase,obj.rotationAngle,obj.horizontalDisplacement,obj.verticalDisplacement);
+                src.amplitude = rotateDisplace(src.amplitude, obj.rotationAngle, obj.horizontalDisplacement, obj.verticalDisplacement);
+                % This checks for NaNs and sets the amplitude to 0 when they occur (because the light is considered blocked
+                % The phase is just set to 0 instead of NaN just to be a value
+                src.amplitude(isnan(misalignedPhase)) = 0;
+                misalignedPhase(isnan(misalignedPhase)) = 0;
+                src.phase = misalignedPhase-src.phase; % if you dig in the code, this is actually: src.phase = src.phase + misalignedPhase - src.phase
+            end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
             grab(obj.camera)
             dataProcessing(obj);
+            if obj.rotationAngle ~= 0 || obj.horizontalDisplacement ~= 0 || obj.verticalDisplacement ~= 0
+                src.phase = originalPhase-misalignedPhase; % This sets the src.phase back to originalPhase as the misalignment is only for the wfs.
+                src.amplitude = originalAmplitude;
+            end
         end
         
         function varargout = slopesDisplay(obj,varargin)

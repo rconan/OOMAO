@@ -62,6 +62,8 @@ classdef atmosphere < hgsetget
         % . Roddier (default): coherence function 1/e decay
         % . Fried: structure function equal 1rd^2 (1/\sqrt(e) decay)
         coherenceFunctionDecay = exp(-1);
+
+        
     end
     
     properties (Dependent)
@@ -83,10 +85,15 @@ classdef atmosphere < hgsetget
         % Greenwood frequency
         greenwoodFrequency;
     end
-    
+    properties (Dependent,SetObservable=true)
+        % used to keep track of the randn_state of the atmosphere
+        randn_state;
+    end
     properties (Access=private)
         p_wavelength;
         p_log;
+        % used to keep track of the randn_state of the atmosphere
+        p_randn_state;
     end
     
     methods
@@ -107,6 +114,7 @@ classdef atmosphere < hgsetget
             obj.r0 = p.Results.r0;
             obj.L0 = p.Results.L0;
             obj.nLayer = length(p.Results.altitude);
+            obj.randn_state = randn('state');
             if any(isempty(p.Results.windSpeed))
                 obj.layer = turbulenceLayer(...
                     p.Results.altitude,...
@@ -185,7 +193,17 @@ classdef atmosphere < hgsetget
             fprintf('----------------------------------------------------\n')
             
         end
-        
+        %% Set/Get randn_state_atm
+        function val = get.randn_state(obj)
+            if isempty(obj.p_randn_state)
+                obj.p_randn_state = randn('state');
+            end
+            val = obj.p_randn_state; 
+        end
+        function set.randn_state(obj,val)
+            obj.p_randn_state = val;
+        end
+
         %% Set/Get wavelength property
         function val = get.wavelength(obj)
             val = obj.p_wavelength;
@@ -273,7 +291,6 @@ classdef atmosphere < hgsetget
                 sum( [obj.layer.fractionnalR0].*v.^(5./3) )^(3/5)/...
                 obj.r0;
         end
-        
         function map = fourierPhaseScreen(atm,D,nPixel)
             %% FOURIERPHASESCREEN Phase screen computation
             %
@@ -287,7 +304,8 @@ classdef atmosphere < hgsetget
             % layer!
             %
             % See also atmosphere
-            
+            global_state = randn('state');
+            randn('state',atm.randn_state);
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -313,6 +331,9 @@ classdef atmosphere < hgsetget
             map = real(ifft2(map).*fourierSampling).*N.^2;
             u = 1:nPixel;
             map = map(u,u);
+            atm.randn_state = randn('state');
+            randn('state',global_state);
+
         end
         
         function varargout = choleskyPhaseScreen(atm,D,nPixel,nMap)
@@ -329,7 +350,8 @@ classdef atmosphere < hgsetget
             % phase covariance matrix covarianceMatrix
             %
             % See also chol and atmosphere
-            
+            global_state = randn('state');
+            randn('state', atm.randn_state);
             if nargin<4
                 nMap = 1;
             end
@@ -342,6 +364,8 @@ classdef atmosphere < hgsetget
             map = L*randn(nPixel^2,nMap);
             map = reshape(map,nPixel,nPixel,nMap);
             varargout{1} = map;
+            atm.randn_state = randn('state');
+            randn('state',global_state);
         end
         
     end

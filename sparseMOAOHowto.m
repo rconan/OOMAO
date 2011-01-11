@@ -24,7 +24,7 @@
 % outer scale of 30m with 3 turbulence layers.
 atm = atmosphere(photometry.V,0.15,30,...
     'altitude',[0,4,10]*1e3,...
-    'fractionnalR0',[0.7,0.25,0.05],...
+    'fractionnalR0',[0.7,0.05,0.25],...
     'windSpeed',[5,10,20],...
     'windDirection',[0,pi/4,pi]);
 
@@ -57,7 +57,14 @@ tel = telescope(8,...
 % * the magnitude
 %
 % In the following, an on-axis natural guide star in V band is defined.
-ngs = source('wavelength',photometry.J);
+% ngs = source('wavelength',photometry.J);
+%% Guide Stars
+gs = source('asterism',{[3,arcmin(1),0]},'wavelength',photometry.J);
+ngs = gs(1);
+nGs = length(gs);
+%% Science stars ( on-axis oan in GS#1 direction)
+ss = source('zenith',[0,gs(1).zenith],'azimuth',[0,gs(1).azimuth],'wavelength',gs(1).wavelength);
+nSs = length(ss);
 
 %% Definition of the wavefront sensor
 % Up to now, only the Shack--Hartmann WFS has been implemented in OOMAO.
@@ -179,54 +186,62 @@ commandMatrix = V*iS*U';
 % Combining the atmosphere and the telescope
 tel = tel+atm;
 figure
-imagesc(tel)
+imagesc(tel,[gs,ss])
 %%
 % Resetting the DM command
 dm.coefs = 0;
 %%
 % Propagation throught the atmosphere to the telescope
-ngs=ngs.*tel;
+ss=ss.*tel;
 %%
 % Saving the turbulence aberrated phase
-turbPhase = ngs.meanRmPhase;
+turbPhase = ss.catMeanRmPhase;
 %%
 % Propagation to the WFS
 ngs=ngs*dm*wfs;
 %%
 % Display of turbulence and residual phase
 figure(11)
-h = imagesc([turbPhase,ngs.meanRmPhase]);
+% h = imagesc([turbPhase,ngs.meanRmPhase]);
+h = imagesc([turbPhase;ss.catMeanRmPhase]);
 axis equal tight
 colorbar
-snapnow
 
 %%
 % closing the loop
 nIteration = 200;
-total  = zeros(1,nIteration);
-residue = zeros(1,nIteration);
+total  = zeros(nIteration,nSs);
+residue = zeros(nIteration,nSs);
+tic
 for kIteration=1:nIteration
     % Propagation throught the atmosphere to the telescope, +tel means that
     % all the layers move of one step based on the sampling time and the
     % wind vectors of the layers
     ngs=ngs.*+tel; 
     % Saving the turbulence aberrated phase
-    turbPhase = ngs.meanRmPhase;
+    ss = ss.*tel;
+%     turbPhase = ngs.meanRmPhase;
+    turbPhase = ss.catMeanRmPhase;
     % Variance of the atmospheric wavefront
-    total(kIteration) = var(ngs);
+    total(kIteration,:) = var(ngs);
     % Propagation to the WFS
-    ngs=ngs*wfs*dm; 
+    ngs=ngs*wfs; 
     % Variance of the residual wavefront
-    residue(kIteration) = var(ngs);
+    ss = ss*dm;
+    residue(kIteration,:) = var(ss);
+%     residue(kIteration) = var(ngs);
     % Computing the DM residual coefficients
     dm.coefs = -commandMatrix*wfs.slopes;
 %     % Integrating the DM coefficients
 %     dm.coefs = dm.coefs - loopGain*residualDmCoefs;
     % Display of turbulence and residual phase
-    set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
+%     set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
+    set(h,'Cdata',[turbPhase;ss.catMeanRmPhase])
     drawnow
 end
-snapnow
+pokeTiming = toc;
+totalPoke   = total;
+residuePoke = residue;
 u = (0:nIteration-1).*tel.samplingTime;
 atm.wavelength = ngs.wavelength;
 %%
@@ -235,24 +250,18 @@ totalTheory = phaseStats.zernikeResidualVariance(1,atm,tel);
 atm.wavelength = photometry.V;
 %%
 % Phase variance to micron rms converter 
-rmsMicron = @(x) 1e6*sqrt(x).*ngs.wavelength/2/pi;
+rmsMicron = @(x) 1e9*sqrt(x).*ngs.wavelength/2/pi;
 figure(13)
 plot(u,rmsMicron(total),u([1,end]),rmsMicron(totalTheory)*ones(1,2),u,rmsMicron(residue))
 grid
 legend('Full','Full (theory)','Residue',0)
 xlabel('Time [s]')
-ylabel('Wavefront rms [\mum]')
+ylabel('Wavefront rms [nm]')
 
 %%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 %%% SPARSE METHOD
 %%% XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-%% Guide Stars
-gs = source('asterism',{[3,arcmin(1),0]},'wavelength',ngs.wavelength);
-nGs = length(gs);
-%% Science stars ( on-axis oan in GS#1 direction)
-ss = source('zenith',[0,gs(1).zenith],'azimuth',[0,gs(1).azimuth],'wavelength',gs(1).wavelength);
-nSs = length(ss);
 %% WFS noise
 % Noise can be added to the wavefront sensor but first we need to set the
 % star magnitude.
@@ -337,17 +346,13 @@ G = Gamma*H;
 A = G'*iCn*G+L2;
 b = G'*iCn;
 L = chol(A,'lower');
-figure(21)
-ss = ss.*tel;
-h = imagesc([ss.catMeanRmPhase;ss.catMeanRmPhase]);
-axis equal tight
-colorbar
 psLayerEst = zeros(sum(cellfun(@(x)sum(x(:)),mask)),1);
 Ha = dmGeom.modes.modes(gridMask(:),:);
 nHa = size(Ha,1);
 % R = Ha'*Ha + 1e-1*speye(dm.nValidActuator);
 % iR = inv(R);
 % Hass = Ha'*Hss;
+tic
 fprintf(' Loop running: %4d:    ',nIteration)
 for kIteration=1:nIteration
     fprintf('\b\b\b\b%4d',kIteration)
@@ -361,7 +366,7 @@ for kIteration=1:nIteration
     % Variance of the atmospheric wavefront
     total(kIteration,:) = var(ss);
     % Propagation to the WFS
-    gs=gs*wfs*dm; 
+    gs=gs*wfs; 
     % Variance of the residual wavefront
     ss = ss*dm;
     residue(kIteration,:) = var(ss);
@@ -381,9 +386,13 @@ for kIteration=1:nIteration
     drawnow
 end
 fprintf('\n')
+sparseTimimg = toc;
 %%
 % Updating the display
 set(0,'CurrentFigure',13)
-hold all
-plot(u,rmsMicron(total),u,rmsMicron(residue))
-legend('Full','Full (theory)','Residue (Poke Matrix)','On-Axis Full','GS#1 Full','On-Axis Residue (Sparse)','GS#1 Residue (Sparse)',0)
+clf(13)
+plot(u,rmsMicron([totalPoke,total]),...
+    u([1,end]),rmsMicron(totalTheory)*ones(1,2),u,rmsMicron([residuePoke,residue]))
+legend('On-Axis Full','GS#1 Full','On-Axis Full (Sparse)','GS#1 Full (Sparse)','Full (theory)',...
+    'On-Axis Residue','GS#1 Residue','On-Axis Residue (Sparse)','GS#1 Residue (Sparse)',...
+    'location','EastOutside')

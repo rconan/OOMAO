@@ -8,7 +8,20 @@ classdef detector < handle
         % Add or not photon noise to the frame
         photonNoise = false;
         % # of photo-electron per pixel rms
-        readOutNoise = 0;
+        readOutNoise;
+        % usually sqrt(2) according to e2v
+        excessNoiseFactor;
+        
+        thermalDarkSignal;
+        % amount photons are multiplied by before read out
+        multiplicationGain;
+        
+        CIC;
+        
+        chargeCapacity;
+        
+        license_checkout_statistics_toolbox;
+        
         % quantum efficiency
         quantumEfficiency = 1;
         % units of one pixel
@@ -39,27 +52,54 @@ classdef detector < handle
         % detector frame
         frame;
     end
-    
+    properties (Dependent,SetObservable=true)
+        totalDarkSignal;
+    end
     properties (Access=private)
         frameHandle;
         log;
+        totalDetectedNoise;
     end
     
     methods
         
         %% Constructor
-        function obj = detector(resolution,pixelScale)
-            error(nargchk(1, 2, nargin))
+        function obj = detector(resolution,varargin)
+            p = inputParser;
+            
+            p.addParamValue('pixelScale', 1, @isnumeric); % units of one pixel
+            p.addParamValue('tag','DETECTOR');
+            p.addParamValue('exposureTime', 1, @isnumeric); % exposure time and frame rate are not coupled now since 
+            p.addParamValue('frameRate', 1, @isnumeric);    % the light exposure time can be shorter than data sample time
+            p.addParamValue('thermalDarkSignal', 0, @isnumeric); % calculated by user
+            p.addParamValue('CIC', 0, @isnumeric);              % Clock Induced Charge
+            p.addParamValue('readOutNoise', 0, @isnumeric);
+            p.addParamValue('multiplicationGain', 1, @isnumeric);
+            p.addParamValue('chargeCapacity', 8*1e5, @isnumeric);
+            p.addParamValue('excessNoiseFactor', sqrt(2), @isnumeric);
+            
+            p.parse(varargin{:});
+            
+            obj.readOutNoise        = p.Results.readOutNoise;
+            obj.excessNoiseFactor   = p.Results.excessNoiseFactor;
+            obj.thermalDarkSignal   = p.Results.thermalDarkSignal;
+            obj.exposureTime        = p.Results.exposureTime;
+            obj.multiplicationGain  = p.Results.multiplicationGain;
+            obj.CIC                 = p.Results.CIC;
+            obj.chargeCapacity      = p.Results.chargeCapacity;
+            obj.frameRate           = p.Results.frameRate;
+            obj.tag                 = p.Results.tag;
+            obj.pixelScale          = p.Results.pixelScale; % pixelScale is moved to a varargin because it was treated as a varargin originally
+            
             if numel(resolution)==1
                 obj.resolution = resolution*ones(1,2);
             else
                 obj.resolution = resolution;
             end
+
             obj.regionOfInterest   = obj.resolution;
             obj.roiSouthWestCorner = [1,1];
-            if nargin>1
-                obj.pixelScale  = pixelScale;
-            end
+            
             % Frame listener
             obj.frameListener = addlistener(obj,'frame','PostSet',...
                 @(src,evnt) obj.imagesc );
@@ -77,6 +117,7 @@ classdef detector < handle
 %                 a.grab;
 %             end
             %             obj.frameRate = 1;
+            obj.license_checkout_statistics_toolbox = license('checkout','statistics_toolbox');
             obj.log = logBook.checkIn(obj);
             display(obj)
         end
@@ -94,7 +135,14 @@ classdef detector < handle
             end
             checkOut(obj.log,obj)
         end
-        
+        %% Calculate Dark Signal
+        function out = get.totalDarkSignal(obj)
+            out = obj.thermalDarkSignal*obj.exposureTime + obj.CIC;
+        end
+        function set.totalDarkSignal(obj,val)
+            fprintf('Can not set Total Dark Signal to %d\n',val)
+            fprintf('Read only function of Thermal Dark Signal, Integration Time and the Clock Induced Charge\n')
+        end
         function display(obj)
             %% DISPLAY Display object information
             %
@@ -215,7 +263,8 @@ classdef detector < handle
             % readOutNoise property is greater than 0
             
 %             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
-            if license('checkout','statistics_toolbox')
+            image(isnan(image)) = 0;
+            if obj.license_checkout_statistics_toolbox
                 if obj.photonNoise
                     image = poissrnd(image);
                 end
@@ -225,15 +274,27 @@ classdef detector < handle
                 end
             else
                 if obj.photonNoise
-                    buffer    = image;
-                    image = image + randn(size(image)).*image;
-                    index     = image<0;
-                    image(index) = buffer(index);
-                    image = obj.quantumEfficiency*image;
+                    %buffer    = image;
+                    %The following is a coarse approximation to a Poisson
+                    %distribution using the absolute value of a Gaussian distribution 
+%                     image = image + randn(size(image)).*sqrt(image)*obj.excessNoiseFactor;% changed image to sqrt(image)
+%                     index = image<0;
+%                     image(index) = abs(image(index));%buffer(index);
+                    image = randp(image);           % Poisson noise from photons
+                    for k = 2:round(obj.excessNoiseFactor^2)
+                        image = randp(image);       % Poisson noise from electrons and any other stages 
+                    end
+                    %image = obj.quantumEfficiency*image; Commented this
+                    %because it is done again outside the 'if' statement
                 end
                 image = obj.quantumEfficiency*image;
+                if obj.totalDarkSignal > 0
+                    image = image + randn(size(image))*sqrt(obj.totalDarkSignal)*obj.excessNoiseFactor;
+                end
                 if obj.readOutNoise>0
-                    image = image + randn(size(image)).*obj.readOutNoise;
+                    image = image*obj.multiplicationGain + randn(size(image)).*obj.readOutNoise;
+                    image(image > obj.chargeCapacity/obj.frameRate) = obj.chargeCapacity/obj.frameRate; %detector can saturate
+                    image = image/obj.multiplicationGain;
                 end
             end
             obj.frame = image;
