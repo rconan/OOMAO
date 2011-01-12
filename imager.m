@@ -56,43 +56,17 @@ classdef imager < detector
             %% RELAY source propagation
             
             relay(obj.imgLens,src)
-            if src.timeStamp>=obj.startDelay
+            if all([src.timeStamp]>=obj.startDelay)
                 if obj.frameCount==0
                     disp(' @(detector:relay)> starting imager integration!')
                 end
                 obj.startDelay = -Inf;
                 obj.frameCount = obj.frameCount + 1;
-                obj.frameBuffer = obj.frameBuffer + src.intensity;
+                obj.frameBuffer = obj.frameBuffer + cat(2,src.intensity);
                 if src.timeStamp>=obj.exposureTime
                     src.timeStamp = 0;
                     flush(obj,src);
-%                     disp(' @(detector:relay)> reading out and emptying buffer!')
-%                     readOut(obj,obj.frameBuffer)
-%                     obj.frameBuffer = 0*obj.frameBuffer;
-%                     if ~isempty(obj.referenceFrame)
-%                         obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize*2;
-%                         src_ = source.*obj.referenceFrame*obj.imgLens;
-%                         otf =  src_.amplitude;
-%                         src_ = src_.*(obj.frame/obj.frameCount)*obj.imgLens;
-%                         obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize/2;
-%                         otfAO =  src_.amplitude;
-% %                         figure, imagesc(real(otfAO)/max(otfAO(:)))
-%                         % strehl ratio
-%                         obj.strehl = sum(otfAO(:))/sum(otf(:));
-%                         % entrapped energy
-%                         a      = (obj.eeWidth/(src.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;
-%                         nOtf   = length(otfAO);
-%                         u      = linspace(-1,1,nOtf).*obj.tel.D;
-%                         [x,y]  = meshgrid(u);
-%                         eeFilter ...
-%                                = a^2*(sin(pi.*x.*a)./(pi.*x.*a)).*...
-%                             (sin(pi.*y.*a)./(pi.*y.*a));
-%                         otfAO = otfAO/max(otfAO(:));
-%                         obj.ee = real(trapz(u,trapz(u,otfAO.*eeFilter)));
-%                     end
-%                 obj.frameCount = 0;
                 end
-%                 disp(obj.frameCount)
             end
         end
         

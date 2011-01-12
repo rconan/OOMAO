@@ -280,13 +280,15 @@ classdef lens < handle
 %             wavePrgted = wavePrgted.*conj(wavePrgted);
             % and back to input wave array shape
             [n,m] = size(wavePrgted);
-            wavePrgted = reshape(wavePrgted,[n,m/nWave,nWave]);
+            wavePrgted = reshape(wavePrgted,n,n,[]);
 %             if obj.sumStack
 %                 wavePrgted = sum(wavePrgted,3);
 %             end
             src = resetAmplitudeAndPhase(src);
-            src.amplitude = abs(wavePrgted);
-            src.phase     = angle(wavePrgted);
+            for kSrc = 1:length(src)
+            src(kSrc).amplitude = abs(wavePrgted(:,:,kSrc));
+            src(kSrc).phase     = angle(wavePrgted(:,:,kSrc));
+            end
 %             obj.imagelets = wavePrgted*obj.throughput;
         end
         
