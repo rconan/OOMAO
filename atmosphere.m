@@ -98,7 +98,7 @@ classdef atmosphere < hgsetget
         %% Constructor
         function obj = atmosphere(lambda,r0,varargin)
             p = inputParser;
-            p.addRequired('wavelength', @isnumeric);
+            p.addRequired('wavelength', @(x) isnumeric(x) || isa(x,'photometry') );
             p.addRequired('r0', @isnumeric);
             p.addOptional('L0', Inf, @isnumeric);
             p.addParamValue('altitude', 0, @isnumeric);
@@ -107,7 +107,11 @@ classdef atmosphere < hgsetget
             p.addParamValue('windDirection', [], @isnumeric);
             p.addParamValue('logging', true, @islogical);
             p.parse(lambda,r0, varargin{:});
-            obj.p_wavelength = p.Results.wavelength;
+            if isa(p.Results.wavelength,'photometry')
+                obj.p_wavelength = p.Results.wavelength.wavelength;
+            else
+                obj.p_wavelength = p.Results.wavelength;
+            end
             obj.r0 = p.Results.r0;
             obj.L0 = p.Results.L0;
             obj.nLayer = length(p.Results.altitude);
@@ -197,6 +201,9 @@ classdef atmosphere < hgsetget
             val = obj.p_wavelength;
         end
         function set.wavelength(obj,val)
+            if isa(val,'photometry')
+                val = val.wavelength;
+            end
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
             obj.p_wavelength = val;
         end
