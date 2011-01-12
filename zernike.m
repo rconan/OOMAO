@@ -230,13 +230,18 @@ classdef zernike < telescopeAbstract
                 obj = obj - 1;
             else
                 if isa(val,'source')
-                    phaseMap = val.phase/val.waveNumber;
+                    nVal = length(val);
+                    phaseMap = zeros(length(val(1).phase(:)),nVal);
+                    for kVal=1:nVal
+                        phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+                    end
                 else
                     phaseMap = val;
                 end
                 if size(obj.p_p,1)==size(phaseMap,1)
                     obj.c = obj.p_p\phaseMap;
                 else
+                    size(phaseMap)
                     obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
                 end
             end
@@ -283,9 +288,20 @@ classdef zernike < telescopeAbstract
             % relay(obj,srcs) writes the zernike amplitude and phase into
             % the properties of the source object(s)
             
-            src.mask      = obj.pupilLogical;
-            src.amplitude = obj.pupil;
-            src.phase     = utilities.toggleFrame(obj.p_p*obj.c*src.waveNumber,3);
+            nSrc = length(src);
+            nC   = size(obj.c,2);
+            for kSrc=1:nSrc
+                src(kSrc).mask      = obj.pupilLogical;
+                src(kSrc).amplitude = obj.pupil;
+                switch nC
+                    case 1
+                        src(kSrc).phase     = utilities.toggleFrame(obj.p_p*obj.c*src(kSrc).waveNumber,3);
+                    case nSrc
+                        src(kSrc).phase     = utilities.toggleFrame(obj.p_p*obj.c(:,kSrc)*src(kSrc).waveNumber,3);
+                    otherwise
+                        error('oomao:zernike:relay','Mismatch between # of sources and # of coefs vector!')
+                end
+            end
         end
         
         function out = fourier(obj,f,o)

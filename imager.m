@@ -45,11 +45,15 @@ classdef imager < detector
                 error('oomao:imager','Inputer is either numeric or a telescope class')
             end
             obj = obj@detector(resolution);
-            if isa(in,'telescope')
+            if isa(in,'telescopeAbstract')
                 obj.tel = in;
                 obj.exposureTime = in.samplingTime;
             end
             obj.imgLens = lens;
+            % Frame listener
+            obj.frameListener = addlistener(obj,'frameBuffer','PostSet',...
+                @(src,evnt) obj.imagesc );
+            obj.frameListener.Enabled = false;
         end
         
         function relay(obj,src)
@@ -73,7 +77,7 @@ classdef imager < detector
         function flush(obj,src)
             fprintf(' @(detector:relay)> reading out and emptying buffer (%d frames)!\n',obj.frameCount)
             readOut(obj,obj.frameBuffer)
-            obj.frameBuffer = 0*obj.frameBuffer;
+            obj.frameBuffer = 0;%*obj.frameBuffer;
             if ~isempty(obj.referenceFrame)
                 obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize*2;
                 src_ = source.*obj.referenceFrame*obj.imgLens;
@@ -85,6 +89,7 @@ classdef imager < detector
                 % strehl ratio
                 obj.strehl = sum(otfAO(:))/sum(otf(:));
                 % entrapped energy
+                obj.tel
                 a      = (obj.eeWidth/(src.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;
                 nOtf   = length(otfAO);
                 u      = linspace(-1,1,nOtf).*obj.tel.D;
@@ -97,6 +102,37 @@ classdef imager < detector
             end
             obj.frameCount = 0;
         end
+        
+        function imagesc(obj,varargin)
+            %% IMAGESC Display the detector frame
+            %
+            % imagesc(obj) displays the frame of the detector object
+            %
+            % imagesc(obj,'PropertyName',PropertyValue) displays the frame of
+            % the detector object and set the properties of the graphics object
+            % imagesc
+            %
+            % h = imagesc(obj,...) returns the graphics handle
+            %
+            % See also: imagesc
+            
+            disp('Got it')
+            if ishandle(obj.frameHandle)
+                set(obj.frameHandle,'Cdata',obj.frameBuffer,varargin{:});
+                %                 xAxisLim = [0,size(obj.frame,2)]+0.5;
+                %                 yAxisLim = [0,size(obj.frame,1)]+0.5;
+                %                 set( get(obj.frameHandle,'parent') , ...
+                %                     'xlim',xAxisLim,'ylim',yAxisLim);
+            else
+                obj.frameHandle = image(obj.frameBuffer,...
+                    'CDataMApping','Scaled',...
+                    varargin{:});
+                colormap(pink)
+                axis xy equal tight
+                colorbar('location','SouthOutside')
+            end
+        end
+
    
     end
 

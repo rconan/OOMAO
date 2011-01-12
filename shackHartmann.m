@@ -87,6 +87,8 @@ classdef shackHartmann < hgsetget
         lensletCenterX;
         lensletCenterY;
         log;
+        quadCellX = [1 ;  1 ; -1 ; -1];
+        quadCellY = [1 ; -1 ;  1 ; -1];
     end
     
     methods
@@ -96,6 +98,10 @@ classdef shackHartmann < hgsetget
             error(nargchk(1, 4, nargin))
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
+            if detectorResolution==2
+                obj.quadCell = true;
+                obj.centroiding = false;
+            end
             obj.lenslets.nLensletWavePx = ...
                 detectorResolution/nLenslet;
             if nargin>2
@@ -354,6 +360,21 @@ classdef shackHartmann < hgsetget
             end
             % Centroiding
             if obj.quadCell
+                massLenslet ...
+                        = sum(buffer)';
+                xBuffer = buffer'*obj.quadCellX./massLenslet;
+                yBuffer = buffer'*obj.quadCellY./massLenslet;
+                sBuffer ...
+                        = bsxfun(@minus,[xBuffer yBuffer]',obj.referenceSlopes).*obj.slopesUnits;
+                index = isnan(sBuffer);
+                if any(index(:)) % if all pixels threshold
+                    warning('OOMAO:shackHartmann:dataProcessing',...
+                        'Threshold (%f) is probably too high or simply there is no light on some of the lenslets',obj.framePixelThreshold)
+                    if ~isempty(obj.slopes) && all(size(sBuffer)==size(obj.slopes))
+                        sBuffer(index) = obj.slopes(index);
+                    end
+                end
+                obj.slopes = sBuffer;
             elseif obj.centroiding
                 massLenslet         = sum(buffer);
                 %                 massLenslet(~index) = [];

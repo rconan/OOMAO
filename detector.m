@@ -40,7 +40,7 @@ classdef detector < handle
         frame;
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         frameHandle;
         log;
     end
@@ -215,6 +215,12 @@ classdef detector < handle
             % readOutNoise property is greater than 0
             
 %             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
+            [n,m,k] = size(image);
+            if any(n>obj.resolution(1))                
+%                 disp('Binning')
+                image = utilities.binning(image,obj.resolution);
+            end
+            
             if license('checkout','statistics_toolbox')
                 if obj.photonNoise
                     image = poissrnd(image);
