@@ -384,10 +384,12 @@ classdef phaseStats
             inputs.addRequired('atm',@(x) isa(x,'atmosphere'));
             inputs.addRequired('srcAC',@(x) isa(x,'source'));
             inputs.addOptional('srcCC',[],@(x) isa(x,'source'));
+            inputs.addOptional('tipTilt',false,@islogical);
             inputs.addParamValue('mask',true(sampling),@islogical);
             inputs.parse(sampling,range,atm,srcAC,varargin{:});
             
             m_srcCC = inputs.Results.srcCC;
+            tipTilt = inputs.Results.tipTilt;
             m_mask  = inputs.Results.mask;
             
             [m_x,m_y] = meshgrid( linspace(-1,1,sampling)*range/2 );
@@ -398,6 +400,9 @@ classdef phaseStats
                 L0r0ratio;
             m_cstL0 = (24.*gamma(6./5)./5).^(5./6).*...
                 (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
+            m_cstr0 = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
             m_L0      = atm.L0;
             
             m_nLayer   = atm.nLayer;
@@ -429,14 +434,74 @@ classdef phaseStats
                     
                 else
                     
-                    varargout{1} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
-                        m_nGs,m_srcACdirectionVector,m_srcACheight,...
-                        m_nLayer,m_altitude,m_fr0,...
-                        m_L0,m_cstL0,m_cst);
+                    if tipTilt
+                        varargout{1} = crossCorrelationTT(m_srcCC,m_x,m_y,m_mask,...
+                            m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                            m_nLayer,m_altitude,m_fr0,...
+                            m_L0,m_cstr0,range);
+                    else
+                        varargout{1} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
+                            m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                            m_nLayer,m_altitude,m_fr0,...
+                            m_L0,m_cstL0,m_cst);
+                    end
                     
                 end
                 
             end
+            
+            function C = crossCorrelationTT(srcTT,x,y,mask,...
+                    nGs,srcACdirectionVector,srcACheight,...
+                    nLayer,altitude,fr0,...
+                    L0,cstr0,D)
+                    
+                fprintf(' -->> Cross-correlation meta-matrix (phase/tip-tilt)!\n')
+                
+                nSs = length(srcTT);
+                srcTTdirectionVector = cat(2,srcTT.directionVector);
+                C = cellfun( @(x) zeros(sum(mask(:))) , cell(nSs,nGs) , 'UniformOutput' , false );
+                x = x(mask);
+                y = y(mask);
+                f02 = 1./L0.^2;
+                
+                parfor k=1:nSs*nGs
+                    
+                    [kSs,iGs] = ind2sub([nSs,nGs],k);
+                    buf = 0;
+                    
+                    for kLayer=1:nLayer
+                        
+                        beta = srcACdirectionVector(:,iGs)*altitude(kLayer);
+                        scale = 1 - altitude(kLayer)/srcACheight(iGs);
+                        iZ = complex( x*scale + beta(1) , y*scale + beta(2) );
+                        
+                        betaTt = srcTTdirectionVector(:,kSs)*altitude(kLayer);
+                        zTt = iZ.' - complex(betaTt(1),betaTt(2));
+                        rTt = abs(zTt);
+                        oTt = angle(zTt);
+                        
+                        Inm = @(r) quadgk( @(f) (f.^2 + f02).^(-11./6).*...
+                            besselj(2,pi.*f.*D).*...
+                            besselj(1,2.*pi.*f.*r),0,Inf);
+                        out = fr0(kLayer)*cstr0.*arrayfun(Inm,rTt).*8/D/scale;
+
+                        buf = buf + ...
+                            [ out.*cos(oTt) ; out.*sin(oTt) ];
+                        
+                    end
+                    
+                    C{k} = buf;
+                    
+                end
+                
+                    buf = C;
+                    C = cell(nSs,1);
+                    for k=1:nSs
+                        C{k} = cell2mat(buf(k,:));
+                    end
+                
+            end
+            
             
             function C = crossCorrelation(srcCC,x,y,mask,...
                     nGs,srcACdirectionVector,srcACheight,...
@@ -483,7 +548,11 @@ classdef phaseStats
                     
                 end
                 
-                C = cell2mat(C);
+                    buf = C;
+                    C = cell(nSs,1);
+                    for k=1:nSs
+                        C{k} = cell2mat(buf(k,:));
+                    end
                 
             end
             
