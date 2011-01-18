@@ -90,7 +90,7 @@ classdef zernike < telescopeAbstract
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('radius', [], @isnumeric);
             p.addParamValue('angle', [], @isnumeric);
-            p.addParamValue('pupil', [], @isnumeric);
+            p.addParamValue('pupil', [], @(x) isnumeric(x) || islogical(x));
             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
             p.addParamValue('unitNorm', false, @islogical);
             p.addParamValue('logging', true, @islogical);
@@ -113,8 +113,8 @@ classdef zernike < telescopeAbstract
             end
             obj.p_p = polynomials(obj,p.Results.unitNorm);
             obj.c = ones(length(obj.j),1);
-            if p.Results.logging
-                obj.log = logBook.checkIn(obj);
+            obj.log = logBook.checkIn(obj);
+            if obj.log.writable
                 display(obj)
             end
         end

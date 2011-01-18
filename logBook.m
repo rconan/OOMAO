@@ -5,7 +5,8 @@ classdef (Sealed) logBook < handle
         nLogs = 1000;
         queue;
         queueIndex;
-        nCougarObj = 0; 
+        nObj = 0; 
+        writable   = true;
     end
    
     properties (SetAccess=private)
@@ -70,8 +71,8 @@ classdef (Sealed) logBook < handle
             if obj.verbose
                 add(obj,src,'Terminated!')
             end
-            obj.nCougarObj = obj.nCougarObj - 1;
-            if obj.nCougarObj==0
+            obj.nObj = obj.nObj - 1;
+            if obj.nObj==0
                 wait(obj.queue)
                 delete(obj)
                 fprintf(' @(logBook)> Closing the log book!\n')
@@ -91,15 +92,25 @@ classdef (Sealed) logBook < handle
                 localObj = logBook;
             end
             obj = localObj;
-            if nargin>0 %&& isvalid(src)
+            if nargin>0 && obj.writable%&& isvalid(src)
                 nSrc = numel(src);
-                obj.nCougarObj = obj.nCougarObj + nSrc;
+                obj.nObj = obj.nObj + nSrc;
                 if nSrc>1
                     add(obj,src(1),sprintf('%d created!',nSrc))
                 else
                     add(obj,src,'Created!')
                 end
             end
+        end
+        
+        function PAUSE
+            log = logBook.checkIn;
+            log.writable = false;
+        end
+        
+        function RESUME
+            log = logBook.checkIn;
+            log.writable = true;
         end
       
 %         function add(fromObj,info)
