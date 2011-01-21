@@ -218,7 +218,7 @@ classdef detector < handle
             [n,m,k] = size(image);
             if any(n>obj.resolution(1))                
 %                 disp('Binning')
-                image = utilities.binning(image,obj.resolution);
+               image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
             
             if license('checkout','statistics_toolbox')
