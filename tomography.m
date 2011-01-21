@@ -2,6 +2,8 @@ classdef tomography < handle
     %% TOMOGRAPHY Create a tomography object
     %
     % tomo = tomography(sampling,diameter,atmModel,guideStar)
+    % tomo = tomography(sampling,diameter,atmModel,guideStar,tomoStar)
+    % tomo = tomography(...,'pupil',pupilMask,'unit',unit)
     
     properties
         tag = 'TOMOGRAPHY';
@@ -39,6 +41,8 @@ classdef tomography < handle
         Z
         % zernike covariance matrix
         Caa
+        % Tomographic reconstructor
+        tomoBuilder
     end
     
     properties (Dependent)
@@ -96,6 +100,12 @@ classdef tomography < handle
             
             add(obj.log,obj,'Computing the covariance matrices')
             
+            poolWasAlreadyOpen = true;
+            if matlabpool('size')==0
+                matlabpool('open')
+                poolWasAlreadyOpen = false;
+            end
+            
             [obj.Cxx,obj.Cox] = ...
                 phaseStats.spatioAngularCovarianceMatrix(...
                 obj.sampling,obj.diameter,...
@@ -115,6 +125,20 @@ classdef tomography < handle
                 zern    = zernike(2:3,obj.tipTiltDiameter,'resolution',obj.sampling,'pupil',obj.pupil);
                 obj.Z   = zern.p(obj.pupil,:);
                 obj.Caa = phaseStats.zernikeAngularCovariance(zern,obj.atmModel,obj.guideStar);
+            end
+            
+            add(obj.log,obj,'Computing the tomographic builder')
+            
+            m_tomoBuilder = cell(obj.nTomoStar,1);
+            m_Cox = obj.Cox;
+            m_Cxx = obj.Cxx;
+            parfor k=1:obj.nTomoStar
+                m_tomoBuilder{k} = m_Cox{k}/m_Cxx;
+            end
+            obj.tomoBuilder = m_tomoBuilder;
+            
+            if ~poolWasAlreadyOpen 
+                matlabpool('close')
             end
             
         end
@@ -151,8 +175,8 @@ classdef tomography < handle
                 obj.Bmse = { m_Bmse + term1 + term1' + term2 };
             else
                 if nargin==1
-                    fun = @(x) obj.Coo - x/obj.Cxx*x';
-                    obj.Bmse = cellfun( fun , obj.Cox , 'uniformOutput' , false );
+                    fun = @(x,y) obj.Coo - y*x';
+                    obj.Bmse = cellfun( fun , obj.Cox , obj.tomoBuilder , 'uniformOutput' , false );
                 else
                     Co1x = ...
                         phaseStats.spatioAngularCovarianceMatrix(...

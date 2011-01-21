@@ -654,7 +654,36 @@ classdef phaseStats
             
             
         end
-        
+
+        function out = upwardJitter(L,D,atm,zSrc)
+            %% UPWARDJITTER Upward propagated beam motion
+            %
+            % varJit = upwardJitter(L,D,atm) computes the variance of the
+            % upward propagated beam motion at a target at distance L from
+            % source, the beam is lauched from a telescope of diameter D
+            % and is propagated through the atmosphere object atm
+            %
+            % varJit = upwardJitter(L,D,atm,zSrc) computes the variance of
+            % the upward propagated beam motion at a target at distance L
+            % from source at zSrc, the beam is lauched from a telescope of
+            % diameter D and is propagated through the atmosphere object
+            % atm
+            
+            if nargin<4
+                zSrc = L;
+            end
+            k0  = 2*pi/atm.wavelength;
+            fun = @(f,z,atmSlab) f.*phaseStats.spectrum(f,atmSlab).*...
+                (L-z).^2.*...
+                (16/(k0.*(1-z./zSrc).*D)).^2.*...
+                (besselj(2,2*pi*f*(1-z./zSrc)*D/2)./(2*pi*f*(1-z./zSrc)*D/2)).^2;
+            out = 0;
+            for kLayer=1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                z = atmSlab.layer.altitude;
+                out = out + 2.*pi.*quadgk( @(x) fun(x,z,atmSlab) , 0 , Inf);
+            end
+        end
         function out = zernikeVariance(zern,atm)
             %% ZERNIKEVARIANCE Zernike coefficients variance
             %
