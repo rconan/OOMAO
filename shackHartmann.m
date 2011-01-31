@@ -49,6 +49,8 @@ classdef shackHartmann < hgsetget
         zern2slopes;
         % wavefront sensor tag
         tag = 'SHACK-HARTMANN';
+        % if true the mean of the slopes are removed
+        rmMeanSlopes = false;
     end
     
     properties (SetObservable=true)
@@ -89,6 +91,7 @@ classdef shackHartmann < hgsetget
         log;
         quadCellX = [1 ;  1 ; -1 ; -1];
         quadCellY = [1 ; -1 ;  1 ; -1];
+        meanProjection;
     end
     
     methods
@@ -205,6 +208,9 @@ classdef shackHartmann < hgsetget
             index = ~[obj.p_validLenslet(:);obj.p_validLenslet(:)];
             obj.p_referenceSlopes(index) = [];
             obj.slopes(index) = [];
+            obj.meanProjection = [ ...
+                ones(obj.nValidLenslet,1)  zeros(obj.nValidLenslet,1)
+                zeros(obj.nValidLenslet,1) ones(obj.nValidLenslet,1) ];
         end
         
         %% Get number of valid lenslet
@@ -407,6 +413,11 @@ classdef shackHartmann < hgsetget
             elseif obj.matchedFilter
             elseif obj.correlation
             end
+            
+            if obj.rmMeanSlopes % remove mean slopes
+                obj.slopes = obj.slopes - obj.meanProjection*(obj.meanProjection'*obj.slopes)/obj.nValidLenslet;
+            end
+            
             if nargout>0
                 varargout{1} = obj.slopes;
             end

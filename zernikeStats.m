@@ -807,15 +807,19 @@ classdef zernikeStats
             end
         end
         
-        function out = anisokinetism(tel,atm,src)
+        function out = anisokinetism(zern,atm,src)
             %% ANISOKINETISM
             
 %             logBook.PAUSE;
+            persistent onAxisNgs
+            if isempty(onAxisNgs)
+                onAxisNgs = source;
+            end
             
-            zern = zernike(2:3,tel.D);
+%             zern = zernike(2:3,tel.D);
             ai  = zernikeStats.variance(zern,atm);
             out = sum(ai);
-            aiaj = zernikeStats.angularCovariance(zern,atm,[src,source]);
+            aiaj = zernikeStats.angularCovariance(zern,atm,[src,onAxisNgs]);
             out  = 2*(out - sum(aiaj(:)));
             
 %             logBook.RESUME;

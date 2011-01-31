@@ -1,5 +1,5 @@
 classdef deformableMirror < handle
-    % Create a deformableMirror object
+    % DEFORMABLEMIRROR Create a deformableMirror object
     %
     % dm = deformableMirror(nActuator,'modes',ifObject) creates a
     % deformableMirror object from the number of actuator across the mirror

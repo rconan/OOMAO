@@ -106,6 +106,7 @@ classdef atmosphere < hgsetget
             p.addParamValue('windSpeed', [], @isnumeric);
             p.addParamValue('windDirection', [], @isnumeric);
             p.addParamValue('logging', true, @islogical);
+            p.addParamValue('randStream', [], @(x) isempty(x) || isa(x,'RandStream') );
             p.parse(lambda,r0, varargin{:});
             if isa(p.Results.wavelength,'photometry')
                 obj.p_wavelength = p.Results.wavelength.wavelength;
@@ -130,7 +131,11 @@ classdef atmosphere < hgsetget
                 obj.p_log = logBook.checkIn(obj);
                 display(obj);
             end
-            obj.rngStream = RandStream('mt19937ar');
+            if isempty(p.Results.randStream)
+                obj.rngStream = RandStream('mt19937ar');
+            else
+                obj.rngStream = p.Results.randStream;
+            end
             obj.initState = obj.rngStream.State;
         end
         
@@ -150,6 +155,7 @@ classdef atmosphere < hgsetget
                 obj.wavelength,...
                 obj.r0,...
                 obj.L0,...
+                'randStream',obj.rngStream,...
                 'logging',false);
             newObj.layer = obj.layer(layerIndex);
         end
@@ -205,6 +211,13 @@ classdef atmosphere < hgsetget
                 val = val.wavelength;
             end
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
+            for kLayer=1:obj.nLayer
+                if ~isempty(obj.layer(kLayer).phase)
+                    add(obj.p_log,obj,'Scaling wavefront!')
+                    obj.layer(kLayer).phase = ...
+                        obj.layer(kLayer).phase*obj.wavelength/val;
+                end
+            end
             obj.p_wavelength = val;
         end
         
