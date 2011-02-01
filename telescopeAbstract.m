@@ -565,6 +565,9 @@ classdef telescopeAbstract < handle
                 if isempty(obj.atm.layer(kLayer).phase)
                     D_m = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
                     nPixel = 1 + round(D_m./do);
+                    while do*(nPixel-1)<D_m
+                        nPixel = nPixel + 1;
+                    end
                     D_m = do*(nPixel-1);
                     obj.atm.layer(kLayer).D = D_m;
 %                     nPixel = round(1 + (obj.resolution-1)*D./Do);
