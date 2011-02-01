@@ -16,6 +16,10 @@ classdef stochasticWave < handle
         image
         % integratedImage
         cumImage=0;
+        % phase variance buffer
+        phaseVar;
+        % logging flag
+        logging = false;
     end
     
     properties (Dependent)
@@ -38,7 +42,7 @@ classdef stochasticWave < handle
     
     properties (Access=private)
         p_bufSeq;
-        bufferLength = 1000;
+        bufferLength = 10000;
         kBufSeq;
     end
     properties (Access=protected)
@@ -79,22 +83,34 @@ classdef stochasticWave < handle
         end
         function set.phase(obj,val)
             obj.p_phase = bsxfun( @plus, obj.p_phase , val);
-            if ~isempty(obj.p_bufSeq)
-                if obj.p_bufSeq(obj.kBufSeq)
-                    obj.nSample = obj.nSample + 1;
-                    obj.samples(obj.nSample) = std(obj);
+            if obj.logging
+                buf = stats(obj,@var);
+                if isempty(obj.phaseVar)
+                    obj.phaseVar = zeros(obj.bufferLength,length(buf));
+                    obj.kBufSeq = 0;
+                end
+                if length(buf)>size(obj.phaseVar,2)
+                    obj.phaseVar = repmat( obj.phaseVar , 1 , length(buf));
                 end
                 obj.kBufSeq = obj.kBufSeq + 1;
-                if obj.kBufSeq>length(obj.p_bufSeq)
-                    obj.kBufSeq = 1;
-                end
+                obj.phaseVar(obj.kBufSeq,:) = buf;
             end
-            if obj.saveImage
-                a = obj.wave;
-                [n,m] = size(a);
-                obj.image = abs( fft2( a , 2*n , 2*m ) ).^2;
-                obj.cumImage = obj.cumImage + obj.image;
-            end
+%             if ~isempty(obj.p_bufSeq)
+%                 if obj.p_bufSeq(obj.kBufSeq)
+%                     obj.nSample = obj.nSample + 1;
+%                     obj.samples(obj.nSample) = std(obj);
+%                 end
+%                 obj.kBufSeq = obj.kBufSeq + 1;
+%                 if obj.kBufSeq>length(obj.p_bufSeq)
+%                     obj.kBufSeq = 1;
+%                 end
+%             end
+%             if obj.saveImage
+%                 a = obj.wave;
+%                 [n,m] = size(a);
+%                 obj.image = abs( fft2( a , 2*n , 2*m ) ).^2;
+%                 obj.cumImage = obj.cumImage + obj.image;
+%             end
         end
         
         %% Get the wave
@@ -216,13 +232,14 @@ classdef stochasticWave < handle
                     disp(' @(stochasticWave)> Setting the mask!')
                     obj.mask = ones(size(obj.amplitude));
                 end
-                k = 1;
-                if obj.stochasticAmplitude
-                    out(k) = fun(obj.amplitude(obj.mask));
-                    k = k+1;
-                end
+%                 k = 1;
+%                 if obj.stochasticAmplitude
+%                     out(k) = fun(obj.amplitude(obj.mask));
+%                     k = k+1;
+%                 end
                 if obj.stochasticPhase
-                    out(k) = fun(obj.phase(obj.mask));
+                    buf = utilities.toggleFrame(obj.phase,2);
+                    out = fun(buf(obj.mask,:));
                 end
             end
         end

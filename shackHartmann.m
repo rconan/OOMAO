@@ -51,6 +51,8 @@ classdef shackHartmann < hgsetget
         tag = 'SHACK-HARTMANN';
         % if true the mean of the slopes are removed
         rmMeanSlopes = false;
+        % mean slopes
+        meanSlopes;
     end
     
     properties (SetObservable=true)
@@ -409,13 +411,16 @@ classdef shackHartmann < hgsetget
                         sBuffer(index) = obj.slopes(index);
                     end
                 end
-                obj.slopes = sBuffer;
+%                 obj.slopes = sBuffer;
             elseif obj.matchedFilter
             elseif obj.correlation
             end
             
             if obj.rmMeanSlopes % remove mean slopes
-                obj.slopes = obj.slopes - obj.meanProjection*(obj.meanProjection'*obj.slopes)/obj.nValidLenslet;
+                obj.meanSlopes = (obj.meanProjection'*sBuffer)/obj.nValidLenslet;
+                obj.slopes = sBuffer - obj.meanProjection*obj.meanSlopes;
+            else
+                obj.slopes = sBuffer;
             end
             
             if nargout>0
