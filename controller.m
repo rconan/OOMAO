@@ -121,15 +121,15 @@ classdef controller < handle
             if isempty(obj.tipTiltCompensator)
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoop);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM and 1 WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 WFS!')
             elseif isempty(obj.tipTiltSensor)
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoopWithtTipTiltComp);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM, 1 TT mirror and 1 WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 TT mirror\n . 1 WFS!')
             else
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoopWithtTipTiltSensComp);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM, 1 TT mirror, 1 WFS and 1 TT WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 TT mirror,\n . 1 WFS,\n . 1 TT WFS!')
             end
             obj.sensorListener.Enabled = false;
             
@@ -142,6 +142,7 @@ classdef controller < handle
             % calibration(ctrlr,gs.*tel,nTrunc)
             
             if isempty(obj.D)
+                add(obj.log,obj,'Computing the poke matrix')
                 dm = obj.compensator;
                 wfs = obj.sensor;
                 buf = dm.coefs;

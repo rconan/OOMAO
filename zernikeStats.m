@@ -96,13 +96,6 @@ classdef zernikeStats
                 else
                     out = 0;
                 end
-                function out = newGamma(a,b)
-                    % NEWGAMMA Computes the function defined by Eq.(1.18) in R.J. Sasiela's book :
-                    % Electromagnetic Wave Propagation in Turbulence, Springer-Verlag.
-                    % out = newGamma(a,b)
-                    
-                    out = prod(gamma(a))./prod(gamma(b));
-                end
                 function out = UnParamEx4q2(mu,alpha,beta,p,a)
                     % UNPARAMEX4Q2 Computes the integral given by the Eq.(2.33) of the thesis
                     % of R. Conan (Modelisation des effets de l'echelle externe de coherence
@@ -810,17 +803,46 @@ classdef zernikeStats
         function out = anisokinetism(zern,atm,src)
             %% ANISOKINETISM
             
-%             logBook.PAUSE;
-            persistent onAxisNgs
-            if isempty(onAxisNgs)
-                onAxisNgs = source;
-            end
+            integral = true;
             
-%             zern = zernike(2:3,tel.D);
-            ai  = zernikeStats.variance(zern,atm);
-            out = sum(ai);
-            aiaj = zernikeStats.angularCovariance(zern,atm,[src,onAxisNgs]);
-            out  = 2*(out - sum(aiaj(:)));
+            if ~integral
+                
+                logBook.PAUSE;
+                
+                persistent onAxisNgs
+                if isempty(onAxisNgs)
+                    onAxisNgs = source;
+                end
+                
+                %             zern = zernike(2:3,tel.D);
+                ai  = zernikeStats.variance(zern,atm);
+                out = sum(ai);
+                aiaj = zernikeStats.angularCovariance(zern,atm,[src,onAxisNgs]);
+                out  = 2*(out - sum(aiaj(:)));
+                
+            else
+                
+                theta = tan(src.zenith);
+                D = zern.D;
+                out = 0;
+                
+                for kLayer=1:atm.nLayer
+                    
+                    atmSlab = slab(atm,kLayer);
+                    z = atmSlab.layer.altitude;
+                    thetaZ = theta.*z;
+                    
+                    fun = @(f) f.*phaseStats.spectrum(f,atm).*...
+                        (besselj(2,pi.*D.*f)./(pi.*D.*f)).^2.*...
+                        (1-besselj(0,2.*pi*f*thetaZ));
+                    
+                    out = out + quadgk(fun,0,Inf);
+                    
+                end
+                
+                out = 4*pi*(16/D)^2*out;
+                
+            end
             
 %             logBook.RESUME;
             
@@ -1232,4 +1254,11 @@ function out = radialOrder(zi)
 end
 function out = azimuthFrequency(zi,ni)
     out = abs((ni - 2*( zi - (ni+1).*ni/2 -1 )));
+end
+function out = newGamma(a,b)
+% NEWGAMMA Computes the function defined by Eq.(1.18) in R.J. Sasiela's book :
+% Electromagnetic Wave Propagation in Turbulence, Springer-Verlag.
+% out = newGamma(a,b)
+
+out = prod(gamma(a))./prod(gamma(b));
 end
