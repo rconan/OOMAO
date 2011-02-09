@@ -143,12 +143,39 @@ classdef controller < handle
             
             if isempty(obj.D)
                 add(obj.log,obj,'Computing the poke matrix')
+                
                 dm = obj.compensator;
                 wfs = obj.sensor;
+
+                fprintf(' ___ CALIBRATION ___\n')
+                calibDmCommands = speye(dm.nValidActuator)*gs.wavelength/4;
+                if dm.nValidActuator>1000
+                    steps           = 40;
+                else
+                    steps = 1;
+                end
+                
+                nC              = floor(dm.nValidActuator/steps);
+                u               = 0;
+                obj.D           = zeros(wfs.nSlope,dm.nValidActuator);
+                gs  = gs*dm*wfs;
                 buf = dm.coefs;
-                dm.coefs = eye(dm.nValidActuator)*gs.wavelength/4;
-                gs = gs*dm*wfs;
-                obj.D = wfs.slopes/(gs.wavelength/4);
+                
+                fprintf(' . actuators range:          ')
+                while u(end)<dm.nValidActuator
+                    u = u(end)+1:min(u(end)+nC,dm.nValidActuator);
+                    fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
+                    dm.coefs = calibDmCommands(:,u);
+                    +gs;
+                    obj.D(:,u) = wfs.slopes/(gs.wavelength/4);
+                end
+                fprintf('\n--------------------\n')
+
+    
+%                 dm.coefs = eye(dm.nValidActuator)*gs.wavelength/4;
+%                 gs = gs*dm*wfs;
+%                 obj.D = wfs.slopes/(gs.wavelength/4);
+                
                 dm.coefs = buf;
                 gs = gs.*gs.opticalPath{1};
                 

@@ -199,13 +199,22 @@ classdef zernike < telescopeAbstract
             obj.p_p = p(:,index);
         end
         
-        function obj = ldivide(obj,phaseMap)
+        function obj = ldivide(obj,val)
             %% .\ Orthogonal projection onto the Zernike polynomials
             %
             % obj = obj.\phaseMap projects the 2D phase map onto
             % the polynomials of the zernike object and store the
             % projection coefficients into the object coefficients vector
             
+            if isa(val,'source')
+                nVal = length(val);
+                phaseMap = zeros(length(val(1).phase(:)),nVal);
+                for kVal=1:nVal
+                    phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+                end
+            else
+                phaseMap = val;
+            end
             if size(obj.p_p,1)==size(phaseMap,1)
                 obj.c = obj.p_p'*phaseMap./obj.pixelArea;
             else
@@ -241,7 +250,6 @@ classdef zernike < telescopeAbstract
                 if size(obj.p_p,1)==size(phaseMap,1)
                     obj.c = obj.p_p\phaseMap;
                 else
-                    size(phaseMap)
                     obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
                 end
             end
@@ -299,7 +307,7 @@ classdef zernike < telescopeAbstract
                     case nSrc
                         src(kSrc).phase     = utilities.toggleFrame(obj.p_p*obj.c(:,kSrc)*src(kSrc).waveNumber,3);
                     otherwise
-                        error('oomao:zernike:relay','Mismatch between # of sources and # of coefs vector!')
+                        src(kSrc).phase     = utilities.toggleFrame(obj.p_p*obj.c*src(kSrc).waveNumber,3);
                 end
             end
         end

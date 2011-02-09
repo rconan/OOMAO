@@ -168,6 +168,20 @@ classdef stochasticWave < handle
             
             out = cat( ndims(obj) , obj.phase);
         end
+        function out = phaseVector(obj)
+            %% PHASEVECTOR Concatenate phases in 1 single vector
+            %
+            % out = phaseVector(obj) concatenates phase(s) values within
+            % the mask in 1 single vector 
+            
+            nObj = length(obj);
+            out = cell(nObj,1);
+            for kSrc=1:nObj
+                m_mask = repmat(obj(kSrc).mask,[1,1,size(obj(kSrc).phase,3)]);
+                out{kSrc} = obj(kSrc).phase(m_mask);
+            end
+            out = cell2mat(out);
+        end
         function out = catMeanRmPhase(obj)
             %% CATPHASE Concatenate mean removed phases
             %
