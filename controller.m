@@ -121,15 +121,15 @@ classdef controller < handle
             if isempty(obj.tipTiltCompensator)
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoop);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM and 1 WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 WFS!')
             elseif isempty(obj.tipTiltSensor)
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoopWithtTipTiltComp);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM, 1 TT mirror and 1 WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 TT mirror\n . 1 WFS!')
             else
                 obj.sensorListener = addlistener(obj.sensor,'slopes','PostSet',...
                     @obj.closedLoopWithtTipTiltSensComp);
-                add(obj.log,obj,'Closed-loop integrator with 1 DM, 1 TT mirror, 1 WFS and 1 TT WFS!')
+                add(obj.log,obj,'Closed-loop integrator with:\n . 1 DM,\n . 1 TT mirror,\n . 1 WFS,\n . 1 TT WFS!')
             end
             obj.sensorListener.Enabled = false;
             
@@ -142,12 +142,40 @@ classdef controller < handle
             % calibration(ctrlr,gs.*tel,nTrunc)
             
             if isempty(obj.D)
+                add(obj.log,obj,'Computing the poke matrix')
+                
                 dm = obj.compensator;
                 wfs = obj.sensor;
+
+                fprintf(' ___ CALIBRATION ___\n')
+                calibDmCommands = speye(dm.nValidActuator)*gs.wavelength/4;
+                if dm.nValidActuator>1000
+                    steps           = 40;
+                else
+                    steps = 1;
+                end
+                
+                nC              = floor(dm.nValidActuator/steps);
+                u               = 0;
+                obj.D           = zeros(wfs.nSlope,dm.nValidActuator);
+                gs  = gs*dm*wfs;
                 buf = dm.coefs;
-                dm.coefs = eye(dm.nValidActuator)*gs.wavelength/4;
-                gs = gs*dm*wfs;
-                obj.D = wfs.slopes/(gs.wavelength/4);
+                
+                fprintf(' . actuators range:          ')
+                while u(end)<dm.nValidActuator
+                    u = u(end)+1:min(u(end)+nC,dm.nValidActuator);
+                    fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
+                    dm.coefs = calibDmCommands(:,u);
+                    +gs;
+                    obj.D(:,u) = wfs.slopes/(gs.wavelength/4);
+                end
+                fprintf('\n--------------------\n')
+
+    
+%                 dm.coefs = eye(dm.nValidActuator)*gs.wavelength/4;
+%                 gs = gs*dm*wfs;
+%                 obj.D = wfs.slopes/(gs.wavelength/4);
+                
                 dm.coefs = buf;
                 gs = gs.*gs.opticalPath{1};
                 

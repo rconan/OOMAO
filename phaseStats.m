@@ -1055,9 +1055,9 @@ classdef phaseStats
             
             nGs = numel(src);
             if nGs>2 % then its a meta-matrix
-%                 disp(' @(phaseStats.zernikeAngularCovariance)> META-MATRIX:')
+                disp(' @(phaseStats.zernikeAngularCovariance)> META-MATRIX:')
                 if nargin<4 % a correlation meta-matrix
-%                     disp(' @(phaseStats.zernikeAngularCovariance)> AUTO CORRELATION META-MATRIX:')
+                    disp(' @(phaseStats.zernikeAngularCovariance)> AUTO CORRELATION META-MATRIX:')
                     iSrc = src;
                     jSrc = src;
                     mGs = nGs;
@@ -1135,7 +1135,7 @@ classdef phaseStats
                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
                         fr0     = [atm.layer.fractionnalR0]';
                         aiajFun = @ (znmi,znmj) ...
-                            quadgk(@(x) integrandNgs(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
 %                         n = 201;
 %                         r = linspace(0,20,n);

@@ -33,6 +33,7 @@ classdef telescopeAbstract < handle
         phaseListener;
         % wind shifted turbulence sampling time
         samplingTime;
+        leap
     end
     
     properties (Abstract)
@@ -105,7 +106,7 @@ classdef telescopeAbstract < handle
             if ~isempty(p.Results.fieldOfViewInArcsec)
                 obj.fieldOfView      = p.Results.fieldOfViewInArcsec./cougarConstants.radian2arcsec;
             elseif ~isempty(p.Results.fieldOfViewInArcmin)
-                obj.fieldOfView      = p.Results.fieldOfViewInArcmin./cougarConstants.radian2arcmin;
+                obj.fieldOfView      = 60*p.Results.fieldOfViewInArcmin./cougarConstants.radian2arcsec;
             else
                 obj.fieldOfView      = 0;
             end
@@ -229,6 +230,7 @@ classdef telescopeAbstract < handle
                 if ~isempty(obj.samplingTime)
                     init(obj);
                 end
+                obj.leap = zeros(2,val.nLayer);
             end
         end        
         function out = get.opticalAberration(obj)
@@ -412,6 +414,7 @@ classdef telescopeAbstract < handle
                         srcHeight = src.height;
                         out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
                         for kLayer = 1:nLayer
+%                             disp(kLayer)
                             height = altitude_m(kLayer);
 %                             sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
                             [xs,ys] = meshgrid(layerSampling_m{kLayer});
@@ -423,6 +426,7 @@ classdef telescopeAbstract < handle
                                 xc = height.*srcDirectionVector1;
                                 yc = height.*srcDirectionVector2;
                                 [xi,yi] = meshgrid(u+xc,u+yc);
+%                                 disp( [ xc yc ]+layerR )
 %                                 out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
                                 out(:,:,kLayer) = linear(xs,ys,phase_m{kLayer},xi,yi);
 
@@ -439,7 +443,106 @@ classdef telescopeAbstract < handle
             end
             
         end
-    
+
+        function relayReplacement(obj,srcs)
+            
+            if isempty(obj.resolution) % Check is resolution has been set
+                if isscalar(srcs(1).amplitude) % if the src is not set either, do nothing
+                    return
+                else % if the src is set, set the resolution according to src wave resolution
+                    obj.resolution = length(srcs(1).amplitude);
+                end
+            end
+
+            nSrc   = numel(srcs);
+            
+            if isempty(obj.atm)
+                for kSrc=1:nSrc % Browse the srcs array
+                    src = srcs(kSrc);
+                    src.mask      = obj.pupilLogical;
+                    if isempty(src.nPhoton)
+                        src.amplitude = obj.pupil;
+                    else
+                        src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:)));
+                    end
+                end
+                out = 0;
+            else
+                
+                atm_m           = obj.atm;
+                nLayer          = atm_m.nLayer;
+                layers          = atm_m.layer;
+                altitude_m      = [layers.altitude];
+                sampler_m       = obj.sampler;
+                R_              = obj.R;
+                
+                for kSrc=1:nSrc % Browse the srcs array
+                    
+                    src = srcs(kSrc);
+                    src.mask      = obj.pupilLogical;
+                    if isempty(src.nPhoton)
+                        src.amplitude = obj.pupil;
+                    else
+                        src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:)));
+                    end
+                    srcDirectionVector1 = src.directionVector(1);
+                    srcDirectionVector2 = src.directionVector(2);
+                    srcHeight = src.height;
+                    
+                    out = zeros(obj.resolution,obj.resolution,nLayer);
+                    for kLayer = 1:nLayer
+                        
+                        height = altitude_m(kLayer);
+                        % beam layer footprint diameter
+                        layerR = R_*(1-height./srcHeight);
+                        % and beam sampling
+                        u = sampler_m*layerR;
+                        % chief ray location
+                        xc = height.*srcDirectionVector1;
+                        yc = height.*srcDirectionVector2;
+                        % phase displacement in meter
+                        obj.leap(:,kLayer) = obj.leap(:,kLayer) + ...
+                            [obj.windVx(kLayer) ; obj.windVy(kLayer)].*obj.samplingTime;
+                        m_leap = obj.leap(:,kLayer);
+                        % beam mesh
+                        [xi,yi] = meshgrid(u+xc-m_leap(1),u+yc-m_leap(2));
+                        % pixel size
+                        p = layers(kLayer).D/(layers(kLayer).nPixel-1);
+                        % 2 pixels expanded layer phase screen radius
+                        bigR = p*(layers(kLayer).nPixel+1)/2;
+                        % and phase screen sampling
+                        [xs,ys] = meshgrid(linspace(-1,1,layers(kLayer).nPixel+2)*bigR);
+                        % check for out of range
+                        if any(abs(xi(:))>bigR | abs(yi(:))>bigR)
+                            %                         disp('Expand!')
+                            % extract layer phase screen where to expand from
+                            u0 = 2:atm_m.layer(kLayer).nPixel+1;
+                            obj.atm.layer(kLayer).phase = obj.mapShift{kLayer}(u0-sign(m_leap(2)),u0-sign(m_leap(1)));
+                            % now 1 pixel expansion
+                            Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
+                            X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
+                            obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
+                            obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
+                            % re-ajusting the phase displacement
+                            obj.leap(:,kLayer) = obj.leap(:,kLayer) - sign(m_leap).*p;
+                            m_leap = obj.leap(:,kLayer);
+                            [xi,yi] = meshgrid(u+xc-m_leap(1),u+yc-m_leap(2));
+                        end
+                        % phase interpolation
+                        out(:,:,kLayer) = linear(xs,ys,obj.mapShift{kLayer},xi,yi);
+                        
+                    end % layers
+                    out = sum(out,3);
+                    out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
+                    
+                end % srcs
+            end % atm
+                 
+            src.phase = fresnelPropagation(src,obj) + out;
+            src.timeStamp = src.timeStamp + obj.samplingTime;
+                    
+        end
+        
         function varargout = imagesc(obj,varargin)
             %% IMAGESC Phase screens display
             %
@@ -565,10 +668,10 @@ classdef telescopeAbstract < handle
                 if isempty(obj.atm.layer(kLayer).phase)
                     D_m = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
                     nPixel = 1 + round(D_m./do);
-                    while do*(nPixel-1)<D_m
-                        nPixel = nPixel + 1;
-                    end
-                    D_m = do*(nPixel-1);
+%                     while do*(nPixel-1)<D_m
+%                         nPixel = nPixel + 1;
+%                     end
+%                     D_m = do*(nPixel-1);
                     obj.atm.layer(kLayer).D = D_m;
 %                     nPixel = round(1 + (obj.resolution-1)*D./Do);
                     obj.atm.layer(kLayer).nPixel = nPixel;
@@ -623,6 +726,12 @@ classdef telescopeAbstract < handle
                     %                 [u,v] = meshgrid(u);
                     obj.x{kLayer} = u;
                     obj.y{kLayer} = u;%v;
+                    
+                    Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
+                    X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
+                    obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
+                    obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
+
                 end
             end
             obj.log.verbose = true;
