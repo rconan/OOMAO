@@ -357,13 +357,10 @@ classdef atmosphere < hgsetget
             %
             % See also chol and atmosphere
             
-<<<<<<< HEAD
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
             end
-=======
->>>>>>> parent of 2813b19... FOURIER TO CHOLESKY PHASE SCREEN
             if nargin<4
                 nMap = 1;
             end
