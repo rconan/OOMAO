@@ -1006,13 +1006,13 @@ classdef zernikeStats
                         
                     else
                         
-                        u2 = 2:n2;
+                        nTT = length(srcTT);
+                        u2 = (2:n2) + nTT - 1;
                         C_xjxjp = Cphi_xx + cell2mat(Czizj(u2,u2)) - cell2mat(Cphizi_jpj(u2,u2)) - cell2mat(Cphizi_jjp(u2,u2));
 
-                        nTT = length(srcTT);
                         u = 1:nTT;
                         C_aijaipjp = cell2mat(aiaj(u,u));
-                        C_aijXjp_row   = cell2mat(Cphiai_jpj(u,u2)')' - cell2mat( cellfun( @(x) x*zp', aiaj(u,u2) , 'uniformOutput', false) );
+                        C_aijXjp_row   = cell2mat(Cphiai_jjp(u,u2)')' - cell2mat( cellfun( @(x) x*zp', aiaj(u,u2) , 'uniformOutput', false) );
 %                         C_aijXjp_col   = cell2mat(Cphiai_jpj(u2,u)) - cell2mat( cellfun( @(x) zp*x, aiaj(u2,u) , 'uniformOutput', false) );
                         
                         varargout{1} = [ C_aijaipjp , C_aijXjp_row ; C_aijXjp_row' , C_xjxjp ];
