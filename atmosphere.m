@@ -91,6 +91,7 @@ classdef atmosphere < hgsetget
     properties (Access=private)
         p_wavelength;
         p_log;
+        p_choleskyFact;
     end
     
     methods
@@ -348,7 +349,7 @@ classdef atmosphere < hgsetget
             map = map(u,u);
         end
         
-        function varargout = choleskyPhaseScreen(atm,D,nPixel,nMap)
+        function map = choleskyPhaseScreen(atm,D,nPixel,nMap)
             %% CHOLESKYPHASESCREEN Phase screen computation 
             %
             % map = choleskyPhaseScreen(obj,D,nPixel) Computes a square
@@ -367,19 +368,16 @@ classdef atmosphere < hgsetget
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
             end
-            
             if nargin<4
                 nMap = 1;
             end
-            [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
-            L = phaseStats.covarianceToeplitzMatrix(atm,complex(x,y));
-            if nargout>1
-                varargout{2} = L;
+            if isempty(atm.p_choleskyFact)
+                [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                atm.p_choleskyFact = chol( ...
+                    phaseStats.covarianceToeplitzMatrix(atm,complex(x,y)) ,'lower');
             end
-            L = chol(L,'lower');
-            map = L*randn(atm.rngStream,nPixel^2,nMap);
+            map = atm.p_choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
             map = reshape(map,nPixel,nPixel,nMap);
-            varargout{1} = map;
         end
         
     end
