@@ -314,6 +314,9 @@ classdef atmosphere < hgsetget
             %
             % See also atmosphere
             
+            warning('oomao:atmosphere:fourierPhaseScreen',...
+                'The fourierPhaseScreen seems to have a bug, to use with care!')
+            
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -326,15 +329,19 @@ classdef atmosphere < hgsetget
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
             map = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+%             figure
+%             imagesc(map)
+%             axis square
+%             colorbar
             clear fr
             fourierSampling = 1./L;
-            %             % -- Checking the variances --
-            %             theoreticalVar = variance(phaseStats1);
-            %             disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
-            %             %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
-            %             numericalVar    = trapz(trapz(amp.^2)).*fourierSampling.^2;
-            %             disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
-            %             % -------------------------------
+%                         % -- Checking the variances --
+%                         theoreticalVar = phaseStats.variance(atm);
+%                         disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
+%                         %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
+%                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
+%                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
+%                         % -------------------------------
             map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
             map = real(ifft2(map).*fourierSampling).*N.^2;
             u = 1:nPixel;
@@ -355,6 +362,11 @@ classdef atmosphere < hgsetget
             % phase covariance matrix covarianceMatrix
             %
             % See also chol and atmosphere
+            
+            if nargin<2
+                D = atm.layer.D;
+                nPixel = atm.layer.nPixel;
+            end
             
             if nargin<4
                 nMap = 1;
