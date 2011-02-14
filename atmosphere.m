@@ -91,7 +91,6 @@ classdef atmosphere < hgsetget
     properties (Access=private)
         p_wavelength;
         p_log;
-        p_choleskyFact;
     end
     
     methods
@@ -364,21 +363,38 @@ classdef atmosphere < hgsetget
             %
             % See also chol and atmosphere
             
-            if nargin<2
-                D = atm.layer.D;
-                nPixel = atm.layer.nPixel;
-            end
+%             if nargin<2
+%                 D = atm.layer.D;
+%                 nPixel = atm.layer.nPixel;
+%             end
             if nargin<4
                 nMap = 1;
             end
-            if isempty(atm.p_choleskyFact) || length(atm.p_choleskyFact)~=nPixel^2
+            if nargin==1
+                for kLayer=1:atm.nLayer
+                    
+                    nPixel = atm.layer(kLayer).nPixel;
+                    if isempty(atm.layer(kLayer).choleskyFact)
+                        fprintf('Computing the Cholesky factor matrix!\n')
+                        D = atm.layer(kLayer).D;
+%                         [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                        [x,y] = meshgrid(linspace(-1,1,nPixel)*D/2);
+                        atm.layer(kLayer).choleskyFact = chol( ...
+                            phaseStats.covarianceToeplitzMatrix(slab(atm,kLayer),complex(x,y)) ,'lower');
+                    end
+                    map = atm.layer(kLayer).choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                    map = reshape(map,nPixel,nPixel,nMap);
+                    atm.layer(kLayer).phase = map;
+                    
+                end
+            else
                 fprintf('Computing the Cholesky factor matrix!\n')
                 [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
-                atm.p_choleskyFact = chol( ...
+                choleskyFact = chol( ...
                     phaseStats.covarianceToeplitzMatrix(atm,complex(x,y)) ,'lower');
+                map = choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                map = reshape(map,nPixel,nPixel,nMap);
             end
-            map = atm.p_choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
-            map = reshape(map,nPixel,nPixel,nMap);
         end
         
     end

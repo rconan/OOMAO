@@ -840,7 +840,7 @@ classdef zernikeStats
                     
                 end
                 
-                out = 4*pi*(16/D)^2*out;
+                out = 64*pi*out;
                 
             end
             
@@ -864,8 +864,26 @@ classdef zernikeStats
         end
         
         function varargout = residueAngularCovariance(sampling,range,modes,atm,srcAC,varargin)
-            %% residueAngularCovariance
+            %% RESIDUEANGULARCOVARIANCE Residual phase spatio-angular covariance meta matrix
+            %
+            % [S,C] = residueAngularCovariance(sampling,range,modes,atm,src1)
+            % computes the spatio-angular auto-correlation meta-matrix of
+            % the wavefront with Zernike modes removed between all the
+            % sources srcAC. The phase is sampling with sampling points in
+            % the given range and propagates through the atmosphere defined
+            % by the object atm
+            %
+            % C = spatioAngularCovarianceMatrix(sampling,range,atm,src1,src2)
+            % computes the spatio-angular cross-correlation meta-matrix of
+            % the wavefront with Zernike modes between all src2 and src1.
+            % The phase is sampling with sampling points in the given range
+            % and propagates through the atmosphere defined by the object
+            % atm
+            %
+            % [S,C] = spatioAngularCovarianceMatrix(...) computes both
+            % auto- and cross-correlation meta-matrix
                         
+            % Inputs
             inputs = inputParser;
             inputs.addRequired('sampling',@isnumeric);
             inputs.addRequired('range',@isnumeric);
@@ -884,6 +902,7 @@ classdef zernikeStats
             srcCC    = inputs.Results.srcCC;
             srcTT    = inputs.Results.srcTT;
 
+            % Local variables
             zern = zernike(modes,range,'resolution',sampling);
             [rx,ry] = meshgrid( linspace(-1,1,sampling)*range/2 );
             p  = zern.pupilLogical;
@@ -902,12 +921,26 @@ classdef zernikeStats
                 [Cphi_xx,Cphi_ox] = phaseStats.spatioAngularCovarianceMatrix(sampling,range,atm,srcAC,srcCC,'mask',p);
             end
             
+            figure
+            subplot(1,3,1)
+            imagesc([Cphi_xx;cell2mat(Cphi_ox)])
+            axis equal tight
+            colorbar('location','southOutside')
+            title('Phase: Cxx & Cox')
+            drawnow
+            
             % Spatio-angular Zernike coefs. covariance
             src1 = [srcTT,srcAC,srcCC];
             src2 = [srcTT,srcAC];
             aiaj  = zernikeStats.angularCovariance(zern,atm,src1,src2);
-            cell2mat(aiaj)
             Czizj = cellfun( @(x) zp*x*zp', aiaj , 'uniformOutput', false);
+
+            subplot(1,3,2)
+            imagesc(cell2mat(aiaj))
+            axis square
+            colorbar('location','southOutside')
+            title('\langle a_ia_j \rangle')
+            drawnow
             
             n1 = length(src1);
             n2 = length(src2);
@@ -991,6 +1024,12 @@ classdef zernikeStats
                 
             end % k1
             
+            subplot(1,3,3)
+            imagesc([cell2mat(Cphiai_jpj),cell2mat(Cphiai_jjp)])
+            colorbar('location','southOutside')
+            title('\langle \phi_{j^\prime}a_{ij} \rangle & \langle \phi_ja_{ij^\prime} \rangle')
+            drawnow
+            
             Cphizi_jpj  = cellfun( @(x) x*zp', Cphiai_jpj , 'uniformOutput', false);%  x*zp'+ zp*y'
             Cphizi_jjp  = cellfun( @(y) zp*y', Cphiai_jjp , 'uniformOutput', false);%  x*zp'+ zp*y'
 
@@ -1007,7 +1046,224 @@ classdef zernikeStats
                     else
                         
                         nTT = length(srcTT);
-                        u2 = (2:n2) + nTT - 1;
+                        u2 = nTT+1:n2;
+                        C_xjxjp = Cphi_xx + cell2mat(Czizj(u2,u2)) - cell2mat(Cphizi_jpj(u2,u2)) - cell2mat(Cphizi_jjp(u2,u2));
+
+                        u = 1:nTT;
+                        C_aijaipjp = cell2mat(aiaj(u,u));
+                        C_aijXjp_row   = cell2mat(Cphiai_jjp(u,u2)')' - cell2mat( cellfun( @(x) x*zp', aiaj(u,u2) , 'uniformOutput', false) );
+%                         C_aijXjp_col   = cell2mat(Cphiai_jpj(u2,u)) - cell2mat( cellfun( @(x) zp*x, aiaj(u2,u) , 'uniformOutput', false) );
+                        
+                        varargout{1} = [ C_aijaipjp , C_aijXjp_row ; C_aijXjp_row' , C_xjxjp ];
+                        
+                        varargout{2} = [ cell2mat(Cphiai_jpj(n1,u)) , ...
+                            cell2mat(Cphi_ox) - cell2mat(Cphizi_jpj(n1,u2)) ];
+                        
+                    end
+                case 5
+                    varargout{1} = Cphi_xx;
+                    varargout{2} = Cphi_ox;
+                    varargout{3} = Czizj;
+                    varargout{4} = Cphizi_jpj;
+                    varargout{5} = Cphizi_jjp;
+            end
+            
+        end
+        
+        function varargout = residueAngularCovariance_ll(sampling,range,modes,atm,srcAC,varargin)
+            %% RESIDUEANGULARCOVARIANCE Residual phase spatio-angular covariance meta matrix
+            %
+            % [S,C] = residueAngularCovariance(sampling,range,modes,atm,src1)
+            % computes the spatio-angular auto-correlation meta-matrix of
+            % the wavefront with Zernike modes removed between all the
+            % sources srcAC. The phase is sampling with sampling points in
+            % the given range and propagates through the atmosphere defined
+            % by the object atm
+            %
+            % C = spatioAngularCovarianceMatrix(sampling,range,atm,src1,src2)
+            % computes the spatio-angular cross-correlation meta-matrix of
+            % the wavefront with Zernike modes between all src2 and src1.
+            % The phase is sampling with sampling points in the given range
+            % and propagates through the atmosphere defined by the object
+            % atm
+            %
+            % [S,C] = spatioAngularCovarianceMatrix(...) computes both
+            % auto- and cross-correlation meta-matrix
+                        
+            % Inputs
+            inputs = inputParser;
+            inputs.addRequired('sampling',@isnumeric);
+            inputs.addRequired('range',@isnumeric);
+            inputs.addRequired('modes',@isnumeric);
+            inputs.addRequired('atm',@(x) isa(x,'atmosphere'));
+            inputs.addRequired('srcAC',@(x) isa(x,'source'));
+            inputs.addOptional('srcCC',[],@(x) isa(x,'source'));
+            inputs.addOptional('srcTT',[],@(x) isa(x,'source'));
+            inputs.parse(sampling,range,modes,atm,srcAC,varargin{:});
+            
+            sampling = inputs.Results.sampling;
+            range    = inputs.Results.range;
+            modes    = inputs.Results.modes;
+            atm      = inputs.Results.atm;
+            srcAC    = inputs.Results.srcAC;
+            srcCC    = inputs.Results.srcCC;
+            srcTT    = inputs.Results.srcTT;
+
+            % Local variables
+            zern = zernike(modes,range,'resolution',sampling);
+            [rx,ry] = meshgrid( linspace(-1,1,sampling)*range/2 );
+            p  = zern.pupilLogical;
+            np = sum(p(:));
+            rv = rx(p) + 1i*ry(p);
+            zj = zern.j;
+            zn = zern.n;
+            zm = zern.m;
+            zp = zern.p(p,:);
+            
+            % Spatio-angular phase covariance
+            if isempty(srcCC)
+                Cphi_ox = [];
+                Cphi_xx = phaseStats.spatioAngularCovarianceMatrix(sampling,range,atm,srcAC,'mask',p);
+            else
+                [Cphi_xx,Cphi_ox] = phaseStats.spatioAngularCovarianceMatrix(sampling,range,atm,srcAC,srcCC,'mask',p);
+            end
+            
+            figure
+            subplot(1,3,1)
+            imagesc([Cphi_xx;cell2mat(Cphi_ox)])
+            axis equal tight
+            colorbar('location','southOutside')
+            title('Phase: Cxx & Cox')
+            drawnow
+            
+            % Spatio-angular Zernike coefs. covariance
+            src1 = [srcTT,srcAC,srcCC];
+            src2 = [srcTT,srcAC];
+            aiaj  = zernikeStats.angularCovariance(zern,atm,src1,src2);
+            Czizj = cellfun( @(x) zp*x*zp', aiaj , 'uniformOutput', false);
+
+            subplot(1,3,2)
+            imagesc(cell2mat(aiaj))
+            axis square
+            colorbar('location','southOutside')
+            title('\langle a_ia_j \rangle')
+            drawnow
+            
+            n1 = length(src1);
+            n2 = length(src2);
+            R  = range/2;
+            
+            cst = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
+            f0 = 1/atm.L0;
+                    
+            Cphiai_jpj = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
+            Cphiai_jjp = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
+            
+            nMode = zern.nMode;
+            src1Thetav = [src1.directionVector];
+            src2Thetav = [src2.directionVector];
+            layers = atm.layer;
+            atmAltitudev = [layers.altitude];
+            src2Height = [src2.height];
+            src1Height = [src1.height];
+            fractionnalR0 = [layers.fractionnalR0];
+            nLayer = atm.nLayer;
+            
+            fprintf(' +++ < a_ijp phi_j > and  < a_ij phi_jp > computing +++\n')
+            
+            for k1 = 1:n1
+                
+                src1Theta = complex(src1Thetav(1,k1),src1Thetav(2,k1));
+                
+                for k2 = 1:n2
+                
+                    fprintf(' -> srcs: ( %d:%d , %d:%d )',n1 , k1, n2 , k2)
+                
+                    src2Theta = complex(src2Thetav(1,k2),src2Thetav(2,k2));
+                    
+                    for kMode=1:nMode
+                                                        
+                        j = zj(kMode);
+                        n = zn(kMode);
+                        m = zm(kMode);
+                        nkrkr = 1 - double(m==0);
+                        
+                        fprintf(' | mode %d , Layer %d: ',j,atm.nLayer)
+                        
+                        for kLayer=1:nLayer
+                            
+                            fprintf('\b%d',kLayer)
+                            
+                            atmAltitude = atmAltitudev(kLayer);
+                            
+                            % --jp,j------------------------------------------------------------------------
+                            alpha2 = 1 - atmAltitude/src2Height(k2);
+                            beta1  = 1 - atmAltitude/src1Height(k1);
+                            
+                            w1 = beta1*rv + atmAltitude.*( src1Theta - src2Theta );
+                            
+                            abs_w1 = abs(w1); 
+                            % ------------------------------------------------------------------------------
+                            
+                            % --j,jp------------------------------------------------------------------------
+                            alpha1 = 1 - atmAltitude/src1Height(k1);
+                            beta2  = 1 - atmAltitude/src2Height(k2);
+                            
+                            w2 = beta2*rv + atmAltitude.*( src2Theta - src1Theta );
+                            
+                            abs_w2 = abs(w2); 
+                            % ------------------------------------------------------------------------------
+                            
+                            [Inm1,Inm2] = racFunc(np,n,m,alpha1,alpha2,abs_w1,abs_w2,f0,R);
+                            
+                            Inm1 = fractionnalR0(kLayer)*cst*Inm1;
+                            Cphiai_jpj{k1,k2}(:,kMode) = Cphiai_jpj{k1,k2}(:,kMode) + ...
+                                (2*sqrt(n+1)/(alpha2*R)).*Inm1.*...
+                                (-1).^((n-m*nkrkr)/2).*2.^(0.5*nkrkr).*...
+                                cos(m*angle(w1)+pi*nkrkr*((-1)^j-1)/4);
+                            
+                            Inm2 = fractionnalR0(kLayer)*cst*Inm2;
+                            Cphiai_jjp{k1,k2}(:,kMode) = Cphiai_jjp{k1,k2}(:,kMode) + ...
+                                (2*sqrt(n+1)/(alpha1*R)).*Inm2.*...
+                                (-1).^((n-m*nkrkr)/2).*2.^(0.5*nkrkr).*...
+                                cos(m*angle(w2)+pi*nkrkr*((-1)^j-1)/4);
+                            % ------------------------------------------------------------------------------
+                            
+                        end % kLayer
+                        
+                    end % kMode
+                
+                    fprintf('\n')
+                    
+                end % k2
+                
+            end % k1
+            
+            subplot(1,3,3)
+            imagesc([cell2mat(Cphiai_jpj),cell2mat(Cphiai_jjp)])
+            colorbar('location','southOutside')
+            title('\langle \phi_{j^\prime}a_{ij} \rangle & \langle \phi_ja_{ij^\prime} \rangle')
+            drawnow
+            
+            Cphizi_jpj  = cellfun( @(x) x*zp', Cphiai_jpj , 'uniformOutput', false);%  x*zp'+ zp*y'
+            Cphizi_jjp  = cellfun( @(y) zp*y', Cphiai_jjp , 'uniformOutput', false);%  x*zp'+ zp*y'
+
+            switch nargout
+                case 1
+                    varargout{1} = Cphi_xx + cell2mat(Czizj) - cell2mat(Cphizi_jpj) - cell2mat(Cphizi_jjp);
+                case 2
+                    if isempty(srcTT)
+                        
+                        u2 = 1:n2;
+                        varargout{1} = Cphi_xx + cell2mat(Czizj(u2,:)) - cell2mat(Cphizi_jpj(u2,:)) - cell2mat(Cphizi_jjp(u2,:));
+                        varargout{2} = cell2mat(Cphi_ox) - cell2mat(Cphizi_jpj(n1,:));
+                        
+                    else
+                        
+                        nTT = length(srcTT);
+                        u2 = nTT+1:n2;
                         C_xjxjp = Cphi_xx + cell2mat(Czizj(u2,u2)) - cell2mat(Cphizi_jpj(u2,u2)) - cell2mat(Cphizi_jjp(u2,u2));
 
                         u = 1:nTT;
@@ -1434,4 +1690,24 @@ function out = newGamma(a,b)
 % out = newGamma(a,b)
 
 out = prod(gamma(a))./prod(gamma(b));
+end
+function [Inm1,Inm2] = racFunc(np,n,m,alpha1,alpha2,abs_w1,abs_w2,f0,R)
+Inm1 = zeros(np,1);
+Inm2 = zeros(np,1);
+% InmFun = @(nn,alpha,mm,w) quadgk( @(f) (f.^2 + f0.^2).^(-11./6).*...
+%     besselj(nn+1,2*pi*alpha*f*R).*...
+%     besselj(mm,2*pi*f*w) , 0 , Inf);
+parfor kw=1:np
+    
+    Inm1(kw) = quadgk( @(x) racSubFunc(x,f0,n,alpha2,R,m,abs_w1(kw)), 0, Inf);%InmFun(n,alpha2,m,abs_w1(kw) );
+    
+    Inm2(kw) = quadgk( @(x) racSubFunc(x,f0,n,alpha1,R,m,abs_w2(kw)), 0, Inf);%InmFun(n,alpha1,m,abs_w2(kw) );
+    
+end
+
+end
+function out = racSubFunc(f,f0,nn,alpha,R,mm,w)
+out = (f.^2 + f0.^2).^(-11./6).*...
+    besselj(nn+1,2*pi*alpha*f*R).*...
+    besselj(mm,2*pi*f*w);
 end

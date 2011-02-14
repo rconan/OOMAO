@@ -216,10 +216,11 @@ classdef zernike < telescopeAbstract
                 phaseMap = val;
             end
             if size(obj.p_p,1)==size(phaseMap,1)
-                obj.c = obj.p_p'*phaseMap./obj.pixelArea;
+                obj.c = obj.p_p'*phaseMap;
             else
-                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2)./obj.pixelArea;
+                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
             end
+            obj.c = bsxfun( @times , obj.c , 1./diag(obj.p_p'*obj.p_p) );
         end
         
         function obj = mldivide(obj,val) 

@@ -173,6 +173,14 @@ classdef linearMMSE < handle
             
         end
         
+        
+        % Destructor
+        function delete(obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj)
+            end
+        end
+        
         %% Set/Get mmseStar
         function set.mmseStar(obj,val)
             obj.p_mmseStar = val;
