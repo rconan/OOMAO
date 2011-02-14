@@ -18,6 +18,7 @@ classdef turbulenceLayer < handle
         D;
         nPixel;
         zern;
+        choleskyFact;
     end
     
     properties (Dependent=true)

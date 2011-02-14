@@ -314,6 +314,9 @@ classdef atmosphere < hgsetget
             %
             % See also atmosphere
             
+            warning('oomao:atmosphere:fourierPhaseScreen',...
+                'The fourierPhaseScreen seems to have a bug, to use with care!')
+            
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -326,22 +329,26 @@ classdef atmosphere < hgsetget
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
             map = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+%             figure
+%             imagesc(map)
+%             axis square
+%             colorbar
             clear fr
             fourierSampling = 1./L;
-            %             % -- Checking the variances --
-            %             theoreticalVar = variance(phaseStats1);
-            %             disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
-            %             %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
-            %             numericalVar    = trapz(trapz(amp.^2)).*fourierSampling.^2;
-            %             disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
-            %             % -------------------------------
+%                         % -- Checking the variances --
+%                         theoreticalVar = phaseStats.variance(atm);
+%                         disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
+%                         %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
+%                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
+%                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
+%                         % -------------------------------
             map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
             map = real(ifft2(map).*fourierSampling).*N.^2;
             u = 1:nPixel;
             map = map(u,u);
         end
         
-        function varargout = choleskyPhaseScreen(atm,D,nPixel,nMap)
+        function map = choleskyPhaseScreen(atm,D,nPixel,nMap)
             %% CHOLESKYPHASESCREEN Phase screen computation 
             %
             % map = choleskyPhaseScreen(obj,D,nPixel) Computes a square
@@ -356,18 +363,38 @@ classdef atmosphere < hgsetget
             %
             % See also chol and atmosphere
             
+%             if nargin<2
+%                 D = atm.layer.D;
+%                 nPixel = atm.layer.nPixel;
+%             end
             if nargin<4
                 nMap = 1;
             end
-            [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
-            L = phaseStats.covarianceToeplitzMatrix(atm,complex(x,y));
-            if nargout>1
-                varargout{2} = L;
+            if nargin==1
+                for kLayer=1:atm.nLayer
+                    
+                    nPixel = atm.layer(kLayer).nPixel;
+                    if isempty(atm.layer(kLayer).choleskyFact)
+                        fprintf('Computing the Cholesky factor matrix!\n')
+                        D = atm.layer(kLayer).D;
+%                         [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                        [x,y] = meshgrid(linspace(-1,1,nPixel)*D/2);
+                        atm.layer(kLayer).choleskyFact = chol( ...
+                            phaseStats.covarianceToeplitzMatrix(slab(atm,kLayer),complex(x,y)) ,'lower');
+                    end
+                    map = atm.layer(kLayer).choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                    map = reshape(map,nPixel,nPixel,nMap);
+                    atm.layer(kLayer).phase = map;
+                    
+                end
+            else
+                fprintf('Computing the Cholesky factor matrix!\n')
+                [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                choleskyFact = chol( ...
+                    phaseStats.covarianceToeplitzMatrix(atm,complex(x,y)) ,'lower');
+                map = choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                map = reshape(map,nPixel,nPixel,nMap);
             end
-            L = chol(L,'lower');
-            map = L*randn(atm.rngStream,nPixel^2,nMap);
-            map = reshape(map,nPixel,nPixel,nMap);
-            varargout{1} = map;
         end
         
     end
