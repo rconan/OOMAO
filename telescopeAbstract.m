@@ -153,7 +153,7 @@ classdef telescopeAbstract < handle
                 m_atm = slab(obj.atm,kLayer);
                 fprintf('   Layer %d:\n',kLayer)
                 fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',m_atm.layer.D,m_atm.layer.nPixel)
-                obj.atm.layer(kLayer).phase = choleskyPhaseScreen(m_atm,m_atm.layer.D,m_atm.layer.nPixel);
+                obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,m_atm.layer.D,m_atm.layer.nPixel);
                 fprintf('  Done \n')
             end
         end
@@ -253,7 +253,7 @@ classdef telescopeAbstract < handle
                 
                 if isinf(obj.samplingTime)
                     
-                    choleskyPhaseScreen(obj.atm);
+                    fourierPhaseScreen(obj.atm);
                     
                 elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
                     %                 disp('HERE')
@@ -675,7 +675,7 @@ classdef telescopeAbstract < handle
                     fprintf('   Layer %d:\n',kLayer)
                     fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',D_m,nPixel)
                     m_atm = slab(obj.atm,kLayer);
-                    obj.atm.layer(kLayer).phase = choleskyPhaseScreen(m_atm,D_m,nPixel);
+                    obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,D_m,nPixel);
                     fprintf('  Done \n')
                     % ---------
                     obj.outerMask{kLayer} = ...

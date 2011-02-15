@@ -314,8 +314,8 @@ classdef atmosphere < hgsetget
             %
             % See also atmosphere
             
-            warning('oomao:atmosphere:fourierPhaseScreen',...
-                'The fourierPhaseScreen seems to have a bug, to use with care!')
+%             warning('oomao:atmosphere:fourierPhaseScreen',...
+%                 'The fourierPhaseScreen seems to have a bug, to use with care!')
             
             if nargin<2
                 D = atm.layer.D;
