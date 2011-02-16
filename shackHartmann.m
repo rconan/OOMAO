@@ -482,8 +482,10 @@ classdef shackHartmann < hgsetget
 %             end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
-            grab(obj.camera)
-            dataProcessing(obj);
+            grab(obj.camera,src)
+            if src.timeStamp==0
+                dataProcessing(obj);
+            end
         end
         
         function varargout = slopesDisplay(obj,varargin)
