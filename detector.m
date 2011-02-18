@@ -5,8 +5,10 @@ classdef detector < handle
     % resolution
     
     properties
-        % Add or not photon noise to the frame
+        % Add or not photon noise to the frame        
         photonNoise = false;
+        % Photon background noise (# of photon per frame)
+        nPhotonBackground = 0;
         % # of photo-electron per pixel rms
         readOutNoise = 0;
         % quantum efficiency
@@ -32,7 +34,8 @@ classdef detector < handle
         frameGrabber;
         % detector tag
         tag= 'DETECTOR';
-        frameBuffer = 0;;
+        frameBuffer = 0;
+        frameCount  = 0;
     end
     
     properties (SetObservable=true)
@@ -135,27 +138,35 @@ classdef detector < handle
             %
             % See also: imagesc
             
-            if ishandle(obj.frameHandle)
-                set(obj.frameHandle,'Cdata',obj.frame,varargin{:});
+            if isempty(obj.frame)
+                m_frame = obj.frameBuffer;
+            else
+                m_frame = obj.frame;
+            end
+            if all(ishandle(obj.frameHandle)) && ~isempty(obj.frameHandle)
+                set(obj.frameHandle(1),'Cdata',m_frame,varargin{:});
                 %                 xAxisLim = [0,size(obj.frame,2)]+0.5;
                 %                 yAxisLim = [0,size(obj.frame,1)]+0.5;
                 %                 set( get(obj.frameHandle,'parent') , ...
                 %                     'xlim',xAxisLim,'ylim',yAxisLim);
+                set(obj.frameHandle(2),'String',...
+                    sprintf('Frame #%d',obj.frameCount))
             else
                 if isempty(obj.pixelScale)
-                    obj.frameHandle = image(obj.frame,...
+                    obj.frameHandle(1) = image(m_frame,...
                         'CDataMApping','Scaled',...
                         varargin{:});
                 else
-                    [n,m] = size(obj.frame);
+                    [n,m] = size(m_frame);
                     x = 0.5*linspace(-1,1,n)*...
                         n*obj.pixelScale*constants.radian2arcsec;
                     y = 0.5*linspace(-1,1,m)*...
                         m*obj.pixelScale*constants.radian2arcsec;
-                    obj.frameHandle = image(x,y,obj.frame,...
+                    obj.frameHandle(1) = image(x,y,m_frame,...
                         'CDataMApping','Scaled',...
                         varargin{:});
                 end
+                obj.frameHandle(2) = title(sprintf('Frame #%d',obj.frameCount));
                 colormap(pink)
                 axis xy equal tight
                 colorbar('location','SouthOutside')
@@ -225,35 +236,44 @@ classdef detector < handle
             % photonNoise property is true and readout noise if
             % readOutNoise property is greater than 0
             
-%             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
-            [n,m,k] = size(image);
-            if any(n>obj.resolution(1))                
-%                 disp('Binning')
-               image = utilities.binning(image,obj.resolution.*[n,m]/n);
+            %             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
+            [n,m,~] = size(image);
+            if any(n>obj.resolution(1))
+                %                 disp('Binning')
+                image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
-            
-            if license('checkout','statistics_toolbox')
-                if obj.photonNoise
-                    image = poissrnd(image);
-                end
-                image = obj.quantumEfficiency*image;
-                if obj.readOutNoise>0
-                    image = image + randn(size(image)).*obj.readOutNoise;
-                end
+            obj.frameCount = obj.frameCount + 1;
+            if obj.frameCount<obj.exposureTime
+                obj.frameBuffer = obj.frameBuffer + image;
+                obj.frame = [];
             else
-                if obj.photonNoise
-                    buffer    = image;
-                    image = image + randn(size(image)).*image;
-                    index     = image<0;
-                    image(index) = buffer(index);
+                image = obj.frameBuffer + image;
+                
+                if license('checkout','statistics_toolbox')
+                    if obj.photonNoise
+                        image = poissrnd(image + obj.nPhotonBackground);
+                    end
                     image = obj.quantumEfficiency*image;
+                    if obj.readOutNoise>0
+                        image = image + randn(size(image)).*obj.readOutNoise;
+                    end
+                else
+                    if obj.photonNoise
+                        buffer    = image + obj.nPhotonBackground;
+                        image = image + obj.nPhotonBackground + randn(size(image)).*(image + obj.nPhotonBackground);
+                        index     = image<0;
+                        image(index) = buffer(index);
+                        image = obj.quantumEfficiency*image;
+                    end
+                    image = obj.quantumEfficiency*image;
+                    if obj.readOutNoise>0
+                        image = image + randn(size(image)).*obj.readOutNoise;
+                    end
                 end
-                image = obj.quantumEfficiency*image;
-                if obj.readOutNoise>0
-                    image = image + randn(size(image)).*obj.readOutNoise;
-                end
+                obj.frameCount = 0;
+                obj.frame = image;
+                obj.frameBuffer = 0;
             end
-            obj.frame = image;
         end
         
     end
