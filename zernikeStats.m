@@ -702,7 +702,7 @@ classdef zernikeStats
                         end
                         aiajFun = @ (znmi,znmj) ...
                             quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
-                            0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
+                            0, Inf);
 %                         n = 201;
 %                         r = linspace(0,20,n);
 %                         r(1) = 1e-6;
@@ -800,47 +800,189 @@ classdef zernikeStats
             end
         end
         
+        function aiaj_ = angularCovarianceAlt(zern_,atm_,src_,optSrc)
+            %% ANGULARCOVARIANCE Zernike coefficients angular covariance
+            %
+            % aiaj = zernikeAngularCovariance(zern,atm,src) computes
+            % the covariance matrix between Zernike coefficients of Zernike
+            % polynomials zern corresponding to wavefront propagating from
+            % two sources src(1) and src(2) through the atmosphere atm
+            %
+            % See also zernike, atmosphere, source
+            
+            nGs = numel(src_);
+                    iSrc = src_;
+                    jSrc = optSrc;
+                    mGs = numel(jSrc);
+                    aiaj_ = cell(nGs,mGs);
+%                     for iGs = 1:nGs
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> ');
+%                         gsCurrent = iSrc(iGs);
+%                         for jGs = 1:mGs
+%                             fprintf('gs#%d/gs#%d - ',iGs,jGs);
+%                             aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
+%                         end
+%                         fprintf('\b\b\b\n')
+%                     end
+                    nmGs  = [nGs mGs];
+                    for kGs = 1:nGs*mGs
+                        [iGs,jGs] = ind2sub(nmGs,kGs);
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
+                        aiaj_{kGs} = angularCovarianceAltFun(zern_,atm_,[iSrc(iGs),jSrc(jGs)]);
+                    end
+                aiaj_ = cell2mat(aiaj_);
+                
+            function  aiaj = angularCovarianceAltFun(zern,atm,src)
+%                 aiaj = cell2mat(aiaj);
+                    R   = zern.R;
+                    zs1 = src(1).height;
+                    zs2 = src(2).height;
+                    xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
+                        tan(src(2).zenith).*cos(src(2).azimuth);
+                    ySrc = tan(src(1).zenith).*sin(src(1).azimuth) - ...
+                        tan(src(2).zenith).*sin(src(2).azimuth);
+                    rhoSrcLayer = hypot(xSrc,ySrc);
+                    thetaSrcLayer = atan2(ySrc,xSrc);
+                    nMode = length(zern.j);
+                    znmj = mat2cell([zern.j;zern.n;zern.m],3,ones(1,nMode));
+                    znmj = repmat(znmj,nMode,1);
+                    znmi = znmj';
+                    psdCst = (24.*gamma(6./5)./5).^(5./6).*...
+                        (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                        atm.r0.^(-5./3);
+%                     if all( isinf( [zs1 zs2] ) ) % NGS CASE
+%                         a1l     = R;
+%                         a2l     = R;
+%                         denom   = pi.*a1l.*a2l;
+%                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
+%                         fr0     = [atm.layer.fractionnalR0]';
+%                         aiajFun = @ (znmi,znmj) ...
+%                             quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+%                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
+% %                         n = 201;
+% %                         r = linspace(0,20,n);
+% %                         r(1) = 1e-6;
+% %                         aiajFun = @ (znmi,znmj) ...
+% %                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     else % LGS CASE (TO DO: optimize for LGS as for NGS)
+                        a1l   = zeros(1,atm.nLayer);
+                        a2l   = zeros(1,atm.nLayer);
+                        denom = zeros(1,atm.nLayer);
+                        sl    = zeros(1,atm.nLayer);
+                        for lLayer=1:atm.nLayer
+                            a1l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs1);
+                            a2l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs2);
+                            denom(lLayer) = pi.*a1l(lLayer).*a2l(lLayer);
+                            sl(lLayer) = atm.layer(lLayer).altitude.*rhoSrcLayer;
+                        end
+                        aiajFun = @ (znmi,znmj) ...
+                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                            0, Inf);
+%                         n = 201;
+%                         r = linspace(0,20,n);
+%                         r(1) = 1e-6;
+%                         aiajFun = @ (znmi,znmj) ...
+%                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     end
+                    aiaj = zeros(nMode);
+                    index = triu(true(nMode));
+                    %                 tic
+                    aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
+                    %                 toc
+                    aiaj = aiaj + triu(aiaj,1)';
+                    aiaj = bsxfun(@times,aiaj,(-1).^zern.m');
+                    %                     aiaj = cellfun(aiajFun,znmj,znmi);
+            function out = integrand(x,zi,ni,mi,zj,nj,mj)
+                krkr_mi = mi==0;
+                krkr_mj = mj==0;
+                out = 0;
+                factor1 = sqrt((ni+1)*(nj+1)).*...
+                    (-1).^(0.5.*(ni+nj)).*...
+                    2.^(1-0.5.*(krkr_mi+krkr_mj));%.*...
+                %(-1).^mj;
+                factor2 = (-1).^(1.5*(mi+mj)).*...
+                    cos( ...
+                    (mi+mj).*thetaSrcLayer + ...
+                    pi.*( (1-krkr_mi).*((-1).^zi-1) + ...
+                    (1-krkr_mj).*((-1).^zj-1) )./4 );
+                factor3 = (-1).^(1.5*abs(mi-mj)).*...
+                    cos( ...
+                    (mi-mj).*thetaSrcLayer + ...
+                    pi.*( (1-krkr_mi).*((-1).^zi-1) - ...
+                    (1-krkr_mj).*((-1).^zj-1) )./4 );
+                for kLayer=1:atm.nLayer
+%                     a1l = R.*(1 - atm.layer(kLayer).altitude./zs1);
+%                     a2l = R.*(1 - atm.layer(kLayer).altitude./zs2);
+%                     denom = pi.*a1l.*a2l;
+%                     sl = atm.layer(kLayer).altitude.*rhoSrcLayer;
+                    red1 = a1l(kLayer).*x;
+                    red2 = a2l(kLayer).*x;
+                    red = sl(kLayer).*x;
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atmLayers{kLayer});
+                    f = 0.5*x/pi;
+                    phasePSD = atm.layer(kLayer).fractionnalR0.*...
+                        psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atm.slab(lLayer));
+%                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+%                     tripleBessel1 = besselj(mi+mj,red);
+%                     tripleBessel2 = besselj(abs(mi-mj),red);
+                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
+                    tripleBessel1 = besselmx('J',mi+mj,red);
+                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
+                        ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
+                        besselsRadialOrder;
+                end
+                out = real(out);
+            end
+            end
+        end
+        
         function out = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
             
-            integral = true;
+            integral = false;
             
             if ~integral
                 
-                logBook.PAUSE;
+%                 logBook.PAUSE;
                 
                 persistent onAxisNgs
                 if isempty(onAxisNgs)
                     onAxisNgs = source;
                 end
-                
                 %             zern = zernike(2:3,tel.D);
-                ai  = zernikeStats.variance(zern,atm);
-                out = sum(ai);
-                aiaj = cell2mat(zernikeStats.angularCovariance(zern,atm,src,onAxisNgs));
-                out  = 2*(out - sum(aiaj(:)));
+%                 ai  = zernikeStats.variance(zern,atm)
+%                 out = sum(ai);
+%                 aiaj = (zernikeStats.angularCovariance(zern,atm,[src,onAxisNgs]))
+%                 out  = (out - sum(aiaj(:)));
+                
+                Coo = zernikeStats.angularCovarianceAlt(zern,atm,src,src);
+                Cxx = Coo;
+                Cox = zernikeStats.angularCovarianceAlt(zern,atm,onAxisNgs,src);
+                
+                out = trace(Coo+Cxx-2*Cox);
+                
+                
                 
             else
                 
                 theta = tan(src.zenith);
-                D = zern.D;
-                out = 0;
+                D = pi.*zern.D;
+                cst = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
+                f0Sqrd = 1./atm.L0.^2;
+                layers = atm.layer;
+                fr0 = [layers.fractionnalR0]';
+                z = [layers.altitude]';
+                thetaZ = 2.*pi*theta.*z;
+
+                out = 32*pi*cst.*quadgk(...
+                    @(f) sum( fr0*( f.*(f.^2 + f0Sqrd).^(-11./6).*...
+                        (besselj(2,D.*f)./(D.*f)).^2 ).*...
+                        (1-besselj(0,thetaZ*f)) ) ,0,Inf);
                 
-                for kLayer=1:atm.nLayer
-                    
-                    atmSlab = slab(atm,kLayer);
-                    z = atmSlab.layer.altitude;
-                    thetaZ = theta.*z;
-                    
-                    fun = @(f) f.*phaseStats.spectrum(f,atm).*...
-                        (besselj(2,pi.*D.*f)./(pi.*D.*f)).^2.*...
-                        (1-besselj(0,2.*pi*f*thetaZ));
-                    
-                    out = out + quadgk(fun,0,Inf);
-                    
-                end
-                
-                out = 64*pi*out;
                 
             end
             

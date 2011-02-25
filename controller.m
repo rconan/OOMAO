@@ -238,6 +238,8 @@ classdef controller < handle
             %             nTrunc = 4;
             if nargin>2
                 s = diag(obj.S);
+%                 index = s/s(1)>=nTrunc;%length(s)-nTrunc;
+%                 obj.M = obj.V(:,1:index)*diag(1./s(1:index))*obj.U(:,1:index)';
                 index = s/s(1)>nTrunc;%length(s)-nTrunc;
                 fprintf(' Number of thresholded values: %d out of %d\n',sum(~index),length(index))
                 obj.M = obj.V(:,index)*diag(1./s(index))*obj.U(:,index)';

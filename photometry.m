@@ -32,7 +32,7 @@ classdef photometry < handle
         function set.magnitude(obj,val)
             obj.p_magnitude = val;
             obj.p_nPhoton = obj.zeroPoint*10^(-0.4*val);
-            fprintf(' @(photometry)> # of photon s^{-1}: %g\n',obj.p_nPhoton)
+%             fprintf(' @(photometry)> # of photon s^{-1}: %g\n',obj.p_nPhoton)
         end
         
         %% Get and Set nPhoton

@@ -223,7 +223,7 @@ classdef source < stochasticWave & hgsetget
             obj.photometry.magnitude = val;
             if ~isempty(obj.photometry)
                 obj.nPhoton = obj.photometry.nPhoton;
-                fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
+%                 fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
             end
         end
         

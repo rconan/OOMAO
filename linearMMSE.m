@@ -16,7 +16,7 @@ classdef linearMMSE < handle
         % atmosphere mode
         atmModel
         % guide stars
-        guideStar
+        guideStarListener
         % guide star covariance matrix
         Cxx
         % mmse star covariance matrix
@@ -33,10 +33,6 @@ classdef linearMMSE < handle
         model;
         % Zernike mode for zonal model
         zernikeMode;
-        % tip-tilt removal flag
-        rmTipTilt
-        % diameter of the LGS lauch telescope
-        tipTiltDiameter
         % zernike / guide star covariance matrix
         Cax
         % zernike / mmse star covariance matrix
@@ -47,6 +43,12 @@ classdef linearMMSE < handle
         Caa
         % mmse reconstructor
         mmseBuilder
+        % Zernike noise variance
+        zernNoiseCovariance
+    end
+    
+    properties (SetObservable=true)
+        guideStar
     end
     
     properties (Dependent)
@@ -65,9 +67,16 @@ classdef linearMMSE < handle
         rmsMap        
     end
     
+    properties (Dependent)
+        %  noise covariance
+        noiseCovariance
+    end
+    
     properties (Access=private)
         log
         p_mmseStar
+        zernP
+        p_noiseCovariance
     end
  
     methods
@@ -85,8 +94,7 @@ classdef linearMMSE < handle
             inputs.addParamValue('unit',[],@isnumeric);
             inputs.addParamValue('model','zonal',@ischar);
             inputs.addParamValue('zernikeMode',[],@isnumeric);
-            inputs.addParamValue('rmTipTilt',false,@islogical);
-            inputs.addParamValue('tipTiltDiameter',diameter,@isnumeric);
+            inputs.addParamValue('noiseCovariance',[],@isnumeric);
             
             inputs.parse(sampling,diameter,atmModel,guideStar,varargin{:});
             
@@ -101,12 +109,12 @@ classdef linearMMSE < handle
             obj.unit       = inputs.Results.unit;   
             obj.model      = inputs.Results.model;
             obj.zernikeMode= inputs.Results.zernikeMode;
-            obj.rmTipTilt  = inputs.Results.rmTipTilt;   
-            obj.tipTiltDiameter  = inputs.Results.tipTiltDiameter;   
+            obj.noiseCovariance   = inputs.Results.noiseCovariance;
             
+            obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
             obj.log = logBook.checkIn(obj);
             
-            add(obj.log,obj,'Computing the covariance matrices')
+%             add(obj.log,obj,'Computing the covariance matrices')
             
             poolWasAlreadyOpen = true;
             
@@ -126,29 +134,24 @@ classdef linearMMSE < handle
                     obj.Coo = phaseStats.spatioAngularCovarianceMatrix(...
                         obj.sampling,obj.diameter,...
                         obj.atmModel,obj.p_mmseStar(1),'mask',obj.pupil);
-                    if obj.rmTipTilt
-                        obj.Cax = phaseStats.spatioAngularCovarianceMatrix(...
-                            obj.sampling,obj.tipTiltDiameter,...
-                            obj.atmModel,obj.guideStar,obj.guideStar,...
-                            'mask',obj.pupil,'tipTilt',true);
-                        obj.Cao = phaseStats.spatioAngularCovarianceMatrix(...
-                            obj.sampling,obj.tipTiltDiameter,...
-                            obj.atmModel,obj.p_mmseStar,obj.guideStar,...
-                            'mask',obj.pupil,'tipTilt',true);
-                        zern    = zernike(2:3,obj.tipTiltDiameter,'resolution',obj.sampling,'pupil',obj.pupil);
-                        obj.Z   = zern.p(obj.pupil,:);
-                        obj.Caa = phaseStats.zernikeAngularCovariance(zern,obj.atmModel,obj.guideStar);
+            
+                    if ~poolWasAlreadyOpen
+                        matlabpool('close')
                     end
             
                 case 'modal'
                     
-                      zern    = zernike(obj.zernikeMode,obj.diameter,...
+                      obj.zernP    = zernike(obj.zernikeMode,obj.diameter,...
                           'resolution',obj.sampling);
-                      obj.Cxx = cell2mat( zernikeStats.angularCovariance(zern,...
-                          obj.atmModel,obj.guideStar) );            
-                      obj.Cox = { cell2mat( zernikeStats.angularCovariance(zern,...
-                          obj.atmModel,obj.guideStar,obj.p_mmseStar) )' }; 
-                      obj.Coo = zernikeStats.covariance(zern,obj.atmModel);
+                      obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
+                          obj.atmModel,obj.guideStar,obj.guideStar);            
+                      obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
+                          obj.atmModel,obj.p_mmseStar,obj.guideStar) }; 
+%                       obj.Cxx = cell2mat(zernikeStats.angularCovariance(obj.zernP,...
+%                           obj.atmModel,obj.guideStar));            
+%                       obj.Cox = zernikeStats.angularCovariance(obj.zernP,...
+%                           obj.atmModel,obj.guideStar,obj.p_mmseStar)'; 
+                      obj.Coo = zernikeStats.covariance(obj.zernP,obj.atmModel);
                     
                 otherwise
                     
@@ -157,24 +160,14 @@ classdef linearMMSE < handle
                     
             end
             
-            add(obj.log,obj,'Computing the mmse builder')
+%             add(obj.log,obj,'Computing the mmse builder')
             
-            m_mmseBuilder = cell(obj.nmmseStar,1);
-            m_Cox = obj.Cox;
-            m_Cxx = obj.Cxx;
-            parfor k=1:obj.nmmseStar
-                m_mmseBuilder{k} = m_Cox{k}/m_Cxx;
-            end
-            obj.mmseBuilder = m_mmseBuilder;
-            
-            if ~poolWasAlreadyOpen 
-                matlabpool('close')
-            end
+            solveMmse(obj);
             
         end
         
         
-        % Destructor
+        %% Destructor
         function delete(obj)
             if ~isempty(obj.log)
                 checkOut(obj.log,obj)
@@ -196,35 +189,48 @@ classdef linearMMSE < handle
             val = obj.p_mmseStar;
         end
         
+        %% Set/Get noiseCovariance
+        function set.noiseCovariance(obj,val)
+            if ~isempty(val)
+                if isempty(obj.zernNoiseCovariance)
+                    zernTmp = zernike(1:66,obj.diameter);
+                    obj.zernNoiseCovariance = zernTmp.noiseCovariance(obj.zernikeMode,obj.zernikeMode);
+                end
+                obj.nGuideStar = length(val);
+                obj.p_noiseCovariance = repmat({obj.zernNoiseCovariance},1,obj.nGuideStar);
+                obj.p_noiseCovariance = blkdiag( obj.p_noiseCovariance{:} );
+                nMode = length(obj.zernikeMode);
+                val = val(:);
+                val = repmat( val , 1,  nMode )';
+                obj.p_noiseCovariance = diag(val(:));%.*obj.p_noiseCovariance;
+                obj.Bmse = [];
+            end
+        end
+        function val = get.noiseCovariance(obj)
+            val = obj.p_noiseCovariance;
+        end
+        
         function lmmse(obj,fieldStar)
             %% LMMSE Linear Minimum Mean Square Error
             
-            add(obj.log,obj,'Bayesian Minimum Mean Square Error computation in progress...')
+            %             add(obj.log,obj,'Bayesian Minimum Mean Square Error computation in progress...')
             
-            if obj.rmTipTilt
-                m_Cox = obj.Cox{1};
-                Czx = cell2mat( cellfun(@(x) obj.Z*x , obj.Cax , 'uniformOutput' , false) );
-                Czo = cell2mat( cellfun(@(x) obj.Z*x , obj.Cao, 'uniformOutput' , false) );
-                Czz = cell2mat( cellfun(@(x) obj.Z*x*obj.Z',obj.Caa, 'uniformOutput' , false) );
-                M = m_Cox/obj.Cxx;
-                m_Bmse  = obj.Coo - M*m_Cox';
-                term1 = M*Czo;
-                term2 = M*(Czz - Czx - Czx')*M';
-                obj.Bmse = { m_Bmse + term1 + term1' + term2 };
-            else
-                if nargin==1
+            if nargin==1
+                if isempty(obj.p_noiseCovariance)
                     fun = @(x,y) obj.Coo - y*x';
-                    obj.Bmse = cellfun( fun , obj.Cox , obj.mmseBuilder , 'uniformOutput' , false );
                 else
-                    Co1x = ...
-                        phaseStats.spatioAngularCovarianceMatrix(...
-                        obj.sampling,obj.diameter,...
-                        obj.atmModel,obj.guideStar,fieldStar,'mask',obj.pupil);
-                    fun = @(x) obj.Coo + ...
-                        obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
-                        x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
-                    obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
+                    fun = @(x,y) obj.Coo - y*x' + y*obj.p_noiseCovariance*y';
                 end
+                obj.Bmse = cellfun( fun , obj.Cox , obj.mmseBuilder , 'uniformOutput' , false );
+            else
+                Co1x = ...
+                    phaseStats.spatioAngularCovarianceMatrix(...
+                    obj.sampling,obj.diameter,...
+                    obj.atmModel,obj.guideStar,fieldStar,'mask',obj.pupil);
+                fun = @(x) obj.Coo + ...
+                    obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
+                    x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
+                obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
             end
             
         end
@@ -235,7 +241,7 @@ classdef linearMMSE < handle
             if isempty(obj.Bmse)
                 lmmse(obj)
             end
-            add(obj.log,obj,'Pupil error variance map computation in progress...')
+%             add(obj.log,obj,'Pupil error variance map computation in progress...')
             out = cellfun( @diag , obj.Bmse' , 'uniformOutput', false );
             out = cell2mat(out);
             map = zeros(obj.sampling,obj.sampling*obj.nmmseStar);
@@ -250,7 +256,7 @@ classdef linearMMSE < handle
             if isempty(obj.Bmse)
                 lmmse(obj)
             end
-            add(obj.log,obj,'Pupil error variance computation in progress...')
+%             add(obj.log,obj,'Pupil error variance computation in progress...')
             if iscell(obj.Bmse)
                 out = cellfun( @trace , obj.Bmse , 'uniformOutput', true );
             else
@@ -271,20 +277,62 @@ classdef linearMMSE < handle
             %% RMS Pupil error rms
             
             out = opd(obj,obj.var);
-        end
-     
+        end        
+
     end
        
     
     methods (Access=private)
         
         function out = opd(obj,val)
+            %% OPD Phase to opd conversion
+            
             out = sqrt(val);
             if ~isempty(obj.unit)
                 add(obj.log,obj,sprintf('Rms in 1E%d meter',obj.unit))
                 out = 10^-obj.unit*...
                     out*obj.atmModel.wavelength/(2*pi);
             end
+        end
+        
+        function resetGuideStar(obj,varargin) % obj, src, event
+            %% RESETGUIDESTAR
+            
+%             fprintf(' Resetting Cxx\n')
+            switch obj.model
+                
+                case 'zonal'
+                    
+                    [obj.Cxx,obj.Cox] = ...
+                        phaseStats.spatioAngularCovarianceMatrix(...
+                        obj.sampling,obj.diameter,...
+                        obj.atmModel,obj.guideStar,obj.p_mmseStar,'mask',obj.pupil);
+                    
+                case 'modal'
+                    
+                    obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
+                        obj.atmModel,obj.guideStar,obj.guideStar);
+                    obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
+                        obj.atmModel,obj.p_mmseStar,obj.guideStar) };
+                    
+            end
+            
+            solveMmse(obj);
+            obj.Bmse = [];
+            
+        end
+        
+        function solveMmse(obj)
+            %% SOLVEMMSE
+            
+            m_mmseBuilder = cell(obj.nmmseStar,1);
+            m_Cox = obj.Cox;
+            m_Cxx = obj.Cxx;
+            parfor k=1:obj.nmmseStar
+                m_mmseBuilder{k} = m_Cox{k}/m_Cxx;
+            end
+            obj.mmseBuilder = m_mmseBuilder;
+
         end
         
     end
@@ -307,7 +355,7 @@ classdef linearMMSE < handle
 %                 'model','modal','zernikeMode',2:3,...
 %                 'unit',-9);
             zern = zernike(2:3,D,'resolution',n);
-            ZP = zern.p(zern.pupilLogical,:);
+            %ZP = zern.p(zern.pupilLogical,:);
             
             gsRadius = 5:5:60;
             mmseTTRms = zeros(length(gsRadius),2);

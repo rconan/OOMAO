@@ -72,6 +72,8 @@ classdef zernike < telescopeAbstract
         pupil;
         % alias to polynomials p
         modes
+        % noise covariance matrix (Shack-Hartmann wavefront sensor)
+        noiseCovariance 
     end
     
     properties (Access=private)
@@ -435,6 +437,14 @@ classdef zernike < telescopeAbstract
             if ~obj.lex
                 out = utilities.toggleFrame(out,3);
             end
+        end
+        
+        %% get noise covariance
+        function out = get.noiseCovariance(obj)
+            ggx = obj.xDerivativeMatrix;
+            ggy = obj.yDerivativeMatrix;
+            DtD = full(pi.*(ggx'*ggx + ggy'*ggy));
+            out = pinv(DtD);
         end
         
         function out = circularCut(obj,delta,largeSmallRadiusRatio)
