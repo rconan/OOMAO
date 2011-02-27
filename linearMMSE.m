@@ -76,7 +76,7 @@ classdef linearMMSE < handle
         log
         p_mmseStar
         zernP
-        p_noiseCovariance
+        p_noiseCovariance = 0;
     end
  
     methods
@@ -216,11 +216,7 @@ classdef linearMMSE < handle
             %             add(obj.log,obj,'Bayesian Minimum Mean Square Error computation in progress...')
             
             if nargin==1
-                if isempty(obj.p_noiseCovariance)
-                    fun = @(x,y) obj.Coo - y*x';
-                else
-                    fun = @(x,y) obj.Coo - y*x' + y*obj.p_noiseCovariance*y';
-                end
+                fun = @(x,y) obj.Coo - y*x';
                 obj.Bmse = cellfun( fun , obj.Cox , obj.mmseBuilder , 'uniformOutput' , false );
             else
                 Co1x = ...
@@ -328,8 +324,9 @@ classdef linearMMSE < handle
             m_mmseBuilder = cell(obj.nmmseStar,1);
             m_Cox = obj.Cox;
             m_Cxx = obj.Cxx;
+            m_noiseCovariance = obj.p_noiseCovariance;
             parfor k=1:obj.nmmseStar
-                m_mmseBuilder{k} = m_Cox{k}/m_Cxx;
+                m_mmseBuilder{k} = m_Cox{k}/(m_Cxx+m_noiseCovariance);
             end
             obj.mmseBuilder = m_mmseBuilder;
 
