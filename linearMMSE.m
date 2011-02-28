@@ -77,6 +77,7 @@ classdef linearMMSE < handle
         p_mmseStar
         zernP
         p_noiseCovariance = 0;
+        tel;
     end
  
     methods
@@ -112,6 +113,7 @@ classdef linearMMSE < handle
             obj.noiseCovariance   = inputs.Results.noiseCovariance;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
+            obj.tel = telescope(obj.diameter);
             obj.log = logBook.checkIn(obj);
             
 %             add(obj.log,obj,'Computing the covariance matrices')
@@ -230,7 +232,43 @@ classdef linearMMSE < handle
             end
             
         end
-       
+        
+        function out = otf(obj,rho)
+            %% OTF Optical Transfer Function
+                        
+            if isempty(obj.Bmse)
+                lmmse(obj)
+            end
+            
+            rhoX = 2*real(rho)/obj.diameter;
+            rhoY = 2*imag(rho)/obj.diameter;
+            
+            a = obj.Bmse{1};
+            
+            sf = a(1,1)*rhoX.^2 + a(2,2)*rhoY.^2 + (a(1,2)+a(2,1)).*rhoX.*rhoY;
+            
+            out = otf(obj.tel,abs(rho)).*exp(-2*sf);
+            
+        end
+        
+        function out = enSquaredEnergy(obj,eHalfSize)
+            %% ENSQUAREDENERGY
+            
+            a = 2*eHalfSize;
+            out = quad2d(...
+                @(o,r) r.*otf(obj,r.*exp(1i*o)).*...
+                (sin(pi.*r.*cos(o).*a)./(pi.*r.*cos(o).*a)).*...
+                (sin(pi.*r.*sin(o).*a)./(pi.*r.*sin(o).*a)), ...
+                0,2*pi,0,obj.diameter).*a.*a;
+        end
+        
+        function out = strehlRatio(obj)
+            %% ENSQUAREDENERGY
+            
+            out = quad2d(...
+                @(o,r) r.*otf(obj,r.*exp(1i*o)),0,2*pi,0,obj.diameter)./obj.tel.area;
+        end
+
         function map = get.varMap(obj)
             %% VARMAP Pupil error variance map
             
