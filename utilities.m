@@ -327,7 +327,7 @@ classdef utilities
         end
         
         function out = fittingError(tel,atm,dm)
-            %% FITTING ERROR Deformable mirror fitting error variance
+            %% FITTINGERROR Deformable mirror fitting error variance
             %
             % out = fittingError(telAtm,dm) computes the fitting error
             % variance of a a deformableMirror object for given telescope
@@ -339,6 +339,11 @@ classdef utilities
         end
         
         function out = binning(frame,outRes)
+            %% BINNING Frame binning
+            % 
+            % out = binning(frame,[n,m]) bins the frame pixels into a nXm
+            % array; frame can be either a single frame or a data cube
+            
             [n,m,nFrame] = size(frame);
             out          = zeros(outRes(1),outRes(2),nFrame);
             for kFrame=1:nFrame
@@ -356,6 +361,6 @@ classdef utilities
                     outRes(2) , [] ).';
             end
         end
-        
+                
     end
 end

@@ -234,6 +234,18 @@ classdef telescope < telescopeAbstract
                 y = x.*besselj(0,2.*pi.*x.*freq).*otf(obj,x);
             end
         end
+        
+        function out = image(obj,resolution,pixelScaleInSpFreq)
+            %% IMAGE 2D Point Spread Function
+            %
+            % psf = image(tel,resolution,pixelScaleInSpFreq)
+            
+            n = resolution;
+            u = pixelScaleInSpFreq*linspace(-1,1,n)*n/2;
+            [fx,fy] = meshgrid(u);
+            out = psf(obj,hypot(fx,fy))/psf(obj,0);
+
+        end
              
         function out = fullWidthHalfMax(obj)
             %% FULLWIDTHHALFMAX Full Width at Half the Maximum evaluation
