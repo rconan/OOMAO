@@ -168,6 +168,9 @@ classdef telescope < telescopeAbstract
             %
             % out = otf(obj, r) Computes the telescope optical transfert function
             
+            if ~all(isreal(r(:))) % Check if r is complex!
+                r = abs(r);
+            end
 %             out = zeros(size(r));
             if obj.obstructionRatio ~= 0
                 out = pupAutoCorr(obj.D) + pupAutoCorr(obj.obstructionRatio*obj.D) - ...

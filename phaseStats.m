@@ -569,7 +569,7 @@ classdef phaseStats
                     S = cellfun( @(x) zeros(sum(mask(:))) , cell(1,length(kGs)) , 'UniformOutput' , false );
                     cstL0AC = cstL0*ones(sampling);
                     
-                    parfor k=1:length(kGs)
+                    for k=1:length(kGs)
                         
                         [iGs,jGs] = ind2sub( [nGs,nGs] , kGs(k) );
                         buf = 0;

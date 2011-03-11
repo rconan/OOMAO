@@ -45,6 +45,10 @@ classdef photometry < handle
             fprintf(' @(photometry)> magnitude %4.2f\n',obj.p_magnitude)
         end
         
+        function out = mtimes(obj,val)
+            out = obj.wavelength*val;
+        end
+        
         function obj = plus(obj1,obj2)
             w   = obj1.zeroPoint*obj1.wavelength + obj2.zeroPoint*obj2.wavelength;
             bw  = obj1.bandwidth + obj2.bandwidth;

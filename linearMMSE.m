@@ -4,6 +4,15 @@ classdef linearMMSE < handle
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar)
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar,mmseStar)
     % mmse = linearMMSE(...,'pupil',pupilMask,'unit',unit)
+    % Results are given at the wavelength of the mmseStar
+    %
+    % Example:
+    % sampling = 51;
+    % diameter = 25.4;
+    % atmModel = gmtAtmosphere(1,60);
+    % gs = source('asterism',{[6,arcsec(35),0]},'wavelength',photometry.Na);
+    % ss = source('wavelength',photometry.H);
+    % mmse = linearMMSE(sampling,diameter,atmModel,gs,ss,'pupil',utilities.piston(51,'type','logical'));
     
     properties
         tag = 'linearMMSE';
@@ -93,6 +102,7 @@ classdef linearMMSE < handle
             inputs.addRequired('atmModel',@(x) isa(x,'atmosphere'));
             inputs.addRequired('guideStar',@(x) isa(x,'source'));
             inputs.addOptional('mmseStar',[],@(x) isa(x,'source'));
+            inputs.addParamValue('telescope',[],@(x) isa(x,'telescopeAbstract'));
             inputs.addParamValue('pupil',true(sampling),@islogical);
             inputs.addParamValue('unit',[],@isnumeric);
             inputs.addParamValue('model','zonal',@ischar);
@@ -115,8 +125,12 @@ classdef linearMMSE < handle
             obj.noiseCovariance   = inputs.Results.noiseCovariance;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
-            obj.atmModel.wavelength = obj.p_mmseStar.wavelength;
-            obj.tel = telescope(obj.diameter);
+            obj.atmModel.wavelength = obj.p_mmseStar(1).wavelength;
+            if isempty(inputs.Results.telescope)
+                obj.tel = telescope(obj.diameter);
+            else
+                obj.tel = inputs.Results.telescope;
+            end
             obj.log = logBook.checkIn(obj);
             
 %             add(obj.log,obj,'Computing the covariance matrices')
@@ -244,8 +258,10 @@ classdef linearMMSE < handle
                 lmmse(obj)
             end
                         
-            rho  = abs(zRho);
+            out   = zeros(size(zRho));
+            rho   = abs(zRho);
             index = rho<obj.diameter;
+            rho   = rho(index);
             
             rhoX = 2*real(zRho(index))/obj.diameter;
             rhoY = 2*imag(zRho(index))/obj.diameter;
@@ -253,9 +269,34 @@ classdef linearMMSE < handle
             a = obj.Bmse{1};
             
             sf = a(1,1)*rhoX.^2 + a(2,2)*rhoY.^2 + (a(1,2)+a(2,1)).*rhoX.*rhoY;
+            sf = 4*sf;
             
-            out = zeros(size(rho));
-            out(index) = otf(obj.tel,rho(index)).*exp(-2*sf);
+%             r0 = obj.atmModel.r0;
+%             f0 = 1./obj.atmModel.L0;
+%             fun = @(fx,fy,fh_rho) integrand(fx,fy,fh_rho,r0,f0);            
+%             fc = 0.5*50/25.4;
+%             sfFit = zeros(size(rho));
+%             fxy = linspace(-fc,fc,1001);
+%             [fx,fy] = meshgrid(fxy);
+%             parfor k=1:numel(rho)
+% %                sfFit(k) = dblquad( @(fx,fy) fun(fx,fy,rho(k)), -fc, fc , -fc , fc); 
+%                sfFit(k) = trapz(fxy, trapz(fxy, fun(fx,fy,rho(k) ) ) ); 
+%             end
+%             sf = sf + phaseStats.structureFunction(rho,obj.atmModel) - sfFit;
+% %             fun = @(f,x) phaseStats.spectrum(f,obj.atmModel).*(1 - besselj(0,2*pi*x.*f));
+% %             sfFit = 4*pi*arrayfun( @(x) quadgk(@(f) fun(f,x),fc,Inf), rho(index));
+
+            out(index) = otf(obj.tel,zRho(index)).*exp(-0.5*sf);
+            
+%             function out1 = integrand(fx,fy,rho_,r0,f0)
+%                 
+%                 f = hypot(fx,fy);
+%                 out1 = (24.*gamma(6./5)./5).^(5./6).*...
+%                     (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+%                     r0.^(-5./3);
+%                 out1 = out1.*(f.^2 + f0.^2).^(-11./6).*(1 - besselj(0,2*pi*rho_.*f));
+%                 
+%             end
             
         end
         
@@ -267,17 +308,44 @@ classdef linearMMSE < handle
             % size pixelScaleInMas; the psf is scaled such as its maximum
             % corresponds to the Strehl ratio
             
-            pxScaleAtNyquist = 0.25*obj.p_mmseStar.wavelength/obj.diameter;
-            imgLens = lens;
-            imgLens.nyquistSampling = ...
-                pxScaleAtNyquist/(pixelScaleInMas*1e-3*constants.arcsec2radian);
-            n = resolution;
-            u = linspace(-1,1,n)*obj.diameter;
-            [x,y] = meshgrid(u);
-            z = x + 1i*y;
-            thisOtf = otf(obj,z);
-            src = source.*thisOtf*imgLens;
-            out = src.amplitude*obj.strehlRatio/max(src.amplitude(:));
+%             pxScaleAtNyquist = 0.25*obj.p_mmseStar.wavelength/obj.diameter;
+%             imgLens = lens;
+%             imgLens.nyquistSampling = ...
+%                 pxScaleAtNyquist/(pixelScaleInMas*1e-3*constants.arcsec2radian);
+%             n = resolution;
+%             u = linspace(-1,1,n)*obj.diameter;
+%             [x,y] = meshgrid(u);
+%             z = x + 1i*y;
+%             thisOtf = otf(obj,z);
+%             src = source.*thisOtf*imgLens;
+%             out = src.amplitude*obj.strehlRatio/max(src.amplitude(:));
+
+              pixelScale = pixelScaleInMas*1e-3*constants.arcsec2radian/obj.p_mmseStar.wavelength;
+              
+              [fx,fy] = freqspace(resolution,'meshgrid');
+              fx = pixelScale*fx*resolution/2;
+              fy = pixelScale*fy*resolution/2;
+            
+              fc = 1;
+              psd = fourierAdaptiveOptics.fittingPSD(fx,fy,fc,obj.atmModel);
+              sf  = fft2(fftshift(psd))*pixelScale^2;
+              sf  = 2*fftshift( sf(1) - sf );
+            
+              [rhoX,rhoY] = freqspace(resolution,'meshgrid');
+              rhoX = 0.5*rhoX/pixelScale;
+              rhoY = 0.5*rhoY/pixelScale;
+%               rho  = hypot(rhoX,rhoY);
+
+              [u,v] = freqspace(resolution,'meshgrid');
+              fftPhasor = exp(1i.*pi.*(u+v)*0.5);
+
+              thisOtf = otf(obj,rhoX+1i.*rhoY).*exp(-0.5*sf);
+%               figure
+%               mesh(rhoX,rhoY,thisOtf)
+              out = real(ifftshift(ifft2(ifftshift(fftPhasor.*thisOtf))))/pixelScale^2;
+              out = out./obj.tel.area;
+%               out = out.*obj.strehlRatio./max(out(:));
+
         end
         
         function imagesc(obj,resolution,pixelScaleInMas)
@@ -291,6 +359,8 @@ classdef linearMMSE < handle
         
         function out = enSquaredEnergy(obj,eHalfSize)
             %% ENSQUAREDENERGY
+            %
+            % ee = enSquaredEnergy(obj,eHalfSize)
             
             a = 2*eHalfSize;
             out = quad2d(...
