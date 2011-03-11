@@ -50,6 +50,8 @@ classdef source < stochasticWave & hgsetget
         nSrc;
         % time stamp
         timeStamp = 0;
+        % Photometric band
+        photometry;
     end
     
     properties (SetAccess=private)
@@ -81,7 +83,6 @@ classdef source < stochasticWave & hgsetget
         p_zenith;
         p_azimuth;
         p_magnitude;
-        photometry;
         p_viewPoint;
         tel;
     end

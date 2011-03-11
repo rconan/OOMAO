@@ -908,6 +908,80 @@ classdef shackHartmann < hgsetget
             
         end
         
+        function noiseVar = theoreticalNoise(obj,tel,atm,gs,ss,varargin)
+            %% THEORETICALNOISE WFS theoretical noise
+            %
+            % noiseVar = theoreticalNoise(obj,tel,atm,gs,ss) computes the
+            % theoretical noise variance for a telescope, an atmosphere, a
+            % guide star and a science star objects
+            %
+            % noiseVar = theoreticalNoise(obj,...,'skyBackgroundMagnitude',sky) 
+            % computes the theoretical noise variance including background
+            % noise specified with the sky backgroung magnitude at the
+            % wavelength of the guide star
+            %
+            % noiseVar = theoreticalNoise(obj,...,'soao',true) computes the
+            % theoretical noise variance for AO corrected WFS
+            
+            
+            inputs = inputParser;
+            inputs.addRequired('obj',@(x) isa(x,'shackHartmann') );
+            inputs.addRequired('tel',@(x) isa(x,'telescopeAbstract') );
+            inputs.addRequired('atm',@(x) isa(x,'atmosphere') );
+            inputs.addRequired('gs',@(x) isa(x,'source') );
+            inputs.addRequired('ss',@(x) isa(x,'source') );
+            inputs.addParamValue('skyBackgroundMagnitude',[],@isnumeric);
+            inputs.addParamValue('soao',false,@islogical);
+            
+            inputs.parse(obj,tel,atm,gs,ss,varargin{:});
+            
+            obj    = inputs.Results.obj;
+            tel    = inputs.Results.tel;
+            atm    = inputs.Results.atm;
+            gs     = inputs.Results.gs;
+            ss     = inputs.Results.ss;
+            skyBackgroundMagnitude ...
+                   = inputs.Results.skyBackgroundMagnitude;
+            soao   = inputs.Results.soao;
+            
+            % WFS Pitch
+            d = tel.D/obj.lenslets.nLenslet;
+            % Atmosphere WFS wavelength scaling
+            atmWavelength = atm.wavelength;
+            atm.wavelength = gs.wavelength;
+            % FWHM in diffraction unit
+            if soao
+                fwhm = 1/d;
+            else
+                fwhm = 1./min(d,atm.r0);
+            end
+            % Photon #
+            nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
+                [gs.nPhoton]*obj.camera.exposureTime*tel.area;
+            % Sky backgound photon #
+            if isempty(skyBackgroundMagnitude)
+                nbg = 0;
+            else
+                skyBackground = source('wavelength',gs.photometry,'magnitude',skyBackgroundMagnitude);
+                skyBackground.nPhoton
+                nbg = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
+                    skyBackground.nPhoton*obj.camera.exposureTime*tel.area*...
+                    obj.camera.pixelScale^2*...
+                    prod(obj.camera.resolution/obj.lenslets.nLenslet);
+            end
+            % WFS phase diff. noise variance
+            ron = obj.camera.readOutNoise;
+            noiseVar = ...
+                ([gs.wavelength]./ss.wavelength).^2.*(...
+                (pi^2).*(d.*fwhm)^2./nph + (4*pi^2)*(ron*d*fwhm./nph).^2 + ...
+                (pi^2).*(d.*fwhm).^2*nbg./nph.^2);
+            noiseVar = (3*pi/16)^2*noiseVar; % To comply with Hardy and Tyler formulaes
+            % Resetting atmosphere wavelength
+            atm.wavelength = atmWavelength;
+           
+        end        
+        
+        
     end
     
 end

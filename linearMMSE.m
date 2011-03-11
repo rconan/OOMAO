@@ -61,6 +61,8 @@ classdef linearMMSE < handle
         var
         % error rms
         rms
+        % error rms in mas
+        rmsMas
         % error variance map
         varMap
         % error rms map
@@ -113,6 +115,7 @@ classdef linearMMSE < handle
             obj.noiseCovariance   = inputs.Results.noiseCovariance;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
+            obj.atmModel.wavelength = obj.p_mmseStar.wavelength;
             obj.tel = telescope(obj.diameter);
             obj.log = logBook.checkIn(obj);
             
@@ -205,6 +208,7 @@ classdef linearMMSE < handle
                 val = val(:);
                 val = repmat( val , 1,  nMode )';
                 obj.p_noiseCovariance = diag(val(:));%.*obj.p_noiseCovariance;
+                solveMmse(obj);
                 obj.Bmse = [];
             end
         end
@@ -233,22 +237,56 @@ classdef linearMMSE < handle
             
         end
         
-        function out = otf(obj,rho)
+        function out = otf(obj,zRho)
             %% OTF Optical Transfer Function
                         
             if isempty(obj.Bmse)
                 lmmse(obj)
             end
+                        
+            rho  = abs(zRho);
+            index = rho<obj.diameter;
             
-            rhoX = 2*real(rho)/obj.diameter;
-            rhoY = 2*imag(rho)/obj.diameter;
+            rhoX = 2*real(zRho(index))/obj.diameter;
+            rhoY = 2*imag(zRho(index))/obj.diameter;
             
             a = obj.Bmse{1};
             
             sf = a(1,1)*rhoX.^2 + a(2,2)*rhoY.^2 + (a(1,2)+a(2,1)).*rhoX.*rhoY;
             
-            out = otf(obj.tel,abs(rho)).*exp(-2*sf);
+            out = zeros(size(rho));
+            out(index) = otf(obj.tel,rho(index)).*exp(-2*sf);
             
+        end
+        
+        function out = image(obj,resolution,pixelScaleInMas)
+            %% IMAGE 2D Point Spread Function
+            %
+            % psf = image(obj,resolution,pixelScaleInMas) computes the 2D
+            % residual psf sampled with resolutionXresolution pixels of
+            % size pixelScaleInMas; the psf is scaled such as its maximum
+            % corresponds to the Strehl ratio
+            
+            pxScaleAtNyquist = 0.25*obj.p_mmseStar.wavelength/obj.diameter;
+            imgLens = lens;
+            imgLens.nyquistSampling = ...
+                pxScaleAtNyquist/(pixelScaleInMas*1e-3*constants.arcsec2radian);
+            n = resolution;
+            u = linspace(-1,1,n)*obj.diameter;
+            [x,y] = meshgrid(u);
+            z = x + 1i*y;
+            thisOtf = otf(obj,z);
+            src = source.*thisOtf*imgLens;
+            out = src.amplitude*obj.strehlRatio/max(src.amplitude(:));
+        end
+        
+        function imagesc(obj,resolution,pixelScaleInMas)
+            %% IMAGESC
+            
+            psf = image(obj,resolution,pixelScaleInMas);
+            imagesc(psf)
+            axis equal tight
+            colorbar
         end
         
         function out = enSquaredEnergy(obj,eHalfSize)
@@ -263,10 +301,10 @@ classdef linearMMSE < handle
         end
         
         function out = strehlRatio(obj)
-            %% ENSQUAREDENERGY
+            %% STREHLRATIO
             
             out = quad2d(...
-                @(o,r) r.*otf(obj,r.*exp(1i*o)),0,2*pi,0,obj.diameter)./obj.tel.area;
+                @(o,r) r.*otf(obj,r.*exp(1i*o)),0,2*pi,0,obj.diameter)./(pi*obj.diameter^2/4);
         end
 
         function map = get.varMap(obj)
@@ -312,6 +350,12 @@ classdef linearMMSE < handle
             
             out = opd(obj,obj.var);
         end        
+        
+        function out = get.rmsMas(obj)
+            %% RMS Pupil error rms
+            
+            out = 1e3*constants.radian2arcsec*4*(sqrt(obj.var)/obj.p_mmseStar.waveNumber)/obj.diameter;
+        end        
 
     end
        
@@ -323,7 +367,7 @@ classdef linearMMSE < handle
             
             out = sqrt(val);
             if ~isempty(obj.unit)
-                add(obj.log,obj,sprintf('Rms in 1E%d meter',obj.unit))
+%                 add(obj.log,obj,sprintf('Rms in 1E%d meter',obj.unit))
                 out = 10^-obj.unit*...
                     out*obj.atmModel.wavelength/(2*pi);
             end
