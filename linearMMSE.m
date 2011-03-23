@@ -7,12 +7,12 @@ classdef linearMMSE < handle
     % Results are given at the wavelength of the mmseStar
     %
     % Example:
-    % sampling = 51;
-    % diameter = 25.4;
-    % atmModel = gmtAtmosphere(1,60);
-    % gs = source('asterism',{[6,arcsec(35),0]},'wavelength',photometry.Na);
+    % sampling = 11;
+    % diameter = 8;
+    % atmModel = atmosphere(photometry.V,15e-2,60,'altitude',10e3);
+    % gs = source('asterism',{[3,arcsec(30),0]},'wavelength',photometry.R);
     % ss = source('wavelength',photometry.H);
-    % mmse = linearMMSE(sampling,diameter,atmModel,gs,ss,'pupil',utilities.piston(51,'type','logical'));
+    % mmse = linearMMSE(sampling,diameter,atmModel,gs,ss,'pupil',utilities.piston(sampling,'type','logical'),'unit',-9);
     
     properties
         tag = 'linearMMSE';
@@ -54,6 +54,7 @@ classdef linearMMSE < handle
         mmseBuilder
         % Zernike noise variance
         zernNoiseCovariance
+        tilts;
     end
     
     properties (SetObservable=true)
@@ -108,6 +109,7 @@ classdef linearMMSE < handle
             inputs.addParamValue('model','zonal',@ischar);
             inputs.addParamValue('zernikeMode',[],@isnumeric);
             inputs.addParamValue('noiseCovariance',[],@isnumeric);
+            inputs.addParamValue('tilts','Z',@ischar);
             
             inputs.parse(sampling,diameter,atmModel,guideStar,varargin{:});
             
@@ -123,6 +125,7 @@ classdef linearMMSE < handle
             obj.model      = inputs.Results.model;
             obj.zernikeMode= inputs.Results.zernikeMode;
             obj.noiseCovariance   = inputs.Results.noiseCovariance;
+            obj.tilts      = inputs.Results.tilts;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
             obj.atmModel.wavelength = obj.p_mmseStar(1).wavelength;
@@ -162,15 +165,24 @@ classdef linearMMSE < handle
                     
                       obj.zernP    = zernike(obj.zernikeMode,obj.diameter,...
                           'resolution',obj.sampling);
-                      obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
-                          obj.atmModel,obj.guideStar,obj.guideStar);            
-                      obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
-                          obj.atmModel,obj.p_mmseStar,obj.guideStar) }; 
+                      obj.Cxx = zernikeStats.tiltsAngularCovariance(...
+                          obj.zernP,obj.atmModel,...
+                          obj.guideStar,obj.guideStar,'tilts',obj.tilts(end));
+                      obj.Cox = { zernikeStats.tiltsAngularCovariance(...
+                          obj.zernP,obj.atmModel,...
+                          obj.p_mmseStar,obj.guideStar,'tilts',obj.tilts) };
+                      obj.Coo = zernikeStats.tiltsAngularCovariance(...
+                          obj.zernP,obj.atmModel,...
+                          obj.p_mmseStar,obj.p_mmseStar,'tilts',obj.tilts(1));
+%                       obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
+%                           obj.atmModel,obj.guideStar,obj.guideStar);            
+%                       obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
+%                           obj.atmModel,obj.p_mmseStar,obj.guideStar) }; 
 %                       obj.Cxx = cell2mat(zernikeStats.angularCovariance(obj.zernP,...
 %                           obj.atmModel,obj.guideStar));            
 %                       obj.Cox = zernikeStats.angularCovariance(obj.zernP,...
 %                           obj.atmModel,obj.guideStar,obj.p_mmseStar)'; 
-                      obj.Coo = zernikeStats.covariance(obj.zernP,obj.atmModel);
+%                       obj.Coo = zernikeStats.covariance(obj.zernP,obj.atmModel);
                     
                 otherwise
                     
@@ -258,45 +270,33 @@ classdef linearMMSE < handle
                 lmmse(obj)
             end
                         
-            out   = zeros(size(zRho));
-            rho   = abs(zRho);
-            index = rho<obj.diameter;
-            rho   = rho(index);
-            
-            rhoX = 2*real(zRho(index))/obj.diameter;
-            rhoY = 2*imag(zRho(index))/obj.diameter;
-            
-            a = obj.Bmse{1};
-            
-            sf = a(1,1)*rhoX.^2 + a(2,2)*rhoY.^2 + (a(1,2)+a(2,1)).*rhoX.*rhoY;
-            sf = 4*sf;
-            
-%             r0 = obj.atmModel.r0;
-%             f0 = 1./obj.atmModel.L0;
-%             fun = @(fx,fy,fh_rho) integrand(fx,fy,fh_rho,r0,f0);            
-%             fc = 0.5*50/25.4;
-%             sfFit = zeros(size(rho));
-%             fxy = linspace(-fc,fc,1001);
-%             [fx,fy] = meshgrid(fxy);
-%             parfor k=1:numel(rho)
-% %                sfFit(k) = dblquad( @(fx,fy) fun(fx,fy,rho(k)), -fc, fc , -fc , fc); 
-%                sfFit(k) = trapz(fxy, trapz(fxy, fun(fx,fy,rho(k) ) ) ); 
-%             end
-%             sf = sf + phaseStats.structureFunction(rho,obj.atmModel) - sfFit;
-% %             fun = @(f,x) phaseStats.spectrum(f,obj.atmModel).*(1 - besselj(0,2*pi*x.*f));
-% %             sfFit = 4*pi*arrayfun( @(x) quadgk(@(f) fun(f,x),fc,Inf), rho(index));
-
-            out(index) = otf(obj.tel,zRho(index)).*exp(-0.5*sf);
-            
-%             function out1 = integrand(fx,fy,rho_,r0,f0)
-%                 
-%                 f = hypot(fx,fy);
-%                 out1 = (24.*gamma(6./5)./5).^(5./6).*...
-%                     (gamma(11./6).^2./(2.*pi.^(11./3))).*...
-%                     r0.^(-5./3);
-%                 out1 = out1.*(f.^2 + f0.^2).^(-11./6).*(1 - besselj(0,2*pi*rho_.*f));
-%                 
-%             end
+            switch obj.model
+                
+                case 'zonal'
+                    
+                    structFun = 2*(obj.Bmse{1} - diag(diag(obj.Bmse{1})));
+                    [x,y] = meshgrid( linspace(-1,1,obj.sampling)*obj.diameter/2 );
+                    x = x(obj.pupil);
+                    y = y(obj.pupil);
+                    [x,y] = ndgrid(x,y);
+                    
+                case 'modal'
+                    out   = zeros(size(zRho));
+                    rho   = abs(zRho);
+                    index = rho<obj.diameter;
+                    
+                    rhoX = 2*real(zRho(index))/obj.diameter;
+                    rhoY = 2*imag(zRho(index))/obj.diameter;
+                    
+                    a = obj.Bmse{1};
+                    
+                    sf = a(1,1)*rhoX.^2 + a(2,2)*rhoY.^2 + (a(1,2)+a(2,1)).*rhoX.*rhoY;
+                    if strcmp(obj.tilts,'Z')                       
+                        sf = 4*sf;
+                    end
+                    
+                    out(index) = otf(obj.tel,zRho(index)).*exp(-0.5*sf);
+            end
             
         end
         
@@ -425,6 +425,9 @@ classdef linearMMSE < handle
             %% RMS Pupil error rms
             
             out = 1e3*constants.radian2arcsec*4*(sqrt(obj.var)/obj.p_mmseStar.waveNumber)/obj.diameter;
+            if strcmp(obj.tilts,'G')
+                out = 0.5*out;
+            end
         end        
 
     end
@@ -458,10 +461,16 @@ classdef linearMMSE < handle
                     
                 case 'modal'
                     
-                    obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
-                        obj.atmModel,obj.guideStar,obj.guideStar);
-                    obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
-                        obj.atmModel,obj.p_mmseStar,obj.guideStar) };
+                    obj.Cxx = zernikeStats.tiltsAngularCovariance(...
+                        obj.zernP,obj.atmModel,...
+                        obj.guideStar,obj.guideStar,'tilts',obj.tilts(end));
+                    obj.Cox = { zernikeStats.tiltsAngularCovariance(...
+                        obj.zernP,obj.atmModel,...
+                        obj.p_mmseStar,obj.guideStar,'tilts',obj.tilts) };
+%                     obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
+%                         obj.atmModel,obj.guideStar,obj.guideStar);
+%                     obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
+%                         obj.atmModel,obj.p_mmseStar,obj.guideStar) };
                     
             end
             

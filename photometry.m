@@ -1,19 +1,8 @@
-classdef photometry < handle
-    
+classdef photometry
     properties
         wavelength % [micron]
         bandwidth  % [micron]
         zeroPoint  % [ph/s]
-    end
-    
-    properties (Dependent)
-        nPhoton   % # of photons
-        magnitude % magnitude
-    end
-    
-    properties (Access=private)
-        p_nPhoton
-        p_magnitude
     end
     
     methods
@@ -25,35 +14,13 @@ classdef photometry < handle
             obj.zeroPoint  = zp/368;
         end
         
-        %% Get and Set magnitude
-        function out = get.magnitude(obj)
-            out = obj.p_magnitude;
+        %% Get nPhoton
+        function out = nPhoton(obj,magnitude)
+            out = obj.zeroPoint*10^(-0.4*magnitude);
         end
-        function set.magnitude(obj,val)
-            obj.p_magnitude = val;
-            obj.p_nPhoton = obj.zeroPoint*10^(-0.4*val);
-%             fprintf(' @(photometry)> # of photon s^{-1}: %g\n',obj.p_nPhoton)
-        end
-        
-        %% Get and Set nPhoton
-        function out = get.nPhoton(obj)
-            out = obj.p_nPhoton;
-        end
-        function set.nPhoton(obj,val)
-            obj.p_nPhoton = val;
-            obj.p_magnitude = -2.5*log10(val/obj.zeroPoint);
-            fprintf(' @(photometry)> magnitude %4.2f\n',obj.p_magnitude)
-        end
-        
-        function out = mtimes(obj,val)
-            out = obj.wavelength*val;
-        end
-        
-        function obj = plus(obj1,obj2)
-            w   = obj1.zeroPoint*obj1.wavelength + obj2.zeroPoint*obj2.wavelength;
-            bw  = obj1.bandwidth + obj2.bandwidth;
-            zp  = obj1.zeroPoint + obj2.zeroPoint;
-            obj = gmtPhotometry(w,bw,zp);
+        %% Get magnitude
+        function out = magnitude(obj,nPhoton)
+            out = -2.5*log10(nPhoton/obj.zeroPoint);
         end
         
     end

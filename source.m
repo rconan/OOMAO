@@ -218,12 +218,12 @@ classdef source < stochasticWave & hgsetget
         
         %% Get and Set magnitude
         function out = get.magnitude(obj)
-            out = obj.photometry.magnitude;
+            out = obj.p_magnitude;
         end
         function set.magnitude(obj,val)
-            obj.photometry.magnitude = val;
+            obj.p_magnitude = val;
             if ~isempty(obj.photometry)
-                obj.nPhoton = obj.photometry.nPhoton;
+                obj.nPhoton = obj.photometry.nPhoton(val);
 %                 fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
             end
         end
@@ -240,8 +240,8 @@ classdef source < stochasticWave & hgsetget
                 error('oomao:source:wavelength','The wavelength must be set with the photometry class!')
             end
             obj.photometry = val;
-            if ~isempty(obj.photometry.magnitude)
-                obj.nPhoton = obj.photometry.nPhoton;
+            if ~isempty(obj.p_magnitude)
+                obj.nPhoton = obj.photometry.nPhoton(obj.p_magnitude);
             end
         end
         
@@ -399,11 +399,22 @@ classdef source < stochasticWave & hgsetget
         function obj = times(obj,otherObj)
             %% .* Source object reset and propagation operator
             %
-            % src = src.*otherObj propagate src through otherObj setting the
+            % src = src.*otherObj propagates src through otherObj setting the
             % source amplitude to the otherObj transmitance and the source
             % phase to the otherObj phase
             
              mtimes(reset(obj),otherObj);
+        end
+        
+        function out = minus(obj,otherObj)
+            %% MINUS Direction vector between two sources
+            %
+            % delta = src - otherSrc computes the drection vector between
+            % the two sources
+            
+            out = tan(obj.zenith).*exp(1i*obj.azimuth) - ...
+                tan(otherObj.zenith).*exp(1i*otherObj.azimuth);
+            
         end
         
         function out = mldivide(obj,phaseMap)

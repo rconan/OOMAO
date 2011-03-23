@@ -329,7 +329,7 @@ classdef zernike < telescopeAbstract
                 krkr = m~=0;
                 g = (-1).*((n+m*krkr)/2).*1i.^(m.*krkr).*2.^(krkr/2);
                 p = pi.*krkr.*((-1).^zj-1)/4;
-                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*obj.D).*...
+                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(n+1,pi.*f.*obj.D).*...
                     g.*cos(m.*o+p);
             end
         end

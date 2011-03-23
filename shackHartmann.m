@@ -908,7 +908,7 @@ classdef shackHartmann < hgsetget
             
         end
         
-        function noiseVar = theoreticalNoise(obj,tel,atm,gs,ss,varargin)
+        function varargout = theoreticalNoise(obj,tel,atm,gs,ss,varargin)
             %% THEORETICALNOISE WFS theoretical noise
             %
             % noiseVar = theoreticalNoise(obj,tel,atm,gs,ss) computes the
@@ -930,7 +930,7 @@ classdef shackHartmann < hgsetget
             inputs.addRequired('atm',@(x) isa(x,'atmosphere') );
             inputs.addRequired('gs',@(x) isa(x,'source') );
             inputs.addRequired('ss',@(x) isa(x,'source') );
-            inputs.addParamValue('skyBackgroundMagnitude',[],@isnumeric);
+            inputs.addParamValue('skyBackground',[],@isnumeric);
             inputs.addParamValue('soao',false,@islogical);
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
@@ -940,15 +940,15 @@ classdef shackHartmann < hgsetget
             atm    = inputs.Results.atm;
             gs     = inputs.Results.gs;
             ss     = inputs.Results.ss;
-            skyBackgroundMagnitude ...
-                   = inputs.Results.skyBackgroundMagnitude;
+            skyBackground ...
+                   = inputs.Results.skyBackground;
             soao   = inputs.Results.soao;
             
             % WFS Pitch
             d = tel.D/obj.lenslets.nLenslet;
             % Atmosphere WFS wavelength scaling
             atmWavelength = atm.wavelength;
-            atm.wavelength = gs.wavelength;
+            atm.wavelength = gs(1).wavelength;
             % FWHM in diffraction unit
             if soao
                 fwhm = 1/d;
@@ -958,16 +958,17 @@ classdef shackHartmann < hgsetget
             % Photon #
             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
                 [gs.nPhoton]*obj.camera.exposureTime*tel.area;
+            fprintf(' @(shackHartmann:theoreticalNoise)> Number of source photon %4.2f per frame\n',nph)
             % Sky backgound photon #
-            if isempty(skyBackgroundMagnitude)
+            if isempty(skyBackground)
                 nbg = 0;
             else
-                skyBackground = source('wavelength',gs.photometry,'magnitude',skyBackgroundMagnitude);
-                skyBackground.nPhoton
+                skyBackground = source('wavelength',gs(1).photometry,'magnitude',skyBackground);
                 nbg = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
                     skyBackground.nPhoton*obj.camera.exposureTime*tel.area*...
                     obj.camera.pixelScale^2*...
                     prod(obj.camera.resolution/obj.lenslets.nLenslet);
+                fprintf(' @(shackHartmann:theoreticalNoise)> Number of background photon %4.2f per frame\n',nph)
             end
             % WFS phase diff. noise variance
             ron = obj.camera.readOutNoise;
@@ -978,6 +979,10 @@ classdef shackHartmann < hgsetget
             noiseVar = (3*pi/16)^2*noiseVar; % To comply with Hardy and Tyler formulaes
             % Resetting atmosphere wavelength
             atm.wavelength = atmWavelength;
+            varargout{1} = noiseVar;
+            if nargout>1
+                varargout{2} = nbg;
+            end
            
         end        
         
