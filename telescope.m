@@ -218,7 +218,11 @@ classdef telescope < telescopeAbstract
             
             if isa(obj.opticalAberration,'atmosphere')
                 fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,obj.D);
-                out = arrayfun( fun, f);
+                out = zeros(size(f));
+                parfor k = 1:numel(f)
+                    out(k) = fun(f(k));
+                end
+%                 out = arrayfun( fun, f);
             else
                 out   = ones(size(f)).*pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4;
                 index = f~=0;

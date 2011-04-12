@@ -414,7 +414,7 @@ classdef utilities
             hold on
             for k=1:n
                 h(k) = polar(theta(k),rho(k),style);
-                set(h(k),'color',c(zc(k),:))
+                set(h(k),'zData',z(k),'color',c(zc(k),:))
             end
             hold off
             

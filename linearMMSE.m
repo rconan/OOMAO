@@ -128,6 +128,7 @@ classdef linearMMSE < handle
             obj.tilts      = inputs.Results.tilts;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
+            fprintf(' @(linearMMSE)> atmosphere wavelength set to mmse star wavelength!\n') 
             obj.atmModel.wavelength = obj.p_mmseStar(1).wavelength;
             if isempty(inputs.Results.telescope)
                 obj.tel = telescope(obj.diameter);
@@ -215,6 +216,7 @@ classdef linearMMSE < handle
             obj.Coo = phaseStats.spatioAngularCovarianceMatrix(...
                 obj.sampling,obj.diameter,...
                 obj.atmModel,obj.p_mmseStar(1),'mask',obj.pupil);
+            solveMmse(obj);
         end
         function val = get.mmseStar(obj)
             val = obj.p_mmseStar;
@@ -223,13 +225,13 @@ classdef linearMMSE < handle
         %% Set/Get noiseCovariance
         function set.noiseCovariance(obj,val)
             if ~isempty(val)
-                if isempty(obj.zernNoiseCovariance)
-                    zernTmp = zernike(1:66,obj.diameter);
-                    obj.zernNoiseCovariance = zernTmp.noiseCovariance(obj.zernikeMode,obj.zernikeMode);
-                end
-                obj.nGuideStar = length(val);
-                obj.p_noiseCovariance = repmat({obj.zernNoiseCovariance},1,obj.nGuideStar);
-                obj.p_noiseCovariance = blkdiag( obj.p_noiseCovariance{:} );
+%                 if isempty(obj.zernNoiseCovariance)
+%                     zernTmp = zernike(1:66,obj.diameter);
+%                     obj.zernNoiseCovariance = zernTmp.noiseCovariance(obj.zernikeMode,obj.zernikeMode);
+%                 end
+%                 obj.nGuideStar = length(val);
+%                 obj.p_noiseCovariance = repmat({obj.zernNoiseCovariance},1,obj.nGuideStar);
+%                 obj.p_noiseCovariance = blkdiag( obj.p_noiseCovariance{:} );
                 nMode = length(obj.zernikeMode);
                 val = val(:);
                 val = repmat( val , 1,  nMode )';
