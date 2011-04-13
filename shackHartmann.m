@@ -950,6 +950,7 @@ classdef shackHartmann < hgsetget
             inputs.addParamValue('soao',false,@islogical);
             inputs.addParamValue('lgsLaunchCoord',[0,0],@isnumeric);
             inputs.addParamValue('naParam',[],@isnumeric); 
+            inputs.addParamValue('verbose',true,@islogical); 
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
             
@@ -965,6 +966,7 @@ classdef shackHartmann < hgsetget
             launchCoord...
                    = inputs.Results.lgsLaunchCoord;
             naParam= inputs.Results.naParam;
+            verbose= inputs.Results.verbose;
             naLgs = false;
             
             nLenslet = obj.lenslets.nLenslet;
@@ -995,19 +997,24 @@ classdef shackHartmann < hgsetget
             
             % Photon #
             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
-                [gs.nPhoton]*obj.camera.exposureTime*tel.area;
+                [gs.nPhoton]*obj.camera.exposureTime*min(tel.area,d^2);
+            %             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
+            %                 [gs.nPhoton]*obj.camera.exposureTime*obj.lenslets.nLensletImagePx^2*...
+            %                 tel.area/tel.pixelArea;
             
-            add(obj.log,obj,sprintf('lenslet pitch  : %4.2f cm',d*1e2))
-            add(obj.log,obj,sprintf('Fried parameter: %4.2f cm',atm.r0*1e2))
-            add(obj.log,obj,sprintf('Number of source photon: %g per frame',nph(1)))
-
+            if verbose
+                add(obj.log,obj,sprintf('lenslet pitch  : %4.2f cm',d*1e2))
+                add(obj.log,obj,sprintf('Fried parameter: %4.2f cm',atm.r0*1e2))
+                add(obj.log,obj,sprintf('Number of source photon: %g per subaperture per frame',nph(1)))
+            end
+            
             % Atmosphere WFS wavelength scaling
             atmWavelength = atm.wavelength;
             atm.wavelength = gs(1).wavelength;
             
             % FWHM in diffraction unit
             if soao
-                fwhm = 1/d;
+                fwhm = ones(obj.nValidLenslet,1)/d;
             elseif naLgs
                 dNa   = gs(1).wavelength./thetaNa;
                 index = dNa>min(d,atm.r0);
@@ -1015,7 +1022,7 @@ classdef shackHartmann < hgsetget
                       = min(d,atm.r0);
                 fwhm  = 1./sqrt(atm.r0*dNa);
             else
-                fwhm = 1./min(d,atm.r0);
+                fwhm = ones(obj.nValidLenslet,1)./min(d,atm.r0);
             end
             
             % Sky backgound photon #
@@ -1033,18 +1040,15 @@ classdef shackHartmann < hgsetget
             ron = obj.camera.readOutNoise;
             
             nGs =length(gs);
-            noiseVar = zeros(length(fwhm),nGs);
+            noiseVar = zeros(obj.nValidLenslet,nGs);
             for kGs = 1:nGs
                 
-                if nLenslet>2
+                if nLenslet>1
                     snr = sqrt(2*nph(kGs).^2./( nph(kGs) + ...
                         (2/3)*(gs(kGs).wavelength./ss.wavelength).^2.*(4*ron*d.*fwhm*ND).^2 + ...
                         8*nbg/3) );
-                elseif nLenslet==2 % quad-cell SNR
+                else % quad-cell SNR
                     snr = nph(kGs)./sqrt(nph(kGs) + 4*ron.^2. + nbg);
-                else
-                    error('oomao;shackHartmann:theoreticalNoise',...
-                        'The lenslet # must be greatear than 1!') %#ok<CTPCT>
                 end
                 noiseVar(:,kGs) = ...
                     (gs(kGs).wavelength./ss.wavelength).^2.*(pi.*d.*fwhm./snr).^2;
@@ -1058,7 +1062,7 @@ classdef shackHartmann < hgsetget
             atm.wavelength = atmWavelength;
             varargout{1} = noiseVar;
             if nargout>1
-                varargout{2} = nbg;
+                varargout{2} = nph(1);
             end
            
         end        

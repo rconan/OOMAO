@@ -536,8 +536,8 @@ classdef phaseStats
                         betaSs = srcCCdirectionVector(:,kSs)*altitude(kLayer);
                         scale = 1 - altitude(kLayer)/srcCCheight(kSs);
                         zSs = complex( ...
-                            x*scale + betaSs(1) - windVx(kLayer)*tau, ...
-                            y*scale + betaSs(2) - windVy(kLayer)*tau );
+                            x*scale + betaSs(1) + windVx(kLayer)*tau, ...
+                            y*scale + betaSs(2) + windVy(kLayer)*tau );
                         
                         rho   = abs(bsxfun(@minus,zSs,iZ.'));
                         out   = cstL0CC;
