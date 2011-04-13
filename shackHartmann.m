@@ -908,12 +908,17 @@ classdef shackHartmann < hgsetget
             
         end
         
-        function noiseVar = theoreticalNoise(obj,tel,atm,gs,ss,varargin)
+        function varargout = theoreticalNoise(obj,tel,atm,gs,ss,varargin)
             %% THEORETICALNOISE WFS theoretical noise
             %
             % noiseVar = theoreticalNoise(obj,tel,atm,gs,ss) computes the
             % theoretical noise variance for a telescope, an atmosphere, a
             % guide star and a science star objects
+            %
+            % noiseVar = theoreticalNoise(obj,tel,atm,gs,ss,nd) computes the
+            % theoretical noise variance for a telescope, an atmosphere, a
+            % guide star, a science star objects and the fwhm of a
+            % diffraction limited spot in pixel (default: nd=2)
             %
             % noiseVar = theoreticalNoise(obj,...,'skyBackgroundMagnitude',sky) 
             % computes the theoretical noise variance including background
@@ -922,6 +927,16 @@ classdef shackHartmann < hgsetget
             %
             % noiseVar = theoreticalNoise(obj,...,'soao',true) computes the
             % theoretical noise variance for AO corrected WFS
+            %
+            % noiseVar = theoreticalNoise(obj,...,'naParam',[deltaNa,naAltidude]) 
+            % computes the theoretical noise variance for each leanslet
+            % according to the spot elongation derived from the Na layer
+            % parameters ; the lgs is launched on-axis
+            %
+            % noiseVar = theoreticalNoise(obj,...,'naParam',[deltaNa,naAltidude],'lgsLaunchCoord',[xL,yL]) 
+            % computes the theoretical noise variance for Na LGS WFS which
+            % the LGS launch telescope location is given by the coordinates
+            % [xL,yL]
             
             
             inputs = inputParser;
@@ -930,8 +945,12 @@ classdef shackHartmann < hgsetget
             inputs.addRequired('atm',@(x) isa(x,'atmosphere') );
             inputs.addRequired('gs',@(x) isa(x,'source') );
             inputs.addRequired('ss',@(x) isa(x,'source') );
-            inputs.addParamValue('skyBackgroundMagnitude',[],@isnumeric);
+            inputs.addOptional('ND',2,@isnumeric);
+            inputs.addParamValue('skyBackground',[],@isnumeric);
             inputs.addParamValue('soao',false,@islogical);
+            inputs.addParamValue('lgsLaunchCoord',[0,0],@isnumeric);
+            inputs.addParamValue('naParam',[],@isnumeric); 
+            inputs.addParamValue('verbose',true,@islogical); 
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
             
@@ -940,44 +959,111 @@ classdef shackHartmann < hgsetget
             atm    = inputs.Results.atm;
             gs     = inputs.Results.gs;
             ss     = inputs.Results.ss;
-            skyBackgroundMagnitude ...
-                   = inputs.Results.skyBackgroundMagnitude;
+            skyBackground ...
+                   = inputs.Results.skyBackground;
             soao   = inputs.Results.soao;
+            ND     = inputs.Results.ND;
+            launchCoord...
+                   = inputs.Results.lgsLaunchCoord;
+            naParam= inputs.Results.naParam;
+            verbose= inputs.Results.verbose;
+            naLgs = false;
             
+            nLenslet = obj.lenslets.nLenslet;
             % WFS Pitch
-            d = tel.D/obj.lenslets.nLenslet;
-            % Atmosphere WFS wavelength scaling
-            atmWavelength = atm.wavelength;
-            atm.wavelength = gs.wavelength;
-            % FWHM in diffraction unit
-            if soao
-                fwhm = 1/d;
-            else
-                fwhm = 1./min(d,atm.r0);
+            d = tel.D/nLenslet;
+            
+            if ~isempty(naParam)
+                
+                naLgs = true;
+                
+                deltaNa    = naParam(1);
+                naAltitude = naParam(2);
+                
+                xL = launchCoord(1);
+                yL = launchCoord(2);
+                
+                uLenslet = linspace(-1,1,nLenslet)*(tel.D/2-d/2);
+                [xLenslet,yLenslet] = meshgrid(uLenslet);
+                maskLenslet = obj.validLenslet;
+                xLenslet = xLenslet(maskLenslet);
+                yLenslet = yLenslet(maskLenslet);
+                
+%                 [oLenslet,rLenslet] = cart2pol(xLenslet,yLenslet);
+                re = hypot(xL-xLenslet,yL-yLenslet);
+                thetaNa = re*deltaNa/naAltitude^2;
+                
             end
+            
             % Photon #
             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
-                [gs.nPhoton]*obj.camera.exposureTime*tel.area;
+                [gs.nPhoton]*obj.camera.exposureTime*min(tel.area,d^2);
+            %             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
+            %                 [gs.nPhoton]*obj.camera.exposureTime*obj.lenslets.nLensletImagePx^2*...
+            %                 tel.area/tel.pixelArea;
+            
+            if verbose
+                add(obj.log,obj,sprintf('lenslet pitch  : %4.2f cm',d*1e2))
+                add(obj.log,obj,sprintf('Fried parameter: %4.2f cm',atm.r0*1e2))
+                add(obj.log,obj,sprintf('Number of source photon: %g per subaperture per frame',nph(1)))
+            end
+            
+            % Atmosphere WFS wavelength scaling
+            atmWavelength = atm.wavelength;
+            atm.wavelength = gs(1).wavelength;
+            
+            % FWHM in diffraction unit
+            if soao
+                fwhm = ones(obj.nValidLenslet,1)/d;
+            elseif naLgs
+                dNa   = gs(1).wavelength./thetaNa;
+                index = dNa>min(d,atm.r0);
+                dNa(index)...
+                      = min(d,atm.r0);
+                fwhm  = 1./sqrt(atm.r0*dNa);
+            else
+                fwhm = ones(obj.nValidLenslet,1)./min(d,atm.r0);
+            end
+            
             % Sky backgound photon #
-            if isempty(skyBackgroundMagnitude)
+            if isempty(skyBackground)
                 nbg = 0;
             else
-                skyBackground = source('wavelength',gs.photometry,'magnitude',skyBackgroundMagnitude);
-                skyBackground.nPhoton
+                skyBackground = source('wavelength',gs(1).photometry,'magnitude',skyBackground);
                 nbg = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
                     skyBackground.nPhoton*obj.camera.exposureTime*tel.area*...
                     obj.camera.pixelScale^2*...
                     prod(obj.camera.resolution/obj.lenslets.nLenslet);
+                fprintf(' @(shackHartmann:theoreticalNoise)> Number of background photon %4.2f per frame\n',nbg)
             end
             % WFS phase diff. noise variance
             ron = obj.camera.readOutNoise;
-            noiseVar = ...
-                ([gs.wavelength]./ss.wavelength).^2.*(...
-                (pi^2).*(d.*fwhm)^2./nph + (4*pi^2)*(ron*d*fwhm./nph).^2 + ...
-                (pi^2).*(d.*fwhm).^2*nbg./nph.^2);
-            noiseVar = (3*pi/16)^2*noiseVar; % To comply with Hardy and Tyler formulaes
+            
+            nGs =length(gs);
+            noiseVar = zeros(obj.nValidLenslet,nGs);
+            for kGs = 1:nGs
+                
+                if nLenslet>1
+                    snr = sqrt(2*nph(kGs).^2./( nph(kGs) + ...
+                        (2/3)*(gs(kGs).wavelength./ss.wavelength).^2.*(4*ron*d.*fwhm*ND).^2 + ...
+                        8*nbg/3) );
+                else % quad-cell SNR
+                    snr = nph(kGs)./sqrt(nph(kGs) + 4*ron.^2. + nbg);
+                end
+                noiseVar(:,kGs) = ...
+                    (gs(kGs).wavelength./ss.wavelength).^2.*(pi.*d.*fwhm./snr).^2;
+                if obj.lenslets.nLenslet==2
+                    noiseVar(:,kGs) = (3*pi/16)^2*noiseVar(:,kGs)/4; % To comply with Hardy and Tyler formulaes
+                end
+                
+            end
+            
             % Resetting atmosphere wavelength
             atm.wavelength = atmWavelength;
+            varargout{1} = noiseVar;
+            if nargout>1
+                varargout{2} = nph(1);
+            end
            
         end        
         

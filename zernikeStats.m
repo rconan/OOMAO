@@ -3,7 +3,7 @@ classdef zernikeStats
     
     methods (Static)
          
-        function out = spectrum(f,atm)
+        function out = spectrum(f,o,atm,zern_i)
             %% SPECTRUM Phase power spectrum density
             %
             % out = phaseStats.spectrum(f,atm) computes the phase power
@@ -12,12 +12,73 @@ classdef zernikeStats
             %
             % See also atmosphere
             
-            out = (24.*gamma(6./5)./5).^(5./6).*...
-                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
-                atm.r0.^(-5./3);
-            out = out.*(f.^2 + 1./atm.L0.^2).^(-11./6);
-            out = sum([atm.layer.fractionnalR0]).*out;
+%             if nargin<5
+%                 zern_i = zern_j;
+%             end
+            out = phaseStats.spectrum(f,atm).*fourier(zern_i,f,o).*conj(fourier(zern_i,f,o));
+            
         end
+         
+        function out = temporalSpectrum(nu,atm,zern)
+            %% SPECTRUM Phase power spectrum density
+            %
+            % out = phaseStats.spectrum(f,atm) computes the phase power
+            % spectrum density from the spatial frequency f and an
+            % atmosphere object
+            %
+            % See also atmosphere
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = zernikeStats.spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern)/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = zernikeStats.spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern)/vy;
+            end
+        end
+        
+        function out = closedLoopVariance(zern,atm,T,tau,gain)
+            %% SPECTRUM Phase power spectrum density
+            %
+            % out = phaseStats.spectrum(f,atm) computes the phase power
+            % spectrum density from the spatial frequency f and an
+            % atmosphere object
+            %
+            % See also atmosphere
+            
+            s = @(x) 2*1i*pi*x;
+            z = @(x) exp(s(x)*T);
+            
+            G = @(x) ((1-exp(-s(x)*T))./(s(x)*T)).^2.*...
+                exp(-tau*s(x)).*...
+                gain./(1-exp(-s(x)*T));
+            E = @(x) abs(1./(1+G(x)));
+            
+            figure
+            nu = logspace(-2,log10(2/T),101);
+            loglog(nu,abs(E(nu)).^2)
+            xlabel('Hz')
+            drawnow
+            
+            out = 2*quadgk( @(nu) zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2 , 0 , Inf);
+
+        end
+        
         
         function out = symSpectrum(symf)
             syms r0 L0
@@ -175,6 +236,31 @@ classdef zernikeStats
                 end
                 
             end
+        end
+        
+        function out = rmsArcsec(zern,atm)
+            %% RMSARCSEC Zernike coefficients rms in arcsecond
+            %
+            % out = zernikeStats.rmsArcsec(zernike,atmosphere) computes the
+            % rms of Zernike coefficients in arcsec from the Zernike
+            % polynomials object and the atmosphere object
+            %
+            % See also zernikeStats.variance
+
+            
+            out = constants.radian2arcsec*...
+                (0.5*atm.wavelength/pi)*...
+                sqrt(zernikeStats.variance(zern,atm)).*4/zern.D;
+            
+        end
+        
+        function out = closedLoopRmsArcsec(zern,atm,T,tau,gain)
+            %% CLOSEDLOOPRMSARCSEC
+            
+            out = constants.radian2arcsec*...
+                (0.5*atm.wavelength/pi)*...
+                sqrt(zernikeStats.closedLoopVariance(zern,atm,T,tau,gain)).*4/zern.D;
+            
         end
         
         function out = covariance(zern,atm)
@@ -938,6 +1024,76 @@ classdef zernikeStats
             end
         end
         
+        function out = tiltsAngularCovariance(zern,atm,src1,varargin)
+            
+            p = inputParser;
+            p.addRequired('zern', @(x) isa(x,'telescopeAbstract') );
+            p.addRequired('atm' , @(x) isa(x,'atmosphere') );
+            p.addRequired('src1', @(x) isa(x,'source') );
+            p.addOptional('src2', src1 , @(x) isa(x,'source') );
+            p.addParamValue('tilts', 'Z' , @ischar ); % Z, G or ZG
+            
+            p.parse(zern,atm,src1,varargin{:});
+            src2  = p.Results.src2;
+            tilts = p.Results.tilts;
+            
+            n1 = length(src1);
+            n2 = length(src2);
+            D  = zern.D;
+            R  = D/2;
+            psdCst = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
+            
+            switch tilts
+                case 'Z'
+                    tiltsFilter = @(f) (2.*besselj(2,pi.*f.*D)./(pi.*f.*R)).^2;
+                case 'G'
+                    tiltsFilter = @(f) (besselj(1,pi.*f.*D)).^2;
+                case'ZG'
+                    tiltsFilter = @(f) 2.*besselj(2,pi.*f.*D).*besselj(1,pi.*f.*D)./(pi.*f.*R);
+                otherwise
+                    error('tilts filters are either Z, G or ZG')
+            end
+            
+            out = cellfun( @(x) zeros(2) , cell(n1,n2) , 'UniformOutput', false );
+            
+            for k1 = 1:n1
+                for k2 = 1:n2
+            
+                    deltaSrc = src1(k1) - src2(k2);
+                    rho = abs(deltaSrc);
+                    arg = angle(deltaSrc);
+                    
+                    out{k1,k2}(1,1) = quadgk( @(f) f.*sumLayers(f,2,2).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(1,2) = quadgk( @(f) f.*sumLayers(f,2,3).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(2,1) = quadgk( @(f) f.*sumLayers(f,3,2).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(2,2) = quadgk( @(f) f.*sumLayers(f,3,3).*tiltsFilter(f) , 0 , Inf);
+            
+                end
+            end
+            
+            out = cell2mat(out);
+            
+            function outSumLayers = sumLayers(f,j,i)
+                    
+                g = pi*( (-1)^i + (-1)^j - 2 )/4;
+                h = pi*( (-1)^i - (-1)^j )/4;
+                outSumLayers = 0;
+                for k = 1:atm.nLayer
+                    
+                    red = 2*pi*f*rho*atm.layer(k).altitude;
+                    Itheta = -pi*( besselj(2,red).*cos(2*arg+g) - ...
+                        besselj(0,red).*cos(h) );
+                    psd = atm.layer(k).fractionnalR0.*...
+                        psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
+                    outSumLayers = outSumLayers + psd.*Itheta;
+                end
+                
+            end
+            
+        end
+        
         function out = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
             
@@ -987,8 +1143,15 @@ classdef zernikeStats
             end
             
             if nargin>3
+                if isnumeric(unit)
                 out = 10^-unit*...
-                    out*atm.wavelength/(2*pi);
+                    sqrt(out)*(atm.wavelength/(2*pi));
+                elseif ischar(unit)
+                    if strcmp(unit,'mas')
+                        out = 1e3*constants.radian2arcsec*(4/zern.D)*...
+                            sqrt(out)*(atm.wavelength/(2*pi));
+                    end
+                end
             end
             
 %             logBook.RESUME;

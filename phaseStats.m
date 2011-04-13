@@ -386,11 +386,13 @@ classdef phaseStats
             inputs.addOptional('srcCC',[],@(x) isa(x,'source'));
             inputs.addOptional('tipTilt',false,@islogical);
             inputs.addParamValue('mask',true(sampling),@islogical);
+            inputs.addParamValue('lag',0,@isnumeric);
             inputs.parse(sampling,range,atm,srcAC,varargin{:});
             
             m_srcCC = inputs.Results.srcCC;
             tipTilt = inputs.Results.tipTilt;
             m_mask  = inputs.Results.mask;
+            m_tau  = inputs.Results.lag;
             
             [m_x,m_y] = meshgrid( linspace(-1,1,sampling)*range/2 );
             m_nGs   = length(srcAC);
@@ -409,6 +411,7 @@ classdef phaseStats
             layers   = atm.layer;
             m_altitude = [layers.altitude];
             m_fr0      = [layers.fractionnalR0];
+            [m_windVx,m_windVy] = pol2cart([layers.windDirection],[layers.windSpeed]);
             m_srcACdirectionVector = cat(2,srcAC.directionVector);
             m_srcACheight          = [srcAC.height];
             
@@ -421,7 +424,7 @@ classdef phaseStats
                 varargout{2} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
-                    m_L0,m_cstL0,m_cst);
+                    m_L0,m_cstL0,m_cst,m_windVx,m_windVy,m_tau);
 
             else
                 
@@ -443,7 +446,7 @@ classdef phaseStats
                         varargout{1} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
                             m_nGs,m_srcACdirectionVector,m_srcACheight,...
                             m_nLayer,m_altitude,m_fr0,...
-                            m_L0,m_cstL0,m_cst);
+                            m_L0,m_cstL0,m_cst,m_windVx,m_windVy,m_tau);
                     end
                     
                 end
@@ -506,7 +509,7 @@ classdef phaseStats
             function C = crossCorrelation(srcCC,x,y,mask,...
                     nGs,srcACdirectionVector,srcACheight,...
                     nLayer,altitude,fr0,...
-                    L0,cstL0,cst)
+                    L0,cstL0,cst,windVx,windVy,tau)
                     
                 fprintf(' -->> Cross-correlation meta-matrix!\n')
                 
@@ -532,7 +535,9 @@ classdef phaseStats
                         
                         betaSs = srcCCdirectionVector(:,kSs)*altitude(kLayer);
                         scale = 1 - altitude(kLayer)/srcCCheight(kSs);
-                        zSs = complex( x*scale + betaSs(1) , y*scale + betaSs(2) );
+                        zSs = complex( ...
+                            x*scale + betaSs(1) + windVx(kLayer)*tau, ...
+                            y*scale + betaSs(2) + windVy(kLayer)*tau );
                         
                         rho   = abs(bsxfun(@minus,zSs,iZ.'));
                         out   = cstL0CC;
@@ -569,7 +574,7 @@ classdef phaseStats
                     S = cellfun( @(x) zeros(sum(mask(:))) , cell(1,length(kGs)) , 'UniformOutput' , false );
                     cstL0AC = cstL0*ones(sampling);
                     
-                    parfor k=1:length(kGs)
+                    for k=1:length(kGs)
                         
                         [iGs,jGs] = ind2sub( [nGs,nGs] , kGs(k) );
                         buf = 0;

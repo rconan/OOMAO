@@ -300,7 +300,7 @@ classdef atmosphere < hgsetget
                 obj.r0;
         end
         
-        function map = fourierPhaseScreen(atm,D,nPixel)
+        function out = fourierPhaseScreen(atm,D,nPixel,nMap)
             %% FOURIERPHASESCREEN Phase screen computation
             %
             % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
@@ -317,6 +317,9 @@ classdef atmosphere < hgsetget
 %             warning('oomao:atmosphere:fourierPhaseScreen',...
 %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
             
+            if nargin<4
+                nMap = 1;
+            end
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -328,7 +331,7 @@ classdef atmosphere < hgsetget
             [fo,fr]  = cart2pol(fx,fy);
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
-            map = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+            psdRoot = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
 %             figure
 %             imagesc(map)
 %             axis square
@@ -342,10 +345,13 @@ classdef atmosphere < hgsetget
 %                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
 %                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
 %                         % -------------------------------
-            map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
-            map = real(ifft2(map).*fourierSampling).*N.^2;
             u = 1:nPixel;
-            map = map(u,u);
+            out = zeros(nPixel,nPixel,nMap);
+            for kMap=1:nMap
+                map = psdRoot.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
+                map = real(ifft2(map).*fourierSampling).*N.^2;
+                out(:,:,kMap) = map(u,u);
+            end
         end
         
         function map = choleskyPhaseScreen(atm,D,nPixel,nMap)

@@ -206,8 +206,8 @@ classdef deformableMirror < handle
                 out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
             else
                 d = telAtm.D/(obj.nActuator-1);
-                fc = 1/d/2;
-                a = phaseStats.variance(telAtm.opticalAberration);
+                fc = 1/d/2
+                a = phaseStats.variance(atm);
                 b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
                     -fc,fc,-fc,fc);
                 out = a - b;

@@ -2,6 +2,7 @@ classdef constants
    
     properties (Constant=true)
         radian2arcsec = 180*3600/pi;
+        radian2mas    = 1e3*180*3600/pi;
         radian2arcmin = 180*60/pi;
         arcsec2radian = pi/180/3600;
         arcmin2radian = pi/180/60;

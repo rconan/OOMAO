@@ -66,7 +66,7 @@ classdef detector < handle
             % Frame listener
             obj.frameListener = addlistener(obj,'frame','PostSet',...
                 @(src,evnt) obj.imagesc );
-            obj.frameListener.Enabled = false;
+            obj.frameListener.Enabled = true;
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Detector';
@@ -138,38 +138,45 @@ classdef detector < handle
             %
             % See also: imagesc
             
-            if isempty(obj.frame)
-                m_frame = obj.frameBuffer;
-            else
-                m_frame = obj.frame;
-            end
-            if all(ishandle(obj.frameHandle)) && ~isempty(obj.frameHandle)
-                set(obj.frameHandle(1),'Cdata',m_frame,varargin{:});
-                %                 xAxisLim = [0,size(obj.frame,2)]+0.5;
-                %                 yAxisLim = [0,size(obj.frame,1)]+0.5;
-                %                 set( get(obj.frameHandle,'parent') , ...
-                %                     'xlim',xAxisLim,'ylim',yAxisLim);
-                set(obj.frameHandle(2),'String',...
-                    sprintf('Frame #%d',obj.frameCount))
-            else
-                if isempty(obj.pixelScale)
-                    obj.frameHandle(1) = image(m_frame,...
-                        'CDataMApping','Scaled',...
-                        varargin{:});
+            if ndims(obj.frame)<3 % frame must be a 2-D array for plotting
+                
+                if isempty(obj.frame)
+                    m_frame = obj.frameBuffer;
                 else
-                    [n,m] = size(m_frame);
-                    x = 0.5*linspace(-1,1,n)*...
-                        n*obj.pixelScale*constants.radian2arcsec;
-                    y = 0.5*linspace(-1,1,m)*...
-                        m*obj.pixelScale*constants.radian2arcsec;
-                    obj.frameHandle(1) = image(x,y,m_frame,...
-                        'CDataMApping','Scaled',...
-                        varargin{:});
+                    m_frame = obj.frame;
                 end
-                obj.frameHandle(2) = title(sprintf('Frame #%d',obj.frameCount));
-                colormap(pink)
-                axis xy equal tight
-                colorbar('location','SouthOutside')
+                
+                if all(ishandle(obj.frameHandle)) && ~isempty(obj.frameHandle)
+                    set(obj.frameHandle(1),'Cdata',m_frame,varargin{:});
+                    %                 xAxisLim = [0,size(obj.frame,2)]+0.5;
+                    %                 yAxisLim = [0,size(obj.frame,1)]+0.5;
+                    %                 set( get(obj.frameHandle,'parent') , ...
+                    %                     'xlim',xAxisLim,'ylim',yAxisLim);
+                    set(obj.frameHandle(2),'String',...
+                        sprintf('Frame #%d',obj.frameCount))
+                    [n,m] = size(m_frame);
+                    set(gca,'xlim',0.5+[0 m],'ylim',0.5+[0 n])
+                else
+                    if isempty(obj.pixelScale)
+                        obj.frameHandle(1) = image(m_frame,...
+                            'CDataMApping','Scaled',...
+                            varargin{:});
+                    else
+                        [n,m] = size(m_frame);
+                        x = 0.5*linspace(-1,1,n)*...
+                            n*obj.pixelScale*constants.radian2arcsec;
+                        y = 0.5*linspace(-1,1,m)*...
+                            m*obj.pixelScale*constants.radian2arcsec;
+                        obj.frameHandle(1) = image(x,y,m_frame,...
+                            'CDataMApping','Scaled',...
+                            varargin{:});
+                    end
+                    obj.frameHandle(2) = title(sprintf('Frame #%d',obj.frameCount));
+                    colormap(pink)
+                    axis xy equal tight
+                    colorbar('location','SouthOutside')
+                end
+            
             end
         end
         
@@ -251,7 +258,7 @@ classdef detector < handle
                 
                 if license('checkout','statistics_toolbox')
                     if obj.photonNoise
-                        image = poissrnd(image + obj.nPhotonBackground);
+                        image = poissrnd(image + obj.nPhotonBackground) - obj.nPhotonBackground;
                     end
                     image = obj.quantumEfficiency*image;
                     if obj.readOutNoise>0
@@ -260,7 +267,7 @@ classdef detector < handle
                 else
                     if obj.photonNoise
                         buffer    = image + obj.nPhotonBackground;
-                        image = image + obj.nPhotonBackground + randn(size(image)).*(image + obj.nPhotonBackground);
+                        image = image + randn(size(image)).*(image + obj.nPhotonBackground);
                         index     = image<0;
                         image(index) = buffer(index);
                         image = obj.quantumEfficiency*image;
