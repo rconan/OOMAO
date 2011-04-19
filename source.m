@@ -39,8 +39,6 @@ classdef source < stochasticWave & hgsetget
         height;
         % source full-width-half-max
         width;
-        % # of photon [m^{-2}.s^{-1}] 
-        nPhoton;
         % cell array of handles of objects the source is propagating through  
         opticalPath;
         log;
@@ -68,6 +66,8 @@ classdef source < stochasticWave & hgsetget
         waveNumber;
         % source magnitudde
         magnitude;
+        % # of photon [m^{-2}.s^{-1}] 
+        nPhoton;
         % source wavelength
         wavelength;
         % source view point
@@ -79,7 +79,7 @@ classdef source < stochasticWave & hgsetget
     end
     
     properties (Access=private)
-%         p_nPhoton;
+        p_nPhoton;
         p_zenith;
         p_azimuth;
         p_magnitude;
@@ -101,7 +101,7 @@ classdef source < stochasticWave & hgsetget
             p.addParamValue('height',Inf,@isnumeric);
             p.addParamValue('wavelength',photometry.V,@(x) isa(x,'photometry'));
             p.addParamValue('magnitude',0,@isnumeric); % Vega magnitude (default)
-            p.addParamValue('nPhoton',[],@isnumeric);
+%             p.addParamValue('nPhoton',[],@isnumeric);
             p.addParamValue('width',0,@isnumeric);
             p.addParamValue('viewPoint',[0,0],@isnumeric);
             p.addParamValue('tag','SOURCE',@ischar);
@@ -147,7 +147,7 @@ classdef source < stochasticWave & hgsetget
                         obj(1,kObj,kHeight).p_azimuth    = a(kObj);
                         obj(1,kObj,kHeight).height     = p.Results.height(kHeight);
                         obj(1,kObj,kHeight).wavelength = p.Results.wavelength;
-                        obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
+%                         obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
                         if ~isempty(magnitude)
                             obj(1,kObj,kHeight).magnitude  = p.Results.magnitude(min(nMag,kObj));
                         end
@@ -164,7 +164,7 @@ classdef source < stochasticWave & hgsetget
                 obj.p_azimuth    = p.Results.azimuth;
                 obj.height     = p.Results.height;
                 obj.wavelength = p.Results.wavelength;
-                obj.nPhoton    = p.Results.nPhoton;
+%                 obj.nPhoton    = p.Results.nPhoton;
                 obj.magnitude  = p.Results.magnitude;
                 obj.width      = p.Results.width;
                 obj.viewPoint  = p.Results.viewPoint;
@@ -223,7 +223,19 @@ classdef source < stochasticWave & hgsetget
         function set.magnitude(obj,val)
             obj.p_magnitude = val;
             if ~isempty(obj.photometry)
-                obj.nPhoton = obj.photometry.nPhoton(val);
+                obj.p_nPhoton = nPhoton(obj.photometry,val);
+%                 fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
+            end
+        end
+        
+        %% Get and Set nPhoton
+        function out = get.nPhoton(obj)
+            out = obj.p_nPhoton;
+        end
+        function set.nPhoton(obj,val)
+            obj.p_nPhoton = val;
+            if ~isempty(obj.photometry)
+                obj.p_magnitude = magnitude(obj.photometry,val);
 %                 fprintf(' @(source)> # of photon m^{-2}.s^{-1}: %4.2f\n',obj.nPhoton)
             end
         end

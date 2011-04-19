@@ -406,7 +406,7 @@ classdef telescopeAbstract < handle
                 src = srcs(kSrc);
                 % Set mask and pupil first
                 src.mask      = obj.pupilLogical;
-                if isempty(src.nPhoton) || isinf(obj.samplingTime)
+                if isempty(src.nPhoton) || (isempty(obj.samplingTime) || isinf(obj.samplingTime))
                     src.amplitude = obj.pupil;
                 else
                     src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:))); 
