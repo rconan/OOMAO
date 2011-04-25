@@ -69,6 +69,10 @@ classdef linearMMSE < handle
         mmseStar
         % system lag in second
         lag
+        % projection matrix
+        P
+        %  noise covariance
+        noiseCovariance
     end
     
     properties (Dependent,SetAccess=private)
@@ -84,11 +88,6 @@ classdef linearMMSE < handle
         rmsMap        
     end
     
-    properties (Dependent)
-        %  noise covariance
-        noiseCovariance
-    end
-    
     properties (Access=private)
         log
         p_mmseStar
@@ -96,6 +95,8 @@ classdef linearMMSE < handle
         p_noiseCovariance = 0;
         tel;
         p_lag;
+        p_P;
+        covarianceSafe;
     end
  
     methods
@@ -244,10 +245,14 @@ classdef linearMMSE < handle
             obj.p_lag = val;
             if obj.p_lag>0
                 obj.CoxLag = ...
-                            phaseStats.spatioAngularCovarianceMatrix(...
-                            obj.sampling,obj.diameter,...
-                            obj.atmModel,obj.guideStar,obj.mmseStar,...
-                            'mask',obj.pupil,'lag',obj.p_lag);
+                    phaseStats.spatioAngularCovarianceMatrix(...
+                    obj.sampling,obj.diameter,...
+                    obj.atmModel,obj.guideStar,obj.mmseStar,...
+                    'mask',obj.pupil,'lag',obj.p_lag);
+                if ~isempty(obj.P)
+                    obj.covarianceSafe{3} = obj.CoxLag;
+                    obj.CoxLag = cellfun( @(x) x*obj.P', obj.CoxLag , 'UniformOutput', false);
+                end
             else
                 obj.CoxLag = [];
             end
@@ -255,6 +260,27 @@ classdef linearMMSE < handle
         end
         function val = get.lag(obj)
             val = obj.p_lag;
+        end
+        
+        %% Set/Get P
+        function set.P(obj,val)
+            obj.p_P = val;
+            if isempty(obj.P)
+                obj.Cxx = obj.covarianceSafe{1};
+                obj.Cox = obj.covarianceSafe{2};
+                obj.CoxLag = obj.covarianceSafe(3);
+            else
+                obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
+                obj.Cxx = obj.P*obj.Cxx*obj.P';
+                obj.Cox = cellfun( @(x) x*obj.P', obj.Cox , 'UniformOutput', false);
+                if obj.lag>0
+                    obj.CoxLag = cellfun( @(x) x*obj.P', obj.CoxLag , 'UniformOutput', false);
+                end
+            end
+            solveMmse(obj);
+        end
+        function val = get.P(obj)
+            val = obj.p_P;
         end
         
         %% Set/Get noiseCovariance
@@ -272,7 +298,7 @@ classdef linearMMSE < handle
                     val = val(:);
                     val = repmat( val , 1,  nMode )';
                 end
-                obj.p_noiseCovariance = diag(val(:));%.*obj.p_noiseCovariance;
+                obj.p_noiseCovariance = val;%diag(val(:));%.*obj.p_noiseCovariance;
                 solveMmse(obj);
             end
         end
@@ -290,12 +316,12 @@ classdef linearMMSE < handle
                     fun = @(x,y) obj.Coo - y*x';
                     obj.Bmse = cellfun( fun , obj.Cox , obj.mmseBuilder , 'uniformOutput' , false );
                 else
-%                     Cox0 = ...
-%                         phaseStats.spatioAngularCovarianceMatrix(...
-%                         obj.sampling,obj.diameter,...
-%                         obj.atmModel,obj.guideStar,obj.mmseStar,...
-%                         'mask',obj.pupil);
-%                     M0 = obj.Cox0{1}/obj.Cxx;
+                    %                     Cox0 = ...
+                    %                         phaseStats.spatioAngularCovarianceMatrix(...
+                    %                         obj.sampling,obj.diameter,...
+                    %                         obj.atmModel,obj.guideStar,obj.mmseStar,...
+                    %                         'mask',obj.pupil);
+                    %                     M0 = obj.Cox0{1}/obj.Cxx;
                     A = obj.mmseBuilder{1}*obj.CoxLag{1}';
                     obj.Bmse = obj.Coo + obj.mmseBuilder{1}*obj.Cox{1}' - A - A' + ...
                         obj.mmseBuilder{1}*obj.p_noiseCovariance*obj.mmseBuilder{1}';
@@ -539,6 +565,7 @@ classdef linearMMSE < handle
             m_mmseBuilder = cell(obj.nmmseStar,1);
             m_Cox = obj.Cox;
             m_Cxx = obj.Cxx;
+%             Is = 1e6*speye(size(obj.P,1));
             m_noiseCovariance = obj.p_noiseCovariance;
             parfor k=1:obj.nmmseStar
                 m_mmseBuilder{k} = m_Cox{k}/(m_Cxx+m_noiseCovariance);
