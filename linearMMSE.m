@@ -296,7 +296,7 @@ classdef linearMMSE < handle
                 if strcmp(obj.model,'modal')
                     nMode = length(obj.zernikeMode);
                     val = val(:);
-                    val = repmat( val , 1,  nMode )';
+                    val = diag(repmat( val , 1,  nMode )');
                 end
                 obj.p_noiseCovariance = val;%diag(val(:));%.*obj.p_noiseCovariance;
                 solveMmse(obj);
