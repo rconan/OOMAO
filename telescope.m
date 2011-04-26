@@ -168,6 +168,9 @@ classdef telescope < telescopeAbstract
             %
             % out = otf(obj, r) Computes the telescope optical transfert function
             
+            if ~all(isreal(r(:))) % Check if r is complex!
+                r = abs(r);
+            end
 %             out = zeros(size(r));
             if obj.obstructionRatio ~= 0
                 out = pupAutoCorr(obj.D) + pupAutoCorr(obj.obstructionRatio*obj.D) - ...
@@ -215,7 +218,11 @@ classdef telescope < telescopeAbstract
             
             if isa(obj.opticalAberration,'atmosphere')
                 fun = @(u) 2.*pi.*quadgk(@(v) psfHankelIntegrandNested(v,u),0,obj.D);
-                out = arrayfun( fun, f);
+                out = zeros(size(f));
+                parfor k = 1:numel(f)
+                    out(k) = fun(f(k));
+                end
+%                 out = arrayfun( fun, f);
             else
                 out   = ones(size(f)).*pi.*obj.D.^2.*(1-obj.obstructionRatio.^2)./4;
                 index = f~=0;
@@ -233,6 +240,18 @@ classdef telescope < telescopeAbstract
             function y = psfHankelIntegrandNested(x,freq)
                 y = x.*besselj(0,2.*pi.*x.*freq).*otf(obj,x);
             end
+        end
+        
+        function out = image(obj,resolution,pixelScaleInSpFreq)
+            %% IMAGE 2D Point Spread Function
+            %
+            % psf = image(tel,resolution,pixelScaleInSpFreq)
+            
+            n = resolution;
+            u = pixelScaleInSpFreq*linspace(-1,1,n)*n/2;
+            [fx,fy] = meshgrid(u);
+            out = psf(obj,hypot(fx,fy))/psf(obj,0);
+
         end
              
         function out = fullWidthHalfMax(obj)

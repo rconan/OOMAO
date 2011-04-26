@@ -139,6 +139,10 @@ classdef telescopeAbstract < handle
         function out = diameterAt(obj,height)
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
         end
+                
+        function out = zernike(obj,modes)
+            out = zernike(modes,obj.D,'resolution',obj.resolution);
+        end
         
         function reset(obj)
             %% RESET Reset the atmosphere phase screens
@@ -155,6 +159,20 @@ classdef telescopeAbstract < handle
                 fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',m_atm.layer.D,m_atm.layer.nPixel)
                 obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,m_atm.layer.D,m_atm.layer.nPixel);
                 fprintf('  Done \n')
+            end
+        end
+        
+        function draw(obj)
+            %% DRAW Reset the atmosphere phase screens
+            %
+            % draw(obj) reet the phase screens of the layers
+            
+            for kLayer=1:obj.atm.nLayer
+                m_atm = slab(obj.atm,kLayer);
+%                 fprintf('   Layer %d:\n',kLayer)
+%                 fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',m_atm.layer.D,m_atm.layer.nPixel)
+                obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,m_atm.layer.D,m_atm.layer.nPixel);
+%                 fprintf('  Done \n')
             end
         end
         
@@ -254,10 +272,14 @@ classdef telescopeAbstract < handle
                 if isinf(obj.samplingTime)
                     
                     for kLayer=1:obj.atm.nLayer
-                        
-                        obj.atm.layer(kLayer).phase = ...
-                            fourierPhaseScreen(slab(obj.atm,kLayer));
-                        
+% <<<<<<< HEAD
+%                         
+%                         obj.atm.layer(kLayer).phase = ...
+%                             fourierPhaseScreen(slab(obj.atm,kLayer));
+%                         
+% =======
+                        obj.atm.layer(kLayer).phase = fourierPhaseScreen(slab(obj.atm,kLayer));
+% >>>>>>> devel
                     end
                     
                 elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
@@ -267,7 +289,7 @@ classdef telescopeAbstract < handle
                         pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                         % 1 pixel increased phase sampling vector
                         u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-%                         [x0,y0] = meshgrid(u0);
+                        [x0,y0] = meshgrid(u0);
                         %                     [xu0,yu0] = meshgrid(u0);
                         % phase sampling vector
                         u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
@@ -301,10 +323,10 @@ classdef telescopeAbstract < handle
                             
                             xShift = u - step(1);
                             yShift = u - step(2);
-%                             [xi,yi] = meshgrid(xShift,yShift);
-                            obj.atm.layer(kLayer).phase ...
-                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-%                             obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
+                            [xi,yi] = meshgrid(xShift,yShift);
+%                             obj.atm.layer(kLayer).phase ...
+%                                 = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                            obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
 %                                                     obj.atm.layer(kLayer).phase ...
 %                                                            = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
 
@@ -391,7 +413,7 @@ classdef telescopeAbstract < handle
                 src = srcs(kSrc);
                 % Set mask and pupil first
                 src.mask      = obj.pupilLogical;
-                if isempty(src.nPhoton)
+                if isempty(src.nPhoton) || (isempty(obj.samplingTime) || isinf(obj.samplingTime))
                     src.amplitude = obj.pupil;
                 else
                     src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:))); 
@@ -428,6 +450,8 @@ classdef telescopeAbstract < handle
                                 [xi,yi] = meshgrid(u+xc,u+yc);
 %                                 disp( [ xc yc ]+layerR )
 %                                 out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
+% size(linear(xs,ys,phase_m{kLayer},xi,yi))
+% size(out(:,:,kLayer))
                                 out(:,:,kLayer) = linear(xs,ys,phase_m{kLayer},xi,yi);
 
 %                                 F = TriScatteredInterp(xs(:),ys(:),phase_m{kLayer}(:));
@@ -739,7 +763,7 @@ classdef telescopeAbstract < handle
         
     end
     
-    methods (Static)
+    methods (Static)        
                 
         function out = symFT(symf)
             syms sD ri s

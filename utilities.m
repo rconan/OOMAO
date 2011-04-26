@@ -319,7 +319,11 @@ classdef utilities
             if n==0
                 out = besselj(0,x)./x;
             else
-                out = ones(size(x));
+                if n>1
+                    out = zeros(size(x));
+                else
+                    out = 0.5*ones(size(x));
+                end
                 u = x~=0;
                 x = x(u);
                 out(u) = besselj(n,x)./x;
@@ -327,7 +331,7 @@ classdef utilities
         end
         
         function out = fittingError(tel,atm,dm)
-            %% FITTING ERROR Deformable mirror fitting error variance
+            %% FITTINGERROR Deformable mirror fitting error variance
             %
             % out = fittingError(telAtm,dm) computes the fitting error
             % variance of a a deformableMirror object for given telescope
@@ -339,23 +343,116 @@ classdef utilities
         end
         
         function out = binning(frame,outRes)
+            %% BINNING Frame binning
+            % 
+            % out = binning(frame,[n,m]) bins the frame pixels into a nXm
+            % array; frame can be either a single frame or a data cube
+            
             [n,m,nFrame] = size(frame);
             out          = zeros(outRes(1),outRes(2),nFrame);
-            for kFrame=1:nFrame
-                out(:,:,kFrame) = ...
-                    reshape( ...
-                    sum( ...
-                    reshape( ...
-                    reshape( ...
-                    sum( ...
-                    reshape( frame(:,:,kFrame) , n/outRes(1) , [] ) ...
-                    ) , ...
-                    outRes(1) , [] ).' , ...
-                    m/outRes(2) , [] ) ...
-                    ) , ...
-                    outRes(2) , [] ).';
+            n1 = n/outRes(1);
+            m2 = m/outRes(2);
+            if n1==1 && m2==1
+                out = frame;
+                return
+            end
+            if n1==1
+                for kFrame=1:nFrame
+                    out(:,:,kFrame) = ...
+                        reshape( ...
+                        sum( ...
+                        reshape( ...
+                        frame(:,:,kFrame).', m2 , [] ) ...
+                        ).' , ...
+                        outRes(2) , [] ).';
+                end
+            elseif m2==1
+                for kFrame=1:nFrame
+                    out(:,:,kFrame) = ...
+                        reshape( ...
+                        sum( ...
+                        reshape( frame(:,:,kFrame) , n1 , [] ) ...
+                        ) , ...
+                        outRes(1) , [] );
+                end
+            else
+                for kFrame=1:nFrame
+                    out(:,:,kFrame) = ...
+                        reshape( ...
+                        sum( ...
+                        reshape( ...
+                        reshape( ...
+                        sum( ...
+                        reshape( frame(:,:,kFrame) , n1 , [] ) ...
+                        ) , ...
+                        outRes(1) , [] ).' , ...
+                        m2 , [] ) ...
+                        ) , ...
+                        outRes(2) , [] ).';
+                end
             end
         end
         
+        function out = polar3(theta,rho,z,varargin)
+            %% POLAR3 Polar coordinate plot with color coded markers
+            %
+            % polar3(theta,rho,z) makes a plot using polar coordinates of
+            % the angle THETA, in radians, versus the radius RHO. The color
+            % of the markers is scaled according to the values in vector z.
+            %
+            % polar3(theta,rho,z,style) uses the marker specified in style
+            %
+            % polar3(...,'zMinMax',zBound) sets the z color scale limits to
+            % the zBound values
+            %
+            % h = polar3(...) returns a handle to the plotted object in H.
+            %
+            % See also polar
+            
+            p = inputParser;
+            p.addRequired('theta',@isnumeric);
+            p.addRequired('rho',@isnumeric);
+            p.addRequired('z',@isnumeric);
+            p.addOptional('style','.',@ischar);
+            p.addParamValue('zMinMax',[],@isnumeric);
+            p.parse(theta,rho,z , varargin{:});
+            style   = p.Results.style;
+            zMinMax = p.Results.zMinMax;
+            
+            n = length(theta);
+            if isempty(zMinMax)
+                minZ = min(z);
+                maxZ = max(z);
+                fprintf(' @(utilities:polar3)> Z axis minmax: [%.2f,%.2f]\n',minZ,maxZ)
+            else
+                minZ = zMinMax(1);
+                maxZ = zMinMax(2);
+            end
+            
+            c    = colormap;
+            nc = length(c);
+            zc = fix((nc-1)*(z - minZ)/(maxZ-minZ) + 1);
+            
+            index = find(rho==max(rho));
+            h = polar(theta(index),rho(index),'.');
+            delete(h)
+            
+            h = zeros(n,1);
+            hold on
+            for k=1:n
+                h(k) = polar(theta(k),rho(k),style);
+                set(h(k),'zData',z(k),'color',c(zc(k),:))
+            end
+            hold off
+            
+            hc = colorbar;
+            set(hc,'ylim',[minZ maxZ])
+            set(get(hc,'children'),'YData',[minZ maxZ])
+            
+            if nargout == 1
+                out = h;
+            end
+        end
+                
     end
 end

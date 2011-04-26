@@ -91,7 +91,6 @@ classdef atmosphere < hgsetget
     properties (Access=private)
         p_wavelength;
         p_log;
-        p_choleskyFact;
     end
     
     methods
@@ -301,7 +300,7 @@ classdef atmosphere < hgsetget
                 obj.r0;
         end
         
-        function map = fourierPhaseScreen(atm,D,nPixel)
+        function out = fourierPhaseScreen(atm,D,nPixel,nMap)
             %% FOURIERPHASESCREEN Phase screen computation
             %
             % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
@@ -315,6 +314,15 @@ classdef atmosphere < hgsetget
             %
             % See also atmosphere
             
+% <<<<<<< HEAD
+% =======
+% %             warning('oomao:atmosphere:fourierPhaseScreen',...
+% %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
+%             
+%             if nargin<4
+%                 nMap = 1;
+%             end
+% >>>>>>> devel
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -326,20 +334,42 @@ classdef atmosphere < hgsetget
             [fo,fr]  = cart2pol(fx,fy);
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
-            map = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+% <<<<<<< HEAD
+%             map = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+%             clear fr
+%             fourierSampling = 1./L;
+%             %             % -- Checking the variances --
+%             %             theoreticalVar = variance(phaseStats1);
+%             %             disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
+%             %             %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
+%             %             numericalVar    = trapz(trapz(amp.^2)).*fourierSampling.^2;
+%             %             disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
+%             %             % -------------------------------
+%             map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
+%             map = real(ifft2(map).*fourierSampling).*N.^2;
+% =======
+            psdRoot = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
+%             figure
+%             imagesc(map)
+%             axis square
+%             colorbar
             clear fr
             fourierSampling = 1./L;
-            %             % -- Checking the variances --
-            %             theoreticalVar = variance(phaseStats1);
-            %             disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
-            %             %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
-            %             numericalVar    = trapz(trapz(amp.^2)).*fourierSampling.^2;
-            %             disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
-            %             % -------------------------------
-            map = map.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
-            map = real(ifft2(map).*fourierSampling).*N.^2;
+%                         % -- Checking the variances --
+%                         theoreticalVar = phaseStats.variance(atm);
+%                         disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
+%                         %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
+%                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
+%                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
+%                         % -------------------------------
+% >>>>>>> devel
             u = 1:nPixel;
-            map = map(u,u);
+            out = zeros(nPixel,nPixel,nMap);
+            for kMap=1:nMap
+                map = psdRoot.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
+                map = real(ifft2(map).*fourierSampling).*N.^2;
+                out(:,:,kMap) = map(u,u);
+            end
         end
         
         function map = choleskyPhaseScreen(atm,D,nPixel,nMap)
@@ -357,20 +387,38 @@ classdef atmosphere < hgsetget
             %
             % See also chol and atmosphere
             
-            if nargin<2
-                D = atm.layer.D;
-                nPixel = atm.layer.nPixel;
-            end
+%             if nargin<2
+%                 D = atm.layer.D;
+%                 nPixel = atm.layer.nPixel;
+%             end
             if nargin<4
                 nMap = 1;
             end
-            if isempty(atm.p_choleskyFact)
+            if nargin==1
+                for kLayer=1:atm.nLayer
+                    
+                    nPixel = atm.layer(kLayer).nPixel;
+                    if isempty(atm.layer(kLayer).choleskyFact)
+                        fprintf('Computing the Cholesky factor matrix!\n')
+                        D = atm.layer(kLayer).D;
+%                         [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                        [x,y] = meshgrid(linspace(-1,1,nPixel)*D/2);
+                        atm.layer(kLayer).choleskyFact = chol( ...
+                            phaseStats.covarianceToeplitzMatrix(slab(atm,kLayer),complex(x,y)) ,'lower');
+                    end
+                    map = atm.layer(kLayer).choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                    map = reshape(map,nPixel,nPixel,nMap);
+                    atm.layer(kLayer).phase = map;
+                    
+                end
+            else
+                fprintf('Computing the Cholesky factor matrix!\n')
                 [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
-                atm.p_choleskyFact = chol( ...
+                choleskyFact = chol( ...
                     phaseStats.covarianceToeplitzMatrix(atm,complex(x,y)) ,'lower');
+                map = choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
+                map = reshape(map,nPixel,nPixel,nMap);
             end
-            map = atm.p_choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
-            map = reshape(map,nPixel,nPixel,nMap);
         end
         
     end

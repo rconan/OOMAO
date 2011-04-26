@@ -34,6 +34,7 @@ classdef controller < handle
         tipTiltCompensator;
         tipTiltCompensatorData;
         nTipTiltCompensator;
+        tipTiltDelay;
         % input phase
         input;
         % input variance
@@ -88,6 +89,7 @@ classdef controller < handle
             p.addParamValue('tipTiltSensor', [] , @(x) isa(x,'shackHartmann') );
             p.addParamValue('tipTiltCompensator', [] , @(x) isa(x,'deformableMirror') );
             p.addParamValue('tipTiltCommandMatrix', [] , @isnumeric );
+            p.addParamValue('tipTiltDelay', 0 , @isnumeric );
             p.parse(sensor,compensator,commandMatrix,nIteration,varargin{:});
             
             % Allocating properties
@@ -106,6 +108,7 @@ classdef controller < handle
             obj.type          = p.Results.type;
             obj.delay         = p.Results.delay;
             obj.gain          = p.Results.gain;
+            obj.tipTiltDelay  = p.Results.tipTiltDelay;
             
             nSrc = 1;
             obj.inputVar        = zeros(obj.nIteration,nSrc);
@@ -133,6 +136,13 @@ classdef controller < handle
             end
             obj.sensorListener.Enabled = false;
             
+        end
+        
+        % Destructor
+        function delete(obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj)
+            end
         end
         
         function calibration(obj,gs,nTrunc)
@@ -228,8 +238,11 @@ classdef controller < handle
             %             nTrunc = 4;
             if nargin>2
                 s = diag(obj.S);
-                index = length(s)-nTrunc;
-                obj.M = obj.V(:,1:index)*diag(1./s(1:index))*obj.U(:,1:index)';
+%                 index = s/s(1)>=nTrunc;%length(s)-nTrunc;
+%                 obj.M = obj.V(:,1:index)*diag(1./s(1:index))*obj.U(:,1:index)';
+                index = s/s(1)>nTrunc;%length(s)-nTrunc;
+                fprintf(' Number of thresholded values: %d out of %d\n',sum(~index),length(index))
+                obj.M = obj.V(:,index)*diag(1./s(index))*obj.U(:,index)';
             end
             
         end
@@ -329,8 +342,10 @@ classdef controller < handle
             obj.compensator.coefs       = obj.compensator.coefs - ...
                 obj.gain*obj.M*obj.sensorData(:,:,obj.kIteration);
             
-            obj.tipTiltCompensator.coefs = bsxfun( @minus , obj.tipTiltCompensator.coefs , ...
-                obj.gain*obj.tipTiltM*obj.tipTiltSensorData(:,:,obj.kIteration) );
+            if obj.kIteration>=obj.tipTiltDelay
+                obj.tipTiltCompensator.coefs = bsxfun( @minus , obj.tipTiltCompensator.coefs , ...
+                    obj.gain*obj.tipTiltM*obj.tipTiltSensorData(:,:,obj.kIteration) );
+            end
             
             %% TODO: Fix below
 %             % DM 

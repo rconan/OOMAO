@@ -72,6 +72,8 @@ classdef zernike < telescopeAbstract
         pupil;
         % alias to polynomials p
         modes
+        % noise covariance matrix (Shack-Hartmann wavefront sensor)
+        noiseCovariance 
     end
     
     properties (Access=private)
@@ -216,10 +218,11 @@ classdef zernike < telescopeAbstract
                 phaseMap = val;
             end
             if size(obj.p_p,1)==size(phaseMap,1)
-                obj.c = obj.p_p'*phaseMap./obj.pixelArea;
+                obj.c = obj.p_p'*phaseMap;
             else
-                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2)./obj.pixelArea;
+                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
             end
+            obj.c = bsxfun( @times , obj.c , 1./diag(obj.p_p'*obj.p_p) );
         end
         
         function obj = mldivide(obj,val) 
@@ -326,7 +329,7 @@ classdef zernike < telescopeAbstract
                 krkr = m~=0;
                 g = (-1).*((n+m*krkr)/2).*1i.^(m.*krkr).*2.^(krkr/2);
                 p = pi.*krkr.*((-1).^zj-1)/4;
-                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(pi.*f.*obj.D).*...
+                out1 = 2.*sqrt(obj.n+1).*utilities.sombrero(n+1,pi.*f.*obj.D).*...
                     g.*cos(m.*o+p);
             end
         end
@@ -434,6 +437,14 @@ classdef zernike < telescopeAbstract
             if ~obj.lex
                 out = utilities.toggleFrame(out,3);
             end
+        end
+        
+        %% get noise covariance
+        function out = get.noiseCovariance(obj)
+            ggx = obj.xDerivativeMatrix;
+            ggy = obj.yDerivativeMatrix;
+            DtD = full(pi.*(ggx'*ggx + ggy'*ggy));
+            out = pinv(DtD);
         end
         
         function out = circularCut(obj,delta,largeSmallRadiusRatio)
