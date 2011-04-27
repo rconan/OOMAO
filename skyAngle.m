@@ -42,23 +42,23 @@ classdef skyAngle < double
             c = skyAngle(a.angle + b.angle());
         end
         
-        function out = radian(obj)
+        function out = RADIAN(obj)
             out = convert(obj,'radian');
         end
         
-        function out = arcmin(obj)
+        function out = ARCMIN(obj)
             out = convert(obj,'arcmin');
         end
         
-        function out = arcsec(obj)
+        function out = ARCSEC(obj)
             out = convert(obj,'arcsec');
         end
         
-        function out = mas(obj)
+        function out = MAS(obj)
             out = convert(obj,'mas');
         end
         
-        function out = degree(obj)
+        function out = DEGREE(obj)
             out = convert(obj,'degree');
         end
         

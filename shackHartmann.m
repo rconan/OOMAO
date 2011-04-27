@@ -193,6 +193,17 @@ classdef shackHartmann < hgsetget
             
         end
         
+        function INIT(obj)
+            %% INIT WFS initialization
+            %
+            % obj.INIT computes the valid lenslet and set the reference
+            % slopes based on the last measurements
+            
+            add(obj.log,obj,'Setting the valid lenslet and the reference slopes!')
+            setValidLenslet(obj);
+            obj.referenceSlopes = obj.slopes;
+        end
+        
         %         %% Get and Set slopes
         %         function slopes = get.slopes(obj)
         %             slopes = obj.p_slopes;
@@ -537,34 +548,34 @@ classdef shackHartmann < hgsetget
                     'parent',obj.slopesDisplayHandle)
                 axis equal tight
                 % Display lenslet footprint
-                if obj.lenslets.nLenslet>1
-                    lc = ones(1,3)*0.75;
-                    u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
-                    kLenslet = 1;
-                    v = u(obj.validLenslet(:,kLenslet));
-                    prev_v = v;
-                    v = [v v(end)+nPxLenslet-1];
-                    while length(v)>=length(prev_v) && kLenslet<obj.lenslets.nLenslet
-                        w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
-                        line(v,w,'LineStyle','-','color',lc)
-                        line(w,v,'LineStyle','-','color',lc)
-                        prev_v = v;
-                        kLenslet = kLenslet + 1;
-                        v = u(obj.validLenslet(:,kLenslet));
-                        v = [v v(end)+nPxLenslet-1];
-                    end
-                    w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
-                    line(prev_v,w,'LineStyle','-','color',lc)
-                    line(w,prev_v,'LineStyle','-','color',lc)
-                    while kLenslet<=obj.lenslets.nLenslet && kLenslet<obj.lenslets.nLenslet
-                        v = u(obj.validLenslet(:,kLenslet));
-                        v = [v v(end)+nPxLenslet-1];
-                        w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
-                        line(v,w,'LineStyle','-','color',lc)
-                        line(w,v,'LineStyle','-','color',lc)
-                        kLenslet = kLenslet + 1;
-                    end
-                end
+%                 if obj.lenslets.nLenslet>1
+%                     lc = ones(1,3)*0.75;
+%                     u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
+%                     kLenslet = 1;
+%                     v = u(obj.validLenslet(:,kLenslet));
+%                     prev_v = v;
+%                     v = [v v(end)+nPxLenslet-1];
+%                     while length(v)>=length(prev_v) && kLenslet<obj.lenslets.nLenslet
+%                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
+%                         line(v,w,'LineStyle','-','color',lc)
+%                         line(w,v,'LineStyle','-','color',lc)
+%                         prev_v = v;
+%                         kLenslet = kLenslet + 1;
+%                         v = u(obj.validLenslet(:,kLenslet));
+%                         v = [v v(end)+nPxLenslet-1];
+%                     end
+%                     w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
+%                     line(prev_v,w,'LineStyle','-','color',lc)
+%                     line(w,prev_v,'LineStyle','-','color',lc)
+%                     while kLenslet<=obj.lenslets.nLenslet && kLenslet<obj.lenslets.nLenslet
+%                         v = u(obj.validLenslet(:,kLenslet));
+%                         v = [v v(end)+nPxLenslet-1];
+%                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
+%                         line(v,w,'LineStyle','-','color',lc)
+%                         line(w,v,'LineStyle','-','color',lc)
+%                         kLenslet = kLenslet + 1;
+%                     end
+%                 end
                 % Display slopes reference
                 u = obj.referenceSlopes(1:end/2)+obj.lensletCenterX;
                 v = obj.referenceSlopes(1+end/2:end)+obj.lensletCenterY;
@@ -989,8 +1000,8 @@ classdef shackHartmann < hgsetget
                 xLenslet = xLenslet(maskLenslet);
                 yLenslet = yLenslet(maskLenslet);
                 
-%                 [oLenslet,rLenslet] = cart2pol(xLenslet,yLenslet);
-                re = hypot(xL-xLenslet,yL-yLenslet);
+                [oe,re] = cart2pol(xLenslet-xL,yLenslet-yL);
+%                 re = hypot(xLenslet,yLenslet);
                 thetaNa = re*deltaNa/naAltitude^2;
                 
             end
@@ -1017,10 +1028,14 @@ classdef shackHartmann < hgsetget
                 fwhm = ones(obj.nValidLenslet,1)/d;
             elseif naLgs
                 dNa   = gs(1).wavelength./thetaNa;
+                if verbose
+                    add(obj.log,obj,sprintf('dNa max-min: [%4.2f , %4.2f]cm',max(dNa)*1e2,min(dNa)*1e2))
+                end
                 index = dNa>min(d,atm.r0);
                 dNa(index)...
                       = min(d,atm.r0);
-                fwhm  = 1./sqrt(atm.r0*dNa);
+%                 fwhm  = sqrt(1./atm.r0^2+1./dNa.^2);
+                fwhm  = [1./atm.r0 ; 1./dNa];
             else
                 fwhm = ones(obj.nValidLenslet,1)./min(d,atm.r0);
             end
@@ -1040,7 +1055,7 @@ classdef shackHartmann < hgsetget
             ron = obj.camera.readOutNoise;
             
             nGs =length(gs);
-            noiseVar = zeros(obj.nValidLenslet,nGs);
+            noiseVar = zeros(length(fwhm),nGs);
             for kGs = 1:nGs
                 
                 if nLenslet>1
@@ -1052,8 +1067,48 @@ classdef shackHartmann < hgsetget
                 end
                 noiseVar(:,kGs) = ...
                     (gs(kGs).wavelength./ss.wavelength).^2.*(pi.*d.*fwhm./snr).^2;
-                if obj.lenslets.nLenslet==2
+                if obj.lenslets.nLenslet==1
                     noiseVar(:,kGs) = (3*pi/16)^2*noiseVar(:,kGs)/4; % To comply with Hardy and Tyler formulaes
+                end
+                
+            end
+                
+            if naLgs
+                
+                noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph;
+                
+                B = zeros(obj.nSlope*nGs,3);
+                noiseCovarDiag = [ ...
+                    noiseVar(1).*cos(oe).^2 + noiseVar(2:end).*sin(oe).^2  ...
+                    noiseVar(1).*sin(oe).^2 + noiseVar(2:end).*cos(oe).^2]';
+                noiseCovarDiagP1 = ...
+                    (noiseVar(1).*ones(obj.nValidLenslet,1) - noiseVar(2:end)).*...
+                    cos(oe).*sin(oe);
+                B(:,1) = noiseCovarDiag(:);
+                B(1:2:end,2) = noiseCovarDiagP1;
+                B(2:2:end,3) = noiseCovarDiagP1;
+                noiseVar = spdiags(B,[0,-1,1],obj.nSlope*nGs,obj.nSlope*nGs);
+                % noiseVar = bsxfun( @plus , noiseVar(1,:) , noiseVar(2:end,:) );
+                
+            else
+                
+                nGs =length(gs);
+                noiseVar = zeros(length(fwhm),nGs);
+                for kGs = 1:nGs
+                    
+                    if nLenslet>1
+                        snr = sqrt(2*nph(kGs).^2./( nph(kGs) + ...
+                            (2/3)*(gs(kGs).wavelength./ss.wavelength).^2.*(4*ron*d.*fwhm*ND).^2 + ...
+                            8*nbg/3) );
+                    else % quad-cell SNR
+                        snr = nph(kGs)./sqrt(nph(kGs) + 4*ron.^2. + nbg);
+                    end
+                    noiseVar(:,kGs) = ...
+                        (gs(kGs).wavelength./ss.wavelength).^2.*(pi.*d.*fwhm./snr).^2;
+                    if obj.lenslets.nLenslet==1
+                        noiseVar(:,kGs) = (3*pi/16)^2*noiseVar(:,kGs)/4; % To comply with Hardy and Tyler formulaes
+                    end
+                    
                 end
                 
             end
@@ -1064,8 +1119,8 @@ classdef shackHartmann < hgsetget
             if nargout>1
                 varargout{2} = nph(1);
             end
-           
-        end        
+            
+        end
         
         
     end
