@@ -270,6 +270,7 @@ classdef linearMMSE < handle
                 obj.Cox = obj.covarianceSafe{2};
                 obj.CoxLag = obj.covarianceSafe(3);
             else
+                fprintf(' -->> Space jump!\n')
                 obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
                 obj.Cxx = obj.P*obj.Cxx*obj.P';
                 obj.Cox = cellfun( @(x) x*obj.P', obj.Cox , 'UniformOutput', false);
@@ -562,6 +563,7 @@ classdef linearMMSE < handle
         function solveMmse(obj)
             %% SOLVEMMSE
             
+            fprintf(' -->> mmse solver!\n')
             m_mmseBuilder = cell(obj.nmmseStar,1);
             m_Cox = obj.Cox;
             m_Cxx = obj.Cxx;
