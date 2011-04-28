@@ -569,7 +569,7 @@ classdef linearMMSE < handle
             m_Cxx = obj.Cxx;
 %             Is = 1e6*speye(size(obj.P,1));
             m_noiseCovariance = obj.p_noiseCovariance;
-            parfor k=1:obj.nmmseStar
+            for k=1:obj.nmmseStar
                 m_mmseBuilder{k} = m_Cox{k}/(m_Cxx+m_noiseCovariance);
             end
             obj.mmseBuilder = m_mmseBuilder;
