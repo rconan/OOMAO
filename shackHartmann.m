@@ -962,6 +962,7 @@ classdef shackHartmann < hgsetget
             inputs.addParamValue('lgsLaunchCoord',[0,0],@isnumeric);
             inputs.addParamValue('naParam',[],@isnumeric); 
             inputs.addParamValue('verbose',true,@islogical); 
+            inputs.addParamValue('NS',[],@isnumeric); 
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
             
@@ -974,6 +975,7 @@ classdef shackHartmann < hgsetget
                    = inputs.Results.skyBackground;
             soao   = inputs.Results.soao;
             ND     = inputs.Results.ND;
+            NS     = inputs.Results.NS;
             launchCoord...
                    = inputs.Results.lgsLaunchCoord;
             naParam= inputs.Results.naParam;
@@ -1075,7 +1077,8 @@ classdef shackHartmann < hgsetget
                 
             if naLgs
                 
-                noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph;
+                noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph + ...
+                    (ron/nph).^2*NS^4/12;
                 
                 B = zeros(obj.nSlope*nGs,3);
                 noiseCovarDiag = [ ...
