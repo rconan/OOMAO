@@ -962,6 +962,7 @@ classdef shackHartmann < hgsetget
             inputs.addParamValue('lgsLaunchCoord',[0,0],@isnumeric);
             inputs.addParamValue('naParam',[],@isnumeric); 
             inputs.addParamValue('verbose',true,@islogical); 
+            inputs.addParamValue('NS',[],@isnumeric); 
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
             
@@ -974,6 +975,7 @@ classdef shackHartmann < hgsetget
                    = inputs.Results.skyBackground;
             soao   = inputs.Results.soao;
             ND     = inputs.Results.ND;
+            NS     = inputs.Results.NS;
             launchCoord...
                    = inputs.Results.lgsLaunchCoord;
             naParam= inputs.Results.naParam;
@@ -1036,6 +1038,7 @@ classdef shackHartmann < hgsetget
                       = min(d,atm.r0);
 %                 fwhm  = sqrt(1./atm.r0^2+1./dNa.^2);
                 fwhm  = [1./atm.r0 ; 1./dNa];
+                seeingNa = atm.seeingInArcsec*constants.arcsec2radian;
             else
                 fwhm = ones(obj.nValidLenslet,1)./min(d,atm.r0);
             end
@@ -1075,14 +1078,21 @@ classdef shackHartmann < hgsetget
                 
             if naLgs
                 
-                noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph;
+%                 noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph + ...
+%                     (ron/nph).^2.*NS.^2/12;
+                NS = 2*ceil(2*thetaNa/seeingNa);
+                fprintf('NS max-min: [%d,%d]\n',max(NS),min(NS))
+                sigma2X = (1/(8*log(2)))*(2*atm.r0.*fwhm(1)).^2/nph + ...
+                    (ron/nph).^2.*NS.^2/12;
+                sigma2Y = (1/(8*log(2)))*(2*atm.r0.*fwhm(2:end)).^2/nph + ...
+                    (ron/nph).^2.*NS.^2/12;
                 
                 B = zeros(obj.nSlope*nGs,3);
                 noiseCovarDiag = [ ...
-                    noiseVar(1).*cos(oe).^2 + noiseVar(2:end).*sin(oe).^2  ...
-                    noiseVar(1).*sin(oe).^2 + noiseVar(2:end).*cos(oe).^2]';
+                    sigma2X.*cos(oe).^2 + sigma2Y.*sin(oe).^2  ...
+                    sigma2X.*sin(oe).^2 + sigma2Y.*cos(oe).^2]';
                 noiseCovarDiagP1 = ...
-                    (noiseVar(1).*ones(obj.nValidLenslet,1) - noiseVar(2:end)).*...
+                    (sigma2X.*ones(obj.nValidLenslet,1) - sigma2Y).*...
                     cos(oe).*sin(oe);
                 B(:,1) = noiseCovarDiag(:);
                 B(1:2:end,2) = noiseCovarDiagP1;
