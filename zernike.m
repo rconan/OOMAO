@@ -201,28 +201,40 @@ classdef zernike < telescopeAbstract
             obj.p_p = p(:,index);
         end
         
-        function obj = ldivide(obj,val)
+        function [obj,varargout] = ldivide(obj,val)
             %% .\ Orthogonal projection onto the Zernike polynomials
             %
             % obj = obj.\phaseMap projects the 2D phase map onto
             % the polynomials of the zernike object and store the
             % projection coefficients into the object coefficients vector
             
-            if isa(val,'source')
-                nVal = length(val);
-                phaseMap = zeros(length(val(1).phase(:)),nVal);
-                for kVal=1:nVal
-                    phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+            if isa(val,'shackHartmann')
+                u = val.validLenslet;
+                zernP = zernike(1:obj.j(end),...
+                    'resolution',val.lenslets.nLenslet,...
+                    'pupil',double(u));
+                zern2slopes = [zernP.xDerivative(u,:);zernP.yDerivative(u,:)];
+                val.zern2slopes = bsxfun( @times , zern2slopes , reshape(1./diag(zern2slopes'*zern2slopes),1,[]) );
+                zernP.c = val.zern2slopes'*val.slopes;
+%                 zernP.c = bsxfun( @times , zernP.c , 1./diag(zern2slopes'*zern2slopes) );
+                obj.c = zernP.c;%(ismember(zernP.j,obj.j),:);
+            else
+                if isa(val,'source')
+                    nVal = length(val);
+                    phaseMap = zeros(length(val(1).phase(:)),nVal);
+                    for kVal=1:nVal
+                        phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+                    end
+                else
+                    phaseMap = val;
                 end
-            else
-                phaseMap = val;
+                if size(obj.p_p,1)==size(phaseMap,1)
+                    obj.c = obj.p_p'*phaseMap;
+                else
+                    obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
+                end
+                obj.c = bsxfun( @times , obj.c , 1./diag(obj.p_p'*obj.p_p) );
             end
-            if size(obj.p_p,1)==size(phaseMap,1)
-                obj.c = obj.p_p'*phaseMap;
-            else
-                obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
-            end
-            obj.c = bsxfun( @times , obj.c , 1./diag(obj.p_p'*obj.p_p) );
         end
         
         function obj = mldivide(obj,val) 
