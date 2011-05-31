@@ -345,7 +345,7 @@ classdef linearMMSE < handle
                     x*obj.mmseBuilder{1}' - obj.mmseBuilder{1}*x';
                 n = length(fieldStar);
                 m_Bmse = cell(n,1);
-                parfor k=1:n
+                for k=1:n
                     m_Bmse{k} = fun(Co1x{k});
                 end
                 obj.Bmse = m_Bmse;
