@@ -4,6 +4,7 @@ classdef linearMMSE < handle
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar)
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar,mmseStar)
     % mmse = linearMMSE(...,'pupil',pupilMask,'unit',unit)
+    % mmse = linearMMSE(...,'model','modal','zernikeMode',zMode)
     % Results are given at the wavelength of the mmseStar
     %
     % Example:
@@ -296,8 +297,8 @@ classdef linearMMSE < handle
                 %                 obj.p_noiseCovariance = blkdiag( obj.p_noiseCovariance{:} );
                 if strcmp(obj.model,'modal')
                     nMode = length(obj.zernikeMode);
-                    val = val(:);
-                    val = diag(repmat( val , 1,  nMode )');
+                    val = repmat( val(:) , 1,  nMode )';
+                    val = diag(val(:));
                 end
                 obj.p_noiseCovariance = val;%diag(val(:));%.*obj.p_noiseCovariance;
                 solveMmse(obj);
@@ -339,7 +340,13 @@ classdef linearMMSE < handle
                 fun = @(x,y) obj.Coo + ...
                     obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
                     x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
-                obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
+                n = length(fieldStar);
+                m_Bmse = cell(n,1);
+                parfor k=1:n
+                    m_Bmse{k} = fun(Co1x{k});
+                end
+                obj.Bmse = m_Bmse;
+%                 obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
             end
             
         end
