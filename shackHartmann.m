@@ -331,7 +331,7 @@ classdef shackHartmann < hgsetget
 %             obj.referenceSlopes = zeros(2*obj.nValidLenslet,1);
 %             obj.p_referenceSlopes = ...
 %                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
-            figure('Name',sprintf('%s valid lenslet',obj.tag)), spy(obj.p_validLenslet)
+%             figure('Name',sprintf('%s valid lenslet',obj.tag)), spy(obj.p_validLenslet)
             dataProcessing(obj)
         end
         

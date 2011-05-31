@@ -211,7 +211,7 @@ classdef telescope < telescopeAbstract
             
         end
          
-        function out = psf(obj,f)
+        function out = psf(obj,f,~)
             %% PSF Telescope point spread function
             %
             % out = psf(obj, f) computes the telescope point spread function

@@ -521,7 +521,7 @@ classdef phaseStats
                 y = y(mask);
                 cstL0CC = cstL0*ones(length(x));
                 
-                parfor k=1:nSs*nGs
+                for k=1:nSs*nGs
                     
                     [kSs,iGs] = ind2sub([nSs,nGs],k);
                     buf = 0;

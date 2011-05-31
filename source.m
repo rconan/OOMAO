@@ -50,6 +50,11 @@ classdef source < stochasticWave & hgsetget
         timeStamp = 0;
         % Photometric band
         photometry;
+        % Ray tracing parameters
+%         offsetAngleOrigin;
+%         abcd = eye(2);
+        % for geometric ray matrix propagation
+        offsetAngle;
     end
     
     properties (SetAccess=private)
@@ -198,6 +203,11 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
+%         %% Get and Set offsetAngle
+%         function out = get.offsetAngle(obj)
+%             out = obj.abcd*obj.offsetAngleOrigin;
+%         end
+        
         %% Get and Set zenith
         function out = get.zenith(obj)
             out = obj.p_zenith;
@@ -257,7 +267,7 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
-        %% Get the wavelength in micron
+        %% Get/Set  in micron
         function out = get.viewPoint(obj)
             out = obj.p_viewPoint;
         end
@@ -356,6 +366,7 @@ classdef source < stochasticWave & hgsetget
                 obj(kObj).p_amplitude = 1;
                 obj(kObj).p_phase     = 0;
                 obj(kObj).opticalPath = [];
+%                 obj(kObj).abcd = eye(2);
             end
             if nargout>0
                 varargout{1} = obj;
@@ -363,7 +374,7 @@ classdef source < stochasticWave & hgsetget
         end
         
         function varargout = resetAmplitudeAndPhase(obj)
-            %% RESET Reset wave properties
+            %% RESETAMPLITUDEANDPHASE Reset wave properties
             %
             % reset(obj) resets the mask to [], the amplitude to 1, the
             % phase to 0 and the optical path to [];
@@ -449,7 +460,7 @@ classdef source < stochasticWave & hgsetget
             %
             % fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the telescope primary mirror
-            % out fresnelPropagation(a,tel) propagates the source seen
+            % out = fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the telescope primary mirror and
             % returns the wavefront in radian
 
@@ -472,7 +483,7 @@ classdef source < stochasticWave & hgsetget
                     obj.wavefront = bsxfun(@minus,s,s0);
                     obj.wavefront = 2*pi*obj.wavefront/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
-                    obj.wavefront = mod(obj.wavefront,2*pi);
+%                     obj.wavefront = mod(obj.wavefront,2*pi);
                     %                     obj.wavefront = exp(1i.*2*pi*obj.wavefront/obj.wavelength)./s;
                 end
             end
@@ -540,6 +551,39 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
+        
+        function rayTrace(obj,x0,col)
+            nOP = length(obj.opticalPath);
+            if nargin==1
+                x0 = 0;
+            end
+            nOA = size(obj.offsetAngle,2);
+            o1 = 0;
+            o2 = 0;
+            zPropDir = 1;
+            for kOP=1:nOP-1
+                fprintf(1,'-->> %d -- %d\n',kOP,kOP+1)
+                oa1 = obj.opticalPath{kOP}.offsetAngle;
+                oa2 = obj.opticalPath{kOP+1}.offsetAngle;
+                o1 = o1 + obj.opticalPath{kOP}.offset;
+                o2 = o2 + obj.opticalPath{kOP+1}.offset;
+                zPropDir = zPropDir.*obj.opticalPath{kOP}.zPropDir;
+                x = x0 + [0 ; obj.opticalPath{kOP}.thickness*zPropDir]*ones(1,nOA)
+                y = [oa1(1,:) + o1 ; oa2(1,:) + o2]
+                line(x,y,'color',col)
+                x0 = x(end);
+%                 pause
+            end
+            oa1 = obj.opticalPath{end}.offsetAngle;
+            oa2 = obj.offsetAngle;
+            o1 = o1 + obj.opticalPath{end}.offset;
+            o2 = o2 + obj.opticalPath{end}.offset;
+            zPropDir = zPropDir.*obj.opticalPath{end}.zPropDir;
+            x = x0 + [0 ; obj.opticalPath{end}.thickness*zPropDir]*ones(1,nOA)
+            y = [oa1(1,:) + o1 ; ...
+                oa2(1,:) + o2]
+            line(x,y,'color',col)
+        end
     end
     
     methods (Static)
