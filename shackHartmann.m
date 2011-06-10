@@ -1087,6 +1087,13 @@ classdef shackHartmann < hgsetget
                 sigma2Y = (1/(8*log(2)))*(2*atm.r0.*fwhm(2:end)).^2/nph + ...
                     (ron/nph).^2.*NS.^2/12;
                 
+                figure
+                map = zeros(nLenslet);
+                size(map(obj.validLenslet))
+                size(sigma2Y)
+                map(obj.validLenslet) = sigma2Y;
+                imagesc(map)
+                
                 B = zeros(obj.nSlope*nGs,3);
                 noiseCovarDiag = [ ...
                     sigma2X.*cos(oe).^2 + sigma2Y.*sin(oe).^2  ...

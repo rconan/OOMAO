@@ -278,6 +278,7 @@ classdef telescopeAbstract < handle
                     for kLayer=1:obj.atm.nLayer
                         obj.atm.layer(kLayer).phase = fourierPhaseScreen(slab(obj.atm,kLayer));
                     end
+%                    choleskyPhaseScreen(obj.atm);
                     
                 elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
                     %                 disp('HERE')
