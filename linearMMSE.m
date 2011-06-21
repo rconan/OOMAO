@@ -4,6 +4,7 @@ classdef linearMMSE < handle
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar)
     % mmse = linearMMSE(sampling,diameter,atmModel,guideStar,mmseStar)
     % mmse = linearMMSE(...,'pupil',pupilMask,'unit',unit)
+    % mmse = linearMMSE(...,'model','modal','zernikeMode',zMode)
     % Results are given at the wavelength of the mmseStar
     %
     % Example:
@@ -270,6 +271,7 @@ classdef linearMMSE < handle
                 obj.Cox = obj.covarianceSafe{2};
                 obj.CoxLag = obj.covarianceSafe(3);
             else
+                fprintf(' -->> Space jump!\n')
                 obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
                 obj.Cxx = obj.P*obj.Cxx*obj.P';
                 obj.Cox = cellfun( @(x) x*obj.P', obj.Cox , 'UniformOutput', false);
@@ -295,8 +297,8 @@ classdef linearMMSE < handle
                 %                 obj.p_noiseCovariance = blkdiag( obj.p_noiseCovariance{:} );
                 if strcmp(obj.model,'modal')
                     nMode = length(obj.zernikeMode);
-                    val = val(:);
-                    val = diag(repmat( val , 1,  nMode )');
+                    val = repmat( val(:) , 1,  nMode )';
+                    val = diag(val(:));
                 end
                 obj.p_noiseCovariance = val;%diag(val(:));%.*obj.p_noiseCovariance;
                 solveMmse(obj);
@@ -335,10 +337,19 @@ classdef linearMMSE < handle
 %                 fun = @(x) obj.Coo + ...
 %                     obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
 %                     x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
+%                 fun = @(x,y) obj.Coo + ...
+%                     obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
+%                     x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
                 fun = @(x,y) obj.Coo + ...
-                    obj.Cox{1}/obj.Cxx*obj.Cox{1}' - ...
-                    x/obj.Cxx*obj.Cox{1}' - obj.Cox{1}/obj.Cxx*x';
-                obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
+                    obj.mmseBuilder{1}*obj.Cox{1}' - ...
+                    x*obj.mmseBuilder{1}' - obj.mmseBuilder{1}*x';
+                n = length(fieldStar);
+                m_Bmse = cell(n,1);
+                for k=1:n
+                    m_Bmse{k} = fun(Co1x{k});
+                end
+                obj.Bmse = m_Bmse;
+%                 obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
             end
             
         end
@@ -562,12 +573,13 @@ classdef linearMMSE < handle
         function solveMmse(obj)
             %% SOLVEMMSE
             
+            fprintf(' -->> mmse solver!\n')
             m_mmseBuilder = cell(obj.nmmseStar,1);
             m_Cox = obj.Cox;
             m_Cxx = obj.Cxx;
 %             Is = 1e6*speye(size(obj.P,1));
             m_noiseCovariance = obj.p_noiseCovariance;
-            parfor k=1:obj.nmmseStar
+            for k=1:obj.nmmseStar
                 m_mmseBuilder{k} = m_Cox{k}/(m_Cxx+m_noiseCovariance);
             end
             obj.mmseBuilder = m_mmseBuilder;

@@ -230,7 +230,11 @@ classdef telescopeAbstract < handle
                         case 'circle'
                             out = quadgk(@(x)x.*psf(obj,x),0,eHalfSize)*2*pi;
                         case 'square'
-                            out = quad2d(@(x,y)psf(obj,hypot(x,y)),0,eHalfSize,0,eHalfSize)*4;
+%                             if isa(obj,'giantMagellanTelescope')
+%                                 out = quad2d(@(x,y)psf(obj,hypot(x,y),atan2(y,x)),0,eHalfSize,0,eHalfSize)*4;
+%                             else
+                                out = quad2d(@(x,y)psf(obj,hypot(x,y),atan2(y,x)),-eHalfSize,eHalfSize,-eHalfSize,eHalfSize);%*4;
+%                             end
                         otherwise
                             error('cougar:telescope:entrapedEnergy',...
                                 'The trap is either a circle or a square!')
@@ -281,6 +285,7 @@ classdef telescopeAbstract < handle
                         obj.atm.layer(kLayer).phase = fourierPhaseScreen(slab(obj.atm,kLayer));
 % >>>>>>> devel
                     end
+%                    choleskyPhaseScreen(obj.atm);
                     
                 elseif ~(obj.atm.nLayer==1 && (obj.atm.layer.windSpeed==0 || isempty(obj.atm.layer.windSpeed) ) )
                     %                 disp('HERE')
