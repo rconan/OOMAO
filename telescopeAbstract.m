@@ -233,7 +233,7 @@ classdef telescopeAbstract < handle
 %                             if isa(obj,'giantMagellanTelescope')
 %                                 out = quad2d(@(x,y)psf(obj,hypot(x,y),atan2(y,x)),0,eHalfSize,0,eHalfSize)*4;
 %                             else
-                                out = quad2d(@(x,y)psf(obj,hypot(x,y),atan2(y,x)),0,eHalfSize,0,eHalfSize)*4;
+                                out = quad2d(@(x,y)psf(obj,hypot(x,y),atan2(y,x)),-eHalfSize,eHalfSize,-eHalfSize,eHalfSize);%*4;
 %                             end
                         otherwise
                             error('cougar:telescope:entrapedEnergy',...
