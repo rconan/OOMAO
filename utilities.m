@@ -453,6 +453,24 @@ classdef utilities
                 out = h;
             end
         end
-                
+        
+        
+        function out = defocusDistance(a4,focalLength,diameter,wavelength,unit)
+            % DEFOCUSDISTANCE Focal point deplacement for a Zernike defocus
+            % out = defocusDistance(a4,focalLength,diameter,wavelength) Compute the focal
+            % point relative position [meter] for the Zernike (Noll normalized) defocus
+            % coefficients [radian], the focalLength [meter], the beam diameter [meter]
+            % and the wavelength [meter]
+            % out = defocusDistance(a4,focalLength,diameter,wavelength,unit) The result is
+            % converted into the appropriate unit: 3, 0, -3, -6, -9 for example
+            % correspond to km, m, mm, micron, nm, respectively
+            
+            out = 16*sqrt(3)*a4*(focalLength/diameter)^2/...
+                ( 2*pi/wavelength - 16*sqrt(3)*a4*focalLength/diameter^2 );
+            
+            if nargin>4
+                out = out*10^-unit;
+            end
+        end
     end
 end

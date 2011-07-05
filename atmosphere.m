@@ -395,7 +395,8 @@ classdef atmosphere < hgsetget
                 end
             else
                 fprintf('Computing the Cholesky factor matrix!\n')
-                [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+%                 [x,y] = meshgrid((0:nPixel-1)*D/nPixel);
+                [x,y] = meshgrid(linspace(-1,1,nPixel)*D/2);
                 choleskyFact = chol( ...
                     phaseStats.covarianceToeplitzMatrix(atm,complex(x,y)) ,'lower');
                 map = choleskyFact*randn(atm.rngStream,nPixel^2,nMap);

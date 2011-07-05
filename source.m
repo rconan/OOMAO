@@ -267,7 +267,7 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
-        %% Get/Set  in micron
+        %% Get/Set the view point
         function out = get.viewPoint(obj)
             out = obj.p_viewPoint;
         end
@@ -276,6 +276,10 @@ classdef source < stochasticWave & hgsetget
             obj.tel         = [];
         end
         
+        %% Get the opd vector
+        function out = opdVector(obj)
+            out = phaseVector(obj)/obj(1).waveNumber;
+        end
         %         function bool = eq(obj1,obj2)
         %             % == (EQ) Sources comparison
         %             % src1==src2 returns true if both objects have the same zenith
