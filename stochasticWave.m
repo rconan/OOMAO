@@ -79,7 +79,7 @@ classdef stochasticWave < handle
         %% Get/Set phase
         function out = get.phase(obj)
             out = obj.p_phase;
-            out(~obj.mask) = 0;
+%             out(~obj.mask) = 0;
         end
         function set.phase(obj,val)
             obj.p_phase = bsxfun( @plus, obj.p_phase , val);

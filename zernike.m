@@ -254,19 +254,23 @@ classdef zernike < telescopeAbstract
                 obj = obj - 1;
             else
                 if isa(val,'source')
-                    nVal = length(val);
-                    phaseMap = zeros(length(val(1).phase(:)),nVal);
-                    for kVal=1:nVal
-                        phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
-                    end
+%                     nVal = length(val);
+%                     phaseMap = zeros(length(val(1).phase(:)),nVal);
+%                     for kVal=1:nVal
+%                         phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+%                     end
+                    phaseMap = utilities.toggleFrame(val.phase,2)/val.waveNumber;
+                    p = obj.pupilLogical & val.mask;                    
                 else
-                    phaseMap = val;
+                    phaseMap = utilities.toggleFrame(val,2);
+                    p = obj.pupilLogical;
                 end
-                if size(obj.p_p,1)==size(phaseMap,1)
-                    obj.c = obj.p_p\phaseMap;
-                else
-                    obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
-                end
+%                 if size(obj.p_p,1)==size(phaseMap,1)
+%                     obj.c = obj.p_p\phaseMap;
+%                 else
+%                     obj.c = obj.p_p\utilities.toggleFrame(phaseMap,2);
+%                 end
+                 obj.c = obj.p_p(p,:)\phaseMap(p,:);
             end
         end
         

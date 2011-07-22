@@ -20,6 +20,10 @@ classdef utilities
             % out = piston( ... ,'shape','square') By default the piston is
             % a disc but here it is forced to be a square
             %
+            % out = piston( ... ,'shape','hex') By default the piston is
+            % a disc but here it is forced to be hexagonal, nOut is equal
+            % to twice the hexagonal side
+            %
             % out = piston( ... ,'type','logical') By default the piston
             % values are in double but they can be casted into any types
             % supported by Matlab like logical
@@ -38,13 +42,15 @@ classdef utilities
             u = x - param.xOffset;
             v = x - param.yOffset;
             
-            [x,y,r] = utilities.cartAndPol(2.*u./Npx,2.*v./Npx);
+            [x,y,r,o] = utilities.cartAndPol(2.*u./Npx,2.*v./Npx);
             
             switch param.shape
                 case 'disc'
                     out = double(r <= 1);
                 case 'square'
                     out = double( abs(x)<=1 & abs(y)<=1 );
+                case {'hex','hexagonal'}
+                    out = double( abs(x)<=sqrt(3)/2 & abs(y)<=x/sqrt(3)+1 & abs(y)<=-x/sqrt(3)+1 );
                 otherwise
                     error('The piston shape is either a disc or a square')
             end
@@ -164,7 +170,7 @@ classdef utilities
             
             
             
-%             if n~=toggle
+            if n~=toggle || toggle==2
                 switch toggle
                     case 2
                         %                         fprintf(' @(toggleFrame)> 2D: [%d,%d] !\n',dims(1)*dims(2),dims(3))
@@ -174,9 +180,7 @@ classdef utilities
                         %                         fprintf(' @(toggleFrame)> 3D: [%d,%d,%d] !\n',m,m,dims(2))
                         frame = reshape(frame,[m,m,dims(2)]);
                 end
-%             else
-%                 out = frame;
-%             end
+            end
             
         end
         
@@ -312,7 +316,7 @@ classdef utilities
         end
         
         function out = sombrero(n,x)
-            %5 SOMBRERO Order n sombrero function
+            %% SOMBRERO Order n sombrero function
             %
             % out = sombrero(n,x) computes besselj(n,x)/x
             
@@ -328,6 +332,17 @@ classdef utilities
                 x = x(u);
                 out(u) = besselj(n,x)./x;
             end
+        end
+        
+        function out = sinc(x)
+            %% SINC Sinus cardinal function
+            %
+            % out = sinc(x) computes sin(pi*x)/(pi*x)
+           
+            out = ones(size(x));
+            u = x~=0;
+            x = x(u);
+            out(u) = sin(pi*x)./(pi*x);
         end
         
         function out = fittingError(tel,atm,dm)
@@ -457,13 +472,17 @@ classdef utilities
         
         function out = defocusDistance(a4,focalLength,diameter,wavelength,unit)
             % DEFOCUSDISTANCE Focal point deplacement for a Zernike defocus
-            % out = defocusDistance(a4,focalLength,diameter,wavelength) Compute the focal
-            % point relative position [meter] for the Zernike (Noll normalized) defocus
-            % coefficients [radian], the focalLength [meter], the beam diameter [meter]
-            % and the wavelength [meter]
-            % out = defocusDistance(a4,focalLength,diameter,wavelength,unit) The result is
-            % converted into the appropriate unit: 3, 0, -3, -6, -9 for example
-            % correspond to km, m, mm, micron, nm, respectively
+            %
+            % out = defocusDistance(a4,focalLength,diameter,wavelength)
+            % Compute the focal point relative position [meter] for the
+            % Zernike (Noll normalized) focus coefficients [radian], the
+            % focalLength [meter], the beam diameter [meter] and the
+            % wavelength [meter] 
+            %
+            % out = defocusDistance(a4,focalLength,diameter,wavelength,unit) 
+            % The result is converted into the appropriate unit: 3, 0, -3,
+            % -6, -9 for example correspond to km, m, mm, micron, nm,
+            % respectively
             
             out = 16*sqrt(3)*a4*(focalLength/diameter)^2/...
                 ( 2*pi/wavelength - 16*sqrt(3)*a4*focalLength/diameter^2 );
@@ -472,5 +491,94 @@ classdef utilities
                 out = out*10^-unit;
             end
         end
+        
+        function out = outOfFocus(delta,focalLength,diameter,wavelength,unit)
+            % OUTOFFOCUS Zernike focus for a focal point deplacement 
+            %
+            % out = outOfFocus(delta,focalLength,diameter,wavelength)
+            % Compute the Zernike (Noll normalized) focus coefficients
+            % [radian] for the focal point relative position [meter], the
+            % focalLength [meter], the beam diameter [meter] and the
+            % wavelength [meter]
+            
+            out = ( 2*pi*delta/wavelength ) / ...
+                ( 16*sqrt(3)*( (focalLength/diameter)^2 + focalLength*delta/diameter^2 ) );
+            
+            if nargin>4
+                out = (wavelength/(2*pi))*out*10^-unit;
+            end
+            
+        end
+        
+        function out = orbitalVelocity(h,zen)
+            %% ORBITALVELOCITY Orbital angular velocity
+            %
+            % out = orbitalVelocity(h) computes the orbital angular in
+            % [rad/s] velocity at altitude h a zenith
+            %
+            % out = orbitalVelocity(h,zen) computes the orbital angular in
+            % [rad/s] velocity at altitude h a zenith angle zen
+            
+            
+            if nargin==1
+                zen = 0;
+            end
+            out = sqrt(constants.G*constants.Me/(constants.Re+h)).*...
+                (1-constants.Re*sin(zen)^2/(constants.Re+h))./h;
+        end
+        
+        function out = pointAheadAngle(h,zen)
+            %% POINTAHEADANGLE Point ahead angle
+            %
+            % out = pointAheadAngle(h) computes the orbital angular in
+            % [rad] velocity at altitude h a zenith
+            %
+            % out = pointAheadAngle(h,zen) computes the orbital angular in
+            % [rad] velocity at altitude h a zenith angle zen
+            
+            
+            if nargin==1
+                zen = 0;
+            end
+            out = 2*h*utilities.orbitalVelocity(h,zen)*sec(zen)/constants.c;
+        end
+        
+        function [vertex,center] = hexagonalArray(nSegment,pitch)
+            %% HEXAGONALARRAY Array of hexagonals
+            %
+            % [vertex,center] = hexagonalArray(nSegment,pitch) computes the
+            % vertex and center coordinates of nSegment hexagonals with a
+            % the given pitch arranged in a hexagonal array
+            
+            if nargin<2
+                pitch=1;
+            end
+            a = pitch/sqrt(3);
+            hexCoord = a*exp(1i*((0:5)*pi/3 + pi/2));
+            nCycle = roots([3,3,1-nSegment]);
+            nCycle(nCycle<0) = [];
+            count = 1;
+            vertex = zeros(6,nSegment);
+            center = zeros(nSegment,1);
+            figure(nSegment)
+            hp = patch(real(hexCoord),imag(hexCoord),[1,1,1]*0.8);
+            for cycle=1:nCycle
+                for o=1:6
+                    zo = hexCoord + cycle*a*sqrt(3)*exp(1i*(o-1)*pi/3);
+                    for k=1:cycle
+                        zk = zo + (k-1)*a*sqrt(3)*exp(1i*((o-1)*pi/3+2*pi/3));
+                        zk_center = mean(zk);
+                        count = count + 1;
+                        vertex(:,count) = zk;
+                        center(count)   = zk_center;
+                        hp = patch(real(zk),imag(zk),[1,1,1]*0.8);
+%                         text(real(zk_center),imag(zk_center),sprintf('%d',count),'HorizontalAlignment','center')
+                    end
+                end
+            end
+            axis square
+        end
+        
     end
+
 end

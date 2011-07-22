@@ -88,7 +88,7 @@ classdef zernikeStats
         end
         
                 
-        function out = variance(zern,atm)
+        function out = variance(zern,atm,src)
             %% VARIANCE Zernike coefficients variance
             %
             % out = zernikeStats.variance(modes,atmosphere) computes the
@@ -114,6 +114,9 @@ classdef zernikeStats
             if ~isa(zern,'zernike')
                 zern = zernike(zern);
             end
+            if nargin<3 
+                src = source;
+            end
             r0 = atm.r0;
             L0 = atm.L0;
             D  = zern.D;
@@ -138,6 +141,7 @@ classdef zernikeStats
                 
             end
             function out = zernCovCoef(r0,L0,D,i,j,ni,mi,nj,mj)
+                out = 0;
                 if (mi==mj) && (rem(abs(i-j),2)==0 || ((mi==0) && (mj==0)))
                     if L0==Inf
                         if i==1 && j==1
@@ -149,10 +153,13 @@ classdef zernikeStats
                                 [23./6+(ni+nj)./2 17./6+(ni-nj)./2 17./6+(nj-ni)./2]);
                         end
                     else
-                        out = (4.*gamma(11./6).^2./pi.^(14./3)).*(24.*gamma(6./5)./5).^(5./6).*...
-                            (L0./r0).^(5./3).*(L0./D).^2.*...
-                            sqrt((ni+1).*(nj+1)).*(-1).^((ni+nj-mi-mj)./2).*...
-                            UnParamEx4q2(0,ni+1,nj+1,11./6,pi.*D./L0);
+                        for kLayer=1:atm.nLayer
+                            alpha = 1 - atm.layer(kLayer).altitude/src.height;
+                            out = out + atm.layer(kLayer).fractionnalR0*(4.*gamma(11./6).^2./pi.^(14./3)).*(24.*gamma(6./5)./5).^(5./6).*...
+                                (L0./r0).^(5./3).*(L0./(alpha*D)).^2.*...
+                                sqrt((ni+1).*(nj+1)).*(-1).^((ni+nj-mi-mj)./2).*...
+                                UnParamEx4q2(0,ni+1,nj+1,11./6,pi.*alpha*D./L0);
+                        end
                     end
                 else
                     out = 0;
@@ -443,7 +450,7 @@ classdef zernikeStats
             end
         end
         
-        function out = residualVariance(N,atm,tel)
+        function out = residualVariance(N,atm,tel,src)
             %% RESIDUALVARIANCE Zernike corrected wavefront variance 
             %
             % out = zernikeResidualVariance(N,atm,tel)
@@ -454,7 +461,10 @@ classdef zernikeStats
             r0 = atm.r0;
             L0 = atm.L0;
             D  = tel.D;
-            aiVar = zernikeStats.variance(zern,atm);
+            if nargin<4
+                src = source;
+            end
+            aiVar = zernikeStats.variance(zern,atm,src);
             
             if isinf(L0)
                 Delta1 = -(2.*gamma(11./6).^2./pi.^1.5).*(24.*gamma(6./5)./5).^(5./6).*...
@@ -823,10 +833,12 @@ classdef zernikeStats
             p.addRequired('src1', @(x) isa(x,'source') );
             p.addOptional('src2', src1 , @(x) isa(x,'source') );
             p.addParamValue('tilts', 'Z' , @ischar ); % Z, G or ZG
+            p.addParamValue('lag', 0 , @isnumeric ); 
             
             p.parse(zern,atm,src1,varargin{:});
             src2  = p.Results.src2;
             tilts = p.Results.tilts;
+            lag   = p.Results.lag;
             
             n1 = length(src1);
             n2 = length(src2);
@@ -853,8 +865,8 @@ classdef zernikeStats
                 for k2 = 1:n2
             
                     deltaSrc = src1(k1) - src2(k2);
-                    rho = abs(deltaSrc);
-                    arg = angle(deltaSrc);
+%                     rho = abs(deltaSrc);
+%                     arg = angle(deltaSrc);
                     
                     out{k1,k2}(1,1) = quadgk( @(f) f.*sumLayers(f,2,2).*tiltsFilter(f) , 0 , Inf);
                     out{k1,k2}(1,2) = quadgk( @(f) f.*sumLayers(f,2,3).*tiltsFilter(f) , 0 , Inf);
@@ -873,7 +885,11 @@ classdef zernikeStats
                 outSumLayers = 0;
                 for k = 1:atm.nLayer
                     
-                    red = 2*pi*f*rho*atm.layer(k).altitude;
+                    srcV = deltaSrc*atm.layer(k).altitude + lag*atm.layer(k).windSpeed.*exp(1i.*atm.layer(k).windDirection);
+                    rho = abs(srcV);
+                    arg = angle(srcV);
+                    
+                    red = 2*pi*f*rho;
                     Itheta = -pi*( besselj(2,red).*cos(2*arg+g) - ...
                         besselj(0,red).*cos(h) );
                     psd = atm.layer(k).fractionnalR0.*...
@@ -947,6 +963,23 @@ classdef zernikeStats
             
 %             logBook.RESUME;
             
+        end
+        
+        function out = anisokinetismAngle(zern,atm)
+            %% ANISOKINETISMANGLE Tip-tilt anisoplanatism angle
+            %
+            % out = anisokinetismAngle(zern,atm) computes the tip-tilt
+            % anisoplanatism angle for a zernike object zern and an
+            % atmosphere object. 
+            % The anisokinetism angle is defined as the angle for the
+            % anisokinetism wavefront error variance is equal to 1rad^2
+            
+            src = source;
+            out = fzero(@fun,arcsec(30));
+            function outFun = fun(x)
+                src.zenith = x;
+                outFun = zernikeStats.anisokinetism(zern,atm,src)-1;
+            end
         end
         
         function out = aiaj(zi,ni,mi,zj,nj,mj,r0,L0,R)
@@ -1766,7 +1799,7 @@ classdef zernikeStats
                             atmAltitude = atmSlab.layer.altitude;
                             
                             % --jp,j------------------------------------------------------------------------
-                            alpha2 = 1 - atmAltitude/src2(k2).height;
+                            alpha2 = 1;% - atmAltitude/src2(k2).height;
                             beta1  = 1 - atmAltitude/src1(k1).height;
                             
                             w1 = beta1*rv + atmAltitude.*( src1Theta - src2Theta );
@@ -1781,7 +1814,7 @@ classdef zernikeStats
                             % ------------------------------------------------------------------------------
                             
                             % --j,jp------------------------------------------------------------------------
-                            alpha1 = 1 - atmAltitude/src1(k1).height;
+                            alpha1 = 1;% - atmAltitude/src1(k1).height;
                             beta2  = 1 - atmAltitude/src2(k2).height;
                             
                             w2 = beta2*rv + atmAltitude.*( src2Theta - src1Theta );

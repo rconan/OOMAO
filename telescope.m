@@ -303,6 +303,12 @@ classdef telescope < telescopeAbstract
 %             end
         end
         
+        function out = index(obj,z)
+            %% INDEX
+            
+            out = abs(z)<obj.R & abs(z)>obj.R*obj.obstructionRatio;
+        end
+        
     end
     
         
