@@ -91,6 +91,7 @@ classdef atmosphere < hgsetget
     properties (Access=private)
         p_wavelength;
         p_log;
+        wavelengthScale;
     end
     
     methods
@@ -209,13 +210,14 @@ classdef atmosphere < hgsetget
         function set.wavelength(obj,val)
             if isa(val,'photometry')
                 val = val.wavelength;
+                obj.wavelengthScale = obj.wavelength/val;
             end
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
-            for kLayer=1:obj.nLayer
-                if ~isempty(obj.layer(kLayer).phase)
-                    add(obj.p_log,obj,'Scaling wavefront!')
+            if ~isempty(obj.layer(1).phase)
+                add(obj.p_log,obj,'Scaling wavefront!')
+                for kLayer=1:obj.nLayer                    
                     obj.layer(kLayer).phase = ...
-                        obj.layer(kLayer).phase*obj.wavelength/val;
+                        obj.layer(kLayer).phase*obj.wavelengthScale;
                 end
             end
             obj.p_wavelength = val;
