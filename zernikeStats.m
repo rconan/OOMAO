@@ -903,6 +903,8 @@ classdef zernikeStats
         
         function out = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
+            %
+            % out = anisokinetism(zern,atm,src,unit)
             
             integral = false;
             

@@ -101,7 +101,7 @@ classdef zernike < telescopeAbstract
                 'obstructionRatio',p.Results.obstructionRatio,...
                 'resolution',p.Results.resolution,...
                 'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin);
-%             obj.pupil = p.Results.pupil;
+            obj.p_pupil = p.Results.pupil;
             obj.j = p.Results.j;
             obj.r = p.Results.radius;
             obj.o = p.Results.angle;
@@ -220,19 +220,20 @@ classdef zernike < telescopeAbstract
                 obj.c = zernP.c;%(ismember(zernP.j,obj.j),:);
             else
                 if isa(val,'source')
-                    nVal = length(val);
-                    phaseMap = zeros(length(val(1).phase(:)),nVal);
-                    for kVal=1:nVal
-                        phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
-                    end
+%                     nVal = length(val);
+%                     phaseMap = zeros(length(val(1).phase(:)),nVal);
+%                     for kVal=1:nVal
+%                         phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+%                     end
+                    phaseMap = utilities.toggleFrame(val.phase,2)/val.waveNumber;
                 else
-                    phaseMap = val;
+                    phaseMap = utilities.toggleFrame(val,2);
                 end
-                if size(obj.p_p,1)==size(phaseMap,1)
+%                 if size(obj.p_p,1)==size(phaseMap,1)
                     obj.c = obj.p_p'*phaseMap;
-                else
-                    obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
-                end
+%                 else
+%                     obj.c = obj.p_p'*utilities.toggleFrame(phaseMap,2);
+%                 end
                 obj.c = bsxfun( @times , obj.c , 1./diag(obj.p_p'*obj.p_p) );
             end
         end

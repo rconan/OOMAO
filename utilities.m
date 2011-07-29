@@ -543,7 +543,7 @@ classdef utilities
             out = 2*h*utilities.orbitalVelocity(h,zen)*sec(zen)/constants.c;
         end
         
-        function [vertex,center] = hexagonalArray(nSegment,pitch)
+        function [vertex,center] = hexagonalArray(nCycle,pitch)
             %% HEXAGONALARRAY Array of hexagonals
             %
             % [vertex,center] = hexagonalArray(nSegment,pitch) computes the
@@ -555,13 +555,11 @@ classdef utilities
             end
             a = pitch/sqrt(3);
             hexCoord = a*exp(1i*((0:5)*pi/3 + pi/2));
-            nCycle = roots([3,3,1-nSegment]);
-            nCycle(nCycle<0) = [];
             count = 1;
+            nSegment = 3*nCycle^2+3*nCycle+1;
             vertex = zeros(6,nSegment);
+            vertex(:,count) = hexCoord;
             center = zeros(nSegment,1);
-            figure(nSegment)
-            hp = patch(real(hexCoord),imag(hexCoord),[1,1,1]*0.8);
             for cycle=1:nCycle
                 for o=1:6
                     zo = hexCoord + cycle*a*sqrt(3)*exp(1i*(o-1)*pi/3);
@@ -571,12 +569,17 @@ classdef utilities
                         count = count + 1;
                         vertex(:,count) = zk;
                         center(count)   = zk_center;
-                        hp = patch(real(zk),imag(zk),[1,1,1]*0.8);
-%                         text(real(zk_center),imag(zk_center),sprintf('%d',count),'HorizontalAlignment','center')
                     end
                 end
             end
+            v = vertex(:);
+            f = reshape(1:6*nSegment,6,nSegment);
+            figure(nSegment)
+            patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
+            line(real(center),imag(center),'color','r','marker','.')
             axis square
+            set(gca,'ylim',get(gca,'xlim'))
+            title(sprintf('%d segments',nSegment))
         end
         
     end

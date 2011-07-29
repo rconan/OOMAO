@@ -45,9 +45,9 @@ classdef hexagonalPistonTipTilt < handle
 
         function setInfluenceFunction(obj,nIF,resolution,validActuator,~,~)
             nIF = nIF/3;
-            [~,center] = utilities.hexagonalArray(nIF);
             nCycle = roots([3,3,1-nIF]);
             nCycle(nCycle<0) = [];
+            [~,center] = utilities.hexagonalArray(nCycle);
             u0 = linspace(-1,1,resolution)*(nCycle-1);
             pitch = resolution/(2*(nCycle-1));
             [tip,tilt] = meshgrid(u0*pitch);

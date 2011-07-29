@@ -221,15 +221,21 @@ classdef deformableMirror < handle
             atm = telAtm.opticalAberration;
             atmWavelength  = atm.wavelength;
             atm.wavelength = src.wavelength; 
-            if isa(obj.modes,'zernike')
-                out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
-            else
-                d = telAtm.D/(obj.nActuator-1);
-                fc = 1/d/2;
-                a = phaseStats.variance(atm);
-                b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
-                    -fc,fc,-fc,fc);
-                out = a - b;
+            switch class(obj.modes)
+                case 'zernike'
+                    out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
+                case 'influenceFunction'
+                    d = telAtm.D/(obj.nActuator-1);
+                    fc = 1/d/2;
+                    a = phaseStats.variance(atm);
+                    b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
+                        -fc,fc,-fc,fc);
+                    out = a - b;
+                case 'hexagonalPistonTipTilt'
+                    nCycle = roots([3,3,1-obj.nActuator/3]);
+                    nCycle(nCycle<0) = [];
+                    smallTel = telescope(telAtm.D*0.5/(nCycle-1));
+                    out = zernikeStats.residualVariance(3,atm,smallTel);                    
             end
             atm.wavelength = atmWavelength;
             if nargin>3

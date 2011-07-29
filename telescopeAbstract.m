@@ -31,6 +31,8 @@ classdef telescopeAbstract < handle
         resolution;
         % phase listener
         phaseListener;
+        % phase listener
+        wavelengthListener;
         % wind shifted turbulence sampling time
         samplingTime;
         leap
@@ -141,7 +143,9 @@ classdef telescopeAbstract < handle
         end
                 
         function out = zernike(obj,modes)
-            out = zernike(modes,obj.D,'resolution',obj.resolution);
+            %% ZERNIKE
+            
+            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil);
         end
         
         function reset(obj)
@@ -253,7 +257,9 @@ classdef telescopeAbstract < handle
                     init(obj);
                 end
                 obj.leap = zeros(2,val.nLayer);
-            end
+                obj.wavelengthListener = addlistener(obj.atm,'wavelength','PostSet',...
+                    @(src,evnt) obj.wavelengthScale );
+           end
         end        
         function out = get.opticalAberration(obj)
             out = obj.atm;
@@ -757,6 +763,19 @@ classdef telescopeAbstract < handle
                 end
             end
             obj.log.verbose = true;
+        end
+        
+        function wavelengthScale(obj)
+            %% WAVELENGTHSCALE
+            
+            if ~isempty(obj.mapShift)
+                add(obj.p_log,obj,'Scaling wavefront!')
+                nLayer = obj.atm.nLayer;
+                for kLayer=1:nLayer
+                    obj.B{kLayer} = obj.atm.wavelengthScale.^2*obj.B{kLayer};
+                    obj.mapShift{kLayer} = obj.atm.wavelengthScale*obj.mapShift{kLayer};
+                end
+            end
         end
         
     end
