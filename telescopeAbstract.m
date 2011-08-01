@@ -84,6 +84,7 @@ classdef telescopeAbstract < handle
         p_pupil;
         ppp;
         layerStep;
+        phaseScreenWavelength;
     end
     
     methods
@@ -257,8 +258,8 @@ classdef telescopeAbstract < handle
                     init(obj);
                 end
                 obj.leap = zeros(2,val.nLayer);
-                obj.wavelengthListener = addlistener(obj.atm,'wavelength','PostSet',...
-                    @(src,evnt) obj.wavelengthScale );
+%                 obj.wavelengthListener = addlistener(obj.atm,'wavelength','PostSet',...
+%                     @(src,evnt) obj.wavelengthScale );
            end
         end        
         function out = get.opticalAberration(obj)
@@ -464,7 +465,8 @@ classdef telescopeAbstract < handle
                         end
                         out = sum(out,3);
                     end
-                    out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
+%                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
+                    out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
                 src.timeStamp = src.timeStamp + obj.samplingTime;
@@ -673,6 +675,19 @@ classdef telescopeAbstract < handle
             end
         end
     
+        function wavelengthScale(obj,varargin)
+            %% WAVELENGTHSCALE
+            
+            if ~isempty(obj.mapShift)
+                add(obj.log,obj,'Scaling wavefront!')
+                nLayer = obj.atm.nLayer;
+                for kLayer=1:nLayer
+                    obj.B{kLayer} = obj.atm.wavelengthScale.^2*obj.B{kLayer};
+                    obj.mapShift{kLayer} = obj.atm.wavelengthScale*obj.mapShift{kLayer};
+                end
+            end
+        end
+        
     end
     
     methods (Abstract)
@@ -762,22 +777,10 @@ classdef telescopeAbstract < handle
 
                 end
             end
+            obj.phaseScreenWavelength = obj.atm.wavelength;
             obj.log.verbose = true;
         end
-        
-        function wavelengthScale(obj)
-            %% WAVELENGTHSCALE
-            
-            if ~isempty(obj.mapShift)
-                add(obj.p_log,obj,'Scaling wavefront!')
-                nLayer = obj.atm.nLayer;
-                for kLayer=1:nLayer
-                    obj.B{kLayer} = obj.atm.wavelengthScale.^2*obj.B{kLayer};
-                    obj.mapShift{kLayer} = obj.atm.wavelengthScale*obj.mapShift{kLayer};
-                end
-            end
-        end
-        
+                
     end
     
     methods (Static)        
