@@ -901,6 +901,86 @@ classdef zernikeStats
             
         end
         
+        function out = tiltsTelescopeAngularCovariance(zern1,zern2,atm,src1,varargin)
+            
+            p = inputParser;
+            p.addRequired('zern1', @(x) isa(x,'telescopeAbstract') );
+            p.addRequired('zern2', @(x) isa(x,'telescopeAbstract') );
+            p.addRequired('atm' , @(x) isa(x,'atmosphere') );
+            p.addRequired('src1', @(x) isa(x,'source') );
+            p.addOptional('src2', src1 , @(x) isa(x,'source') );
+            p.addParamValue('tilts', 'Z' , @ischar ); % Z, G or ZG
+            p.addParamValue('lag', 0 , @isnumeric ); 
+            
+            p.parse(zern1,zern2,atm,src1,varargin{:});
+            src2  = p.Results.src2;
+            tilts = p.Results.tilts;
+            lag   = p.Results.lag;
+            
+            n1 = length(src1);
+            n2 = length(src2);
+            D1  = zern1.D;
+            R1  = D1/2;
+            D2  = zern2.D;
+            R2  = D2/2;
+            psdCst = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
+            
+            switch tilts
+                case 'Z'
+%                     tiltsFilter = @(f) (2.*besselj(2,pi.*f.*D)./(pi.*f.*R)).^2;
+                    tiltsFilter = @(f) (2.*besselj(2,pi.*f.*D1)./(pi.*f.*R1)).*(2.*besselj(2,pi.*f.*D2)./(pi.*f.*R2));
+                case 'G'
+                    tiltsFilter = @(f) (besselj(1,pi.*f.*D)).^2;
+                case'ZG'
+                    tiltsFilter = @(f) 2.*besselj(2,pi.*f.*D).*besselj(1,pi.*f.*D)./(pi.*f.*R);
+                otherwise
+                    error('tilts filters are either Z, G or ZG')
+            end
+            
+            out = cellfun( @(x) zeros(2) , cell(n1,n2) , 'UniformOutput', false );
+            
+            for k1 = 1:n1
+                for k2 = 1:n2
+            
+                    deltaSrc = src1(k1) - src2(k2);
+%                     rho = abs(deltaSrc);
+%                     arg = angle(deltaSrc);
+                    
+                    out{k1,k2}(1,1) = quadgk( @(f) f.*sumLayers(f,2,2).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(1,2) = quadgk( @(f) f.*sumLayers(f,2,3).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(2,1) = quadgk( @(f) f.*sumLayers(f,3,2).*tiltsFilter(f) , 0 , Inf);
+                    out{k1,k2}(2,2) = quadgk( @(f) f.*sumLayers(f,3,3).*tiltsFilter(f) , 0 , Inf);
+            
+                end
+            end
+            
+            out = cell2mat(out);
+            
+            function outSumLayers = sumLayers(f,j,i)
+                    
+                g = pi*( (-1)^i + (-1)^j - 2 )/4;
+                h = pi*( (-1)^i - (-1)^j )/4;
+                outSumLayers = 0;
+                for k = 1:atm.nLayer
+                    
+                    srcV = deltaSrc*atm.layer(k).altitude + lag*atm.layer(k).windSpeed.*exp(1i.*atm.layer(k).windDirection);
+                    rho = abs(srcV);
+                    arg = angle(srcV);
+                    
+                    red = 2*pi*f*rho;
+                    Itheta = -pi*( besselj(2,red).*cos(2*arg+g) - ...
+                        besselj(0,red).*cos(h) );
+                    psd = atm.layer(k).fractionnalR0.*...
+                        psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
+                    outSumLayers = outSumLayers + psd.*Itheta;
+                end
+                
+            end
+            
+        end
+        
         function out = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
             %
