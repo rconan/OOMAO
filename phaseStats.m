@@ -419,10 +419,12 @@ classdef phaseStats
             
             if nargout==2
                 
+                tic
                 varargout{1} = autoCorrelation(m_x,m_y,m_mask,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
                     m_L0,m_cstL0,m_cst);
+                toc
                 
                 m_xAC = m_x(m_mask);
                 m_yAC = m_y(m_mask);
@@ -433,11 +435,13 @@ classdef phaseStats
                     m_xCC = xyOutput(:,1);
                     m_yCC = xyOutput(:,2);
                 end
+                
+                tic                
                 varargout{2} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
                     m_L0,m_cstL0,m_cst,m_windVx,m_windVy,m_tau);
-                
+                toc
                 
             else
                 
@@ -541,7 +545,7 @@ classdef phaseStats
                 C = cellfun( @(x) zeros(length(xCC),length(xAC)) , cell(nSs,nGs) , 'UniformOutput' , false );
                 cstL0CC = cstL0*ones(length(xCC),length(xAC));
                 
-                for k=1:nSs*nGs
+                parfor k=1:nSs*nGs
                     
                     [kSs,iGs] = ind2sub([nSs,nGs],k);
                     buf = 0;
