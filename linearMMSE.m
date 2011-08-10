@@ -407,7 +407,12 @@ classdef linearMMSE < handle
         
         function out = otf(obj,zRho)
             %% OTF Optical Transfer Function
-                        
+                     
+            if ~isempty(obj.p_otf)
+                out = obj.p_otf;
+                return
+            end
+            
             if isempty(obj.Bmse)
                 lmmse(obj)
             end
@@ -441,6 +446,7 @@ classdef linearMMSE < handle
                     obj.p_strehlRatio = sum(obj.p_otf)/sum(otfNum0);
                     obj.p_otf = reshape( obj.p_otf , n , n);
                     obj.p_slitFilter = @(slitWidth) utilities.sinc(xRho*slitWidth).*utilities.sinc(yRho*slitWidth);
+                    out = obj.p_otf;
 
                 case 'modal'
                     out   = zeros(size(zRho));
