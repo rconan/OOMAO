@@ -66,7 +66,8 @@ classdef deformableMirror < handle
         function obj = deformableMirror(nActuator,varargin)
             p = inputParser;
             p.addRequired('nActuator', @isnumeric);
-            p.addParamValue('modes', [], @(x) isnumeric(x) || (isa(x,'influenceFunction') || isa(x,'zernike')) );
+            p.addParamValue('modes', [], @(x) isnumeric(x) || ...
+                (isa(x,'influenceFunction') || isa(x,'zernike') || isa(x,'hexagonalPistonTipTilt')) );
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('validActuator', ones(nActuator), @islogical);
             p.addParamValue('zLocation', 0, @isnumeric);
@@ -78,13 +79,18 @@ classdef deformableMirror < handle
             obj.surfaceListener = addlistener(obj,'surface','PostSet',...
                 @(src,evnt) obj.imagesc );
             obj.surfaceListener.Enabled = false;
-            if isa(obj.modes,'influenceFunction') && ~isempty(p.Results.resolution)
+            if ( isa(obj.modes,'influenceFunction') || isa(obj.modes,'hexagonalPistonTipTilt')) && ~isempty(p.Results.resolution)
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
             elseif isa(obj.modes,'zernike')
                 obj.p_validActuator = true(1,obj.modes.nMode);
             end
-            obj.coefsDefault      = zeros(obj.nValidActuator,1);
-            obj.coefs             = zeros(obj.nValidActuator,1);
+            if isa(obj.modes,'hexagonalPistonTipTilt')
+                obj.coefsDefault      = zeros(3*obj.nValidActuator,1);
+                obj.coefs             = zeros(3*obj.nValidActuator,1);
+            else
+                obj.coefsDefault      = zeros(obj.nValidActuator,1);
+                obj.coefs             = zeros(obj.nValidActuator,1);
+            end
             obj.log = logBook.checkIn(obj);
             display(obj)
         end
@@ -185,6 +191,19 @@ classdef deformableMirror < handle
             end
         end
         
+        
+        function obj = mldivide(obj,src)
+            %% \ Least square fit to the influence functions
+            %
+            % obj = obj\src fits the source object wavefront onto the
+            % deformable mirror object influence functions and stro the
+            % projection coefficients into the object coefficients vector
+
+            F = obj.modes.modes(src.mask,:);
+            maps = utilities.toggleFrame(src.phase,2);
+            obj.coefs = 0.5*(F\maps(src.mask,:))/src.waveNumber;
+        end
+        
         function out = fittingError(obj,telAtm,src,unit)
             %% FITTINGERROR deformable mirror fitting error
             %
@@ -202,21 +221,24 @@ classdef deformableMirror < handle
             atm = telAtm.opticalAberration;
             atmWavelength  = atm.wavelength;
             atm.wavelength = src.wavelength; 
-            if isa(obj.modes,'zernike')
-                out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
-            else
-                d = telAtm.D/(obj.nActuator-1);
-                fc = 1/d/2
-                a = phaseStats.variance(atm);
-                b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
-                    -fc,fc,-fc,fc);
-                out = a - b;
+            switch class(obj.modes)
+                case 'zernike'
+                    out = zernikeStats.residualVariance(obj.modes.nMode,atm,telAtm);
+                case 'influenceFunction'
+                    d = telAtm.D/(obj.nActuator-1);
+                    fc = 1/d/2;
+                    a = phaseStats.variance(atm);
+                    b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , atm ) , ...
+                        -fc,fc,-fc,fc);
+                    out = a - b;
+                case 'hexagonalPistonTipTilt'
+                    nCycle = roots([3,3,1-obj.nActuator/3]);
+                    nCycle(nCycle<0) = [];
+                    smallTel = telescope(telAtm.D*0.5/(nCycle-1));
+                    out = zernikeStats.residualVariance(3,atm,smallTel);                    
             end
             atm.wavelength = atmWavelength;
-            if nargin>2
-                if nargin<4
-                    unit = 1;
-                end
+            if nargin>3
                 out = 10^-unit*sqrt(out)/src.waveNumber;
             end            
         end

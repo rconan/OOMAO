@@ -31,6 +31,8 @@ classdef telescopeAbstract < handle
         resolution;
         % phase listener
         phaseListener;
+        % phase listener
+        wavelengthListener;
         % wind shifted turbulence sampling time
         samplingTime;
         leap
@@ -82,6 +84,7 @@ classdef telescopeAbstract < handle
         p_pupil;
         ppp;
         layerStep;
+        phaseScreenWavelength;
     end
     
     methods
@@ -141,7 +144,9 @@ classdef telescopeAbstract < handle
         end
                 
         function out = zernike(obj,modes)
-            out = zernike(modes,obj.D,'resolution',obj.resolution);
+            %% ZERNIKE
+            
+            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil);
         end
         
         function reset(obj)
@@ -253,7 +258,9 @@ classdef telescopeAbstract < handle
                     init(obj);
                 end
                 obj.leap = zeros(2,val.nLayer);
-            end
+%                 obj.wavelengthListener = addlistener(obj.atm,'wavelength','PostSet',...
+%                     @(src,evnt) obj.wavelengthScale );
+           end
         end        
         function out = get.opticalAberration(obj)
             out = obj.atm;
@@ -465,7 +472,8 @@ classdef telescopeAbstract < handle
                         end
                         out = sum(out,3);
                     end
-                    out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
+%                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
+                    out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
                 src.timeStamp = src.timeStamp + obj.samplingTime;
@@ -674,6 +682,19 @@ classdef telescopeAbstract < handle
             end
         end
     
+        function wavelengthScale(obj,varargin)
+            %% WAVELENGTHSCALE
+            
+            if ~isempty(obj.mapShift)
+                add(obj.log,obj,'Scaling wavefront!')
+                nLayer = obj.atm.nLayer;
+                for kLayer=1:nLayer
+                    obj.B{kLayer} = obj.atm.wavelengthScale.^2*obj.B{kLayer};
+                    obj.mapShift{kLayer} = obj.atm.wavelengthScale*obj.mapShift{kLayer};
+                end
+            end
+        end
+        
     end
     
     methods (Abstract)
@@ -763,9 +784,10 @@ classdef telescopeAbstract < handle
 
                 end
             end
+            obj.phaseScreenWavelength = obj.atm.wavelength;
             obj.log.verbose = true;
         end
-        
+                
     end
     
     methods (Static)        

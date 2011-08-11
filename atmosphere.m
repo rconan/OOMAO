@@ -66,9 +66,10 @@ classdef atmosphere < hgsetget
         rngStream;
         % state at initialization of the atmosphere random number generator stream
         initState;
+        wavelengthScale;
     end
     
-    properties (Dependent)
+    properties (Dependent, SetObservable=true)
         % wavelength of the r0
         wavelength;
     end
@@ -210,14 +211,15 @@ classdef atmosphere < hgsetget
             if isa(val,'photometry')
                 val = val.wavelength;
             end
+            obj.wavelengthScale = obj.wavelength/val;
             obj.r0 = obj.r0.*(val/obj.wavelength)^1.2;
-            for kLayer=1:obj.nLayer
-                if ~isempty(obj.layer(kLayer).phase)
-                    add(obj.p_log,obj,'Scaling wavefront!')
-                    obj.layer(kLayer).phase = ...
-                        obj.layer(kLayer).phase*obj.wavelength/val;
-                end
-            end
+%             if ~isempty(obj.layer(1).phase)
+%                 add(obj.p_log,obj,'Scaling wavefront!')
+%                 for kLayer=1:obj.nLayer                    
+%                     obj.layer(kLayer).phase = ...
+%                         obj.layer(kLayer).phase*obj.wavelengthScale;
+%                 end
+%             end
             obj.p_wavelength = val;
         end
         

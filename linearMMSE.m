@@ -59,6 +59,8 @@ classdef linearMMSE < handle
         tilts;
         % temporal prediction
         prediction = false;
+        % additive error covariance
+        G = 0;
     end
     
     properties (SetObservable=true)
@@ -87,6 +89,8 @@ classdef linearMMSE < handle
         varMap
         % error rms map
         rmsMap        
+        % Strehl ratio
+        strehlRatio
     end
     
     properties (Access=private)
@@ -97,7 +101,11 @@ classdef linearMMSE < handle
         tel;
         p_lag;
         p_P;
+        p_otf;
+        p_strehlRatio;
+        p_slitFilter;
         covarianceSafe;
+        xyOutput;
     end
  
     methods
@@ -119,7 +127,9 @@ classdef linearMMSE < handle
             inputs.addParamValue('noiseCovariance',[],@isnumeric);
             inputs.addParamValue('tilts','Z',@ischar);
             inputs.addParamValue('lag',0,@isnumeric);
-            
+            inputs.addParamValue('xyOutput',[],@isnumeric);
+            inputs.addParamValue('G',0,@isnumeric);
+           
             inputs.parse(sampling,diameter,atmModel,guideStar,varargin{:});
             
             obj.sampling   = inputs.Results.sampling;
@@ -136,6 +146,8 @@ classdef linearMMSE < handle
             obj.noiseCovariance   = inputs.Results.noiseCovariance;
             obj.tilts      = inputs.Results.tilts;
             obj.p_lag        = inputs.Results.lag;
+            obj.xyOutput     = inputs.Results.xyOutput;
+            obj.G            = inputs.Results.G;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
             fprintf(' @(linearMMSE)> atmosphere wavelength set to mmse star wavelength!\n') 
@@ -164,18 +176,23 @@ classdef linearMMSE < handle
                         phaseStats.spatioAngularCovarianceMatrix(...
                         obj.sampling,obj.diameter,...
                         obj.atmModel,obj.guideStar,obj.p_mmseStar,...
-                        'mask',obj.pupil);
-                    if obj.lag>0 && ~obj.prediction
+                        'mask',obj.pupil,'xyOutput',obj.xyOutput);
+                    if obj.p_lag>0 && ~obj.prediction
                         obj.CoxLag = ...
                             phaseStats.spatioAngularCovarianceMatrix(...
                             obj.sampling,obj.diameter,...
                             obj.atmModel,obj.guideStar,obj.mmseStar,...
                             'mask',obj.pupil,'lag',obj.p_lag);
                     end
-                    obj.Coo = phaseStats.spatioAngularCovarianceMatrix(...
-                        obj.sampling,obj.diameter,...
-                        obj.atmModel,obj.p_mmseStar(1),'mask',obj.pupil);
-            
+                    
+                    if isempty(obj.xyOutput)
+                        obj.Coo = phaseStats.spatioAngularCovarianceMatrix(...
+                            obj.sampling,obj.diameter,...
+                            obj.atmModel,obj.p_mmseStar(1),'mask',obj.pupil);
+                    else
+                        obj.Coo = phaseStats.covarianceMatrix(complex(obj.xyOutput(:,1),obj.xyOutput(:,2)),obj.atmModel);
+                    end
+                    
                     if ~poolWasAlreadyOpen
                         matlabpool('close')
                     end
@@ -193,6 +210,12 @@ classdef linearMMSE < handle
                       obj.Coo = zernikeStats.tiltsAngularCovariance(...
                           obj.zernP,obj.atmModel,...
                           obj.p_mmseStar,obj.p_mmseStar,'tilts',obj.tilts(1));
+                    if obj.p_lag>0 && ~obj.prediction
+                        obj.CoxLag =  { zernikeStats.tiltsAngularCovariance(...
+                          obj.zernP,obj.atmModel,...
+                          obj.p_mmseStar,obj.p_mmseStar,...
+                          'tilts',obj.tilts(1),'lag',obj.p_lag) };
+                    end
 %                       obj.Cxx = zernikeStats.angularCovarianceAlt(obj.zernP,...
 %                           obj.atmModel,obj.guideStar,obj.guideStar);            
 %                       obj.Cox = { zernikeStats.angularCovarianceAlt(obj.zernP,...
@@ -245,11 +268,19 @@ classdef linearMMSE < handle
         function set.lag(obj,val)
             obj.p_lag = val;
             if obj.p_lag>0
-                obj.CoxLag = ...
-                    phaseStats.spatioAngularCovarianceMatrix(...
-                    obj.sampling,obj.diameter,...
-                    obj.atmModel,obj.guideStar,obj.mmseStar,...
-                    'mask',obj.pupil,'lag',obj.p_lag);
+                switch obj.model
+                    case 'zonal'
+                        obj.CoxLag = ...
+                            phaseStats.spatioAngularCovarianceMatrix(...
+                            obj.sampling,obj.diameter,...
+                            obj.atmModel,obj.guideStar,obj.mmseStar,...
+                            'mask',obj.pupil,'lag',obj.p_lag);
+                    case 'modal'
+                        obj.CoxLag =  { zernikeStats.tiltsAngularCovariance(...
+                            obj.zernP,obj.atmModel,...
+                            obj.guideStar,obj.p_mmseStar,...
+                            'tilts',obj.tilts(1),'lag',obj.p_lag) };
+                end
                 if ~isempty(obj.P)
                     obj.covarianceSafe{3} = obj.CoxLag;
                     obj.CoxLag = cellfun( @(x) x*obj.P', obj.CoxLag , 'UniformOutput', false);
@@ -258,6 +289,7 @@ classdef linearMMSE < handle
                 obj.CoxLag = [];
             end
             solveMmse(obj);
+            obj.p_otf = [];
         end
         function val = get.lag(obj)
             val = obj.p_lag;
@@ -308,6 +340,25 @@ classdef linearMMSE < handle
             val = obj.p_noiseCovariance;
         end
         
+        %% Get Strehl ratio
+        function val = get.strehlRatio(obj)
+            if isempty(obj.p_otf)
+                otf(obj)
+            end
+            val = obj.p_strehlRatio;
+        end
+        
+        function out = ensquaredEnergy(obj,slitWidth)
+            %% ENSQUAREDENERGY
+            
+            if isempty(obj.p_otf)
+                otf(obj)
+            end
+            n = 2*(obj.sampling-1)+1;
+            uRho = linspace(-1,1,n)*obj.diameter;
+            out = trapz(uRho,trapz(uRho,obj.p_otf.*obj.p_slitFilter(slitWidth)))*slitWidth^2;
+        end
+        
         function lmmse(obj,fieldStar)
             %% LMMSE Linear Minimum Mean Square Error
             
@@ -325,7 +376,7 @@ classdef linearMMSE < handle
                     %                         'mask',obj.pupil);
                     %                     M0 = obj.Cox0{1}/obj.Cxx;
                     A = obj.mmseBuilder{1}*obj.CoxLag{1}';
-                    obj.Bmse = obj.Coo + obj.mmseBuilder{1}*obj.Cox{1}' - A - A' + ...
+                    obj.Bmse{1} = obj.Coo + obj.mmseBuilder{1}*obj.Cox{1}' - A - A' + ...
                         obj.mmseBuilder{1}*obj.p_noiseCovariance*obj.mmseBuilder{1}';
                 end
             else
@@ -351,12 +402,17 @@ classdef linearMMSE < handle
                 obj.Bmse = m_Bmse;
 %                 obj.Bmse = cellfun( fun , Co1x , 'uniformOutput' , false );
             end
-            
+            obj.Bmse = cellfun( @(x) x + obj.G, obj.Bmse , 'uniformOutput' , false);
         end
         
         function out = otf(obj,zRho)
             %% OTF Optical Transfer Function
-                        
+                     
+            if ~isempty(obj.p_otf)
+                out = obj.p_otf;
+                return
+            end
+            
             if isempty(obj.Bmse)
                 lmmse(obj)
             end
@@ -364,13 +420,34 @@ classdef linearMMSE < handle
             switch obj.model
                 
                 case 'zonal'
+                    if isempty(obj.xyOutput)
+                        [x,y] = meshgrid(linspace(-1,1,obj.sampling)*obj.diameter/2);
+                        p = logical(obj.pupil);
+                        z = x(p) + 1i*y(p);
+                    else
+                        z = obj.xyOutput(:,1) + 1i*obj.xyOutput(:,2);
+                    end
+
+                    n = 2*(obj.sampling-1)+1;
+                    [xRho,yRho] = meshgrid(linspace(-1,1,n)*obj.diameter);
+                    zRho = xRho + 1i*yRho;
                     
-                    structFun = 2*(obj.Bmse{1} - diag(diag(obj.Bmse{1})));
-                    [x,y] = meshgrid( linspace(-1,1,obj.sampling)*obj.diameter/2 );
-                    x = x(obj.pupil);
-                    y = y(obj.pupil);
-                    [x,y] = ndgrid(x,y);
+                    varMap = diag(obj.Bmse{1});
                     
+                    a = bsxfun( @plus, z , zRho(:).' );
+                    a = obj.tel.index(a);
+                    b = obj.tel.index(z);
+                    sb = sum(b);
+                    a = bsxfun( @and , b , a );
+                    b = exp(-varMap);
+                    b = repmat(b,1,n^2);
+                    obj.p_otf = sum(a.*b)/sb;
+                    otfNum0   = sum(a)/sb;
+                    obj.p_strehlRatio = sum(obj.p_otf)/sum(otfNum0);
+                    obj.p_otf = reshape( obj.p_otf , n , n);
+                    obj.p_slitFilter = @(slitWidth) utilities.sinc(xRho*slitWidth).*utilities.sinc(yRho*slitWidth);
+                    out = obj.p_otf;
+
                 case 'modal'
                     out   = zeros(size(zRho));
                     rho   = abs(zRho);
@@ -461,12 +538,12 @@ classdef linearMMSE < handle
                 0,2*pi,0,obj.diameter).*a.*a;
         end
         
-        function out = strehlRatio(obj)
-            %% STREHLRATIO
-            
-            out = quad2d(...
-                @(o,r) r.*otf(obj,r.*exp(1i*o)),0,2*pi,0,obj.diameter)./(pi*obj.diameter^2/4);
-        end
+%         function out = strehlRatio(obj)
+%             %% STREHLRATIO
+%             
+%             out = quad2d(...
+%                 @(o,r) r.*otf(obj,r.*exp(1i*o)),0,2*pi,0,obj.diameter)./(pi*obj.diameter^2/4);
+%         end
 
         function map = get.varMap(obj)
             %% VARMAP Pupil error variance map
@@ -496,7 +573,8 @@ classdef linearMMSE < handle
                 out = trace(obj.Bmse);
             end
             if strcmp(obj.model,'zonal')
-                out = out/sum(obj.pupil(:));
+%                 out = out/sum(obj.pupil(:));
+                out = out/length(obj.Bmse{1});
             end
         end
         
@@ -567,6 +645,7 @@ classdef linearMMSE < handle
             end
             
             solveMmse(obj);
+            obj.p_otf = [];
             
         end
         

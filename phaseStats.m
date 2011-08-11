@@ -387,13 +387,15 @@ classdef phaseStats
             inputs.addOptional('tipTilt',false,@islogical);
             inputs.addParamValue('mask',true(sampling),@islogical);
             inputs.addParamValue('lag',0,@isnumeric);
+            inputs.addParamValue('xyOutput',[],@isnumeric);
             inputs.parse(sampling,range,atm,srcAC,varargin{:});
             
             m_srcCC = inputs.Results.srcCC;
             tipTilt = inputs.Results.tipTilt;
             m_mask  = inputs.Results.mask;
-            m_tau  = inputs.Results.lag;
-            
+            m_tau   = inputs.Results.lag;
+            xyOutput= inputs.Results.xyOutput;
+                
             [m_x,m_y] = meshgrid( linspace(-1,1,sampling)*range/2 );
             m_nGs   = length(srcAC);
             L0r0ratio= (atm.L0./atm.r0).^(5./3);
@@ -416,16 +418,31 @@ classdef phaseStats
             m_srcACheight          = [srcAC.height];
             
             if nargout==2
-
+                
+                tic
                 varargout{1} = autoCorrelation(m_x,m_y,m_mask,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
                     m_L0,m_cstL0,m_cst);
-                varargout{2} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
+                toc
+                
+                m_xAC = m_x(m_mask);
+                m_yAC = m_y(m_mask);
+                if isempty(xyOutput)
+                    m_xCC = m_xAC;
+                    m_yCC = m_yAC;
+                else
+                    m_xCC = xyOutput(:,1);
+                    m_yCC = xyOutput(:,2);
+                end
+                
+                tic                
+                varargout{2} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
                     m_L0,m_cstL0,m_cst,m_windVx,m_windVy,m_tau);
-
+                toc
+                
             else
                 
                 if isempty(m_srcCC)
@@ -443,7 +460,16 @@ classdef phaseStats
                             m_nLayer,m_altitude,m_fr0,...
                             m_L0,m_cstr0,range);
                     else
-                        varargout{1} = crossCorrelation(m_srcCC,m_x,m_y,m_mask,...
+                        m_xAC = m_x(m_mask);
+                        m_yAC = m_y(m_mask);
+                        if isempty(xyOutput)
+                            m_xCC = m_xAC;
+                            m_yCC = m_yAC;
+                        else
+                            m_xCC = xyOutput(:,1);
+                            m_yCC = xyOutput(:,2);
+                        end
+                        varargout{1} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
                             m_nGs,m_srcACdirectionVector,m_srcACheight,...
                             m_nLayer,m_altitude,m_fr0,...
                             m_L0,m_cstL0,m_cst,m_windVx,m_windVy,m_tau);
@@ -506,7 +532,7 @@ classdef phaseStats
             end
             
             
-            function C = crossCorrelation(srcCC,x,y,mask,...
+            function C = crossCorrelation(srcCC,xAC,yAC,xCC,yCC,...
                     nGs,srcACdirectionVector,srcACheight,...
                     nLayer,altitude,fr0,...
                     L0,cstL0,cst,windVx,windVy,tau)
@@ -516,10 +542,8 @@ classdef phaseStats
                 nSs = length(srcCC);
                 srcCCdirectionVector = cat(2,srcCC.directionVector);
                 srcCCheight          = [srcCC.height];
-                C = cellfun( @(x) zeros(sum(mask(:))) , cell(nSs,nGs) , 'UniformOutput' , false );
-                x = x(mask);
-                y = y(mask);
-                cstL0CC = cstL0*ones(length(x));
+                C = cellfun( @(x) zeros(length(xCC),length(xAC)) , cell(nSs,nGs) , 'UniformOutput' , false );
+                cstL0CC = cstL0*ones(length(xCC),length(xAC));
                 
                 parfor k=1:nSs*nGs
                     
@@ -531,13 +555,13 @@ classdef phaseStats
                         
                         beta = srcACdirectionVector(:,iGs)*altitude(kLayer);
                         scale = 1 - altitude(kLayer)/srcACheight(iGs);
-                        iZ = complex( x*scale + beta(1) , y*scale + beta(2) );
+                        iZ = complex( xAC*scale + beta(1) , yAC*scale + beta(2) );
                         
                         betaSs = srcCCdirectionVector(:,kSs)*altitude(kLayer);
                         scale = 1 - altitude(kLayer)/srcCCheight(kSs);
                         zSs = complex( ...
-                            x*scale + betaSs(1) + windVx(kLayer)*tau, ...
-                            y*scale + betaSs(2) + windVy(kLayer)*tau );
+                            xCC*scale + betaSs(1) + windVx(kLayer)*tau, ...
+                            yCC*scale + betaSs(2) + windVy(kLayer)*tau );
                         
                         rho   = abs(bsxfun(@minus,zSs,iZ.'));
                         out   = cstL0CC;
