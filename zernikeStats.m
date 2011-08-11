@@ -488,7 +488,7 @@ classdef zernikeStats
             % See also zernike, atmosphere, source
             
             nGs = numel(src);
-            if true %nGs>2 % then its a meta-matrix
+            if nGs>2 % then its a meta-matrix
 %                 disp(' @(phaseStats.zernikeAngularCovariance)> META-MATRIX:')
                 if nargin<4 % a correlation meta-matrix
 %                     disp(' @(phaseStats.zernikeAngularCovariance)> AUTO CORRELATION META-MATRIX:')
@@ -514,7 +514,7 @@ classdef zernikeStats
                         ijGs = index(kGs);
                         [iGs,jGs] = ind2sub(nmGs,ijGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
-                        buffer{kGs} = phaseStats.zernikeAngularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
+                        buffer{kGs} = zernikeStats.angularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
                     end
                     aiaj(mask) = buffer;
                     index = cellfun(@isempty,aiaj);
@@ -535,10 +535,10 @@ classdef zernikeStats
 %                         fprintf('\b\b\b\n')
 %                     end
                     nmGs  = [nGs mGs];
-                    parfor kGs = 1:nGs*mGs
+                    for kGs = 1:nGs*mGs
                         [iGs,jGs] = ind2sub(nmGs,kGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
-                        aiaj{kGs} = phaseStats.zernikeAngularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
+                        aiaj{kGs} = zernikeStats.angularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
                     end
                 end
 %                 aiaj = cell2mat(aiaj);
@@ -562,21 +562,21 @@ classdef zernikeStats
                     psdCst = (24.*gamma(6./5)./5).^(5./6).*...
                         (gamma(11./6).^2./(2.*pi.^(11./3))).*...
                         atm.r0.^(-5./3);
-                    if all( isinf( [zs1 zs2] ) ) % NGS CASE
-                        a1l     = R;
-                        a2l     = R;
-                        denom   = pi.*a1l.*a2l;
-                        sl      = [atm.layer.altitude]'.*rhoSrcLayer;
-                        fr0     = [atm.layer.fractionnalR0]';
-                        aiajFun = @ (znmi,znmj) ...
-                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
-                            0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
-%                         n = 201;
-%                         r = linspace(0,20,n);
-%                         r(1) = 1e-6;
+%                     if all( isinf( [zs1 zs2] ) ) % NGS CASE
+%                         a1l     = R;
+%                         a2l     = R;
+%                         denom   = pi.*a1l.*a2l;
+%                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
+%                         fr0     = [atm.layer.fractionnalR0]';
 %                         aiajFun = @ (znmi,znmj) ...
-%                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
-                    else % LGS CASE (TO DO: optimize for LGS as for NGS)
+%                             quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+%                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
+% %                         n = 201;
+% %                         r = linspace(0,20,n);
+% %                         r(1) = 1e-6;
+% %                         aiajFun = @ (znmi,znmj) ...
+% %                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     else % LGS CASE (TO DO: optimize for LGS as for NGS)
                         a1l   = zeros(1,atm.nLayer);
                         a2l   = zeros(1,atm.nLayer);
                         denom = zeros(1,atm.nLayer);
@@ -595,7 +595,7 @@ classdef zernikeStats
 %                         r(1) = 1e-6;
 %                         aiajFun = @ (znmi,znmj) ...
 %                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
-                    end
+%                     end
                     aiaj = zeros(nMode);
                     index = triu(true(nMode));
                     %                 tic
@@ -1074,11 +1074,6 @@ classdef zernikeStats
             end
         end
         
-% <<<<<<< HEAD
-%         function varargout = residueAngularCovariance(sampling,range,modes,atm,srcAC,srcCC)
-%             %% residueAngularCovariance
-%                         
-% =======
         function varargout = residueAngularCovariance(sampling,range,modes,atm,srcAC,varargin)
             %% RESIDUEANGULARCOVARIANCE Residual phase spatio-angular covariance meta matrix
             %
@@ -1119,7 +1114,6 @@ classdef zernikeStats
             srcTT    = inputs.Results.srcTT;
 
             % Local variables
-% >>>>>>> devel
             zern = zernike(modes,range,'resolution',sampling);
             [rx,ry] = meshgrid( linspace(-1,1,sampling)*range/2 );
             p  = zern.pupilLogical;
@@ -1130,17 +1124,13 @@ classdef zernikeStats
             zm = zern.m;
             zp = zern.p(p,:);
             
-            if nargin<6
-                srcCC = [];
+            % Spatio-angular phase covariance
+            if isempty(srcCC)
                 Cphi_ox = [];
                 Cphi_xx = phaseStats.spatioAngularCovarianceMatrix(sampling,range,atm,srcAC,'mask',p);
             else
                 [Cphi_xx,Cphi_ox] = phaseStats.spatioAngularCovarianceMatrix(sampling,range,atm,srcAC,srcCC,'mask',p);
             end
-% <<<<<<< HEAD
-%             src1 = [srcAC,srcCC];
-%             src2 = srcAC;
-% =======
             
             figure
             subplot(1,3,1)
@@ -1153,7 +1143,6 @@ classdef zernikeStats
             % Spatio-angular Zernike coefs. covariance
             src1 = [srcTT,srcAC,srcCC];
             src2 = [srcTT,srcAC];
-% >>>>>>> devel
             aiaj  = zernikeStats.angularCovariance(zern,atm,src1,src2);
             Czizj = cellfun( @(x) zp*x*zp', aiaj , 'uniformOutput', false);
 
@@ -1175,8 +1164,8 @@ classdef zernikeStats
                 besselj(nn+1,2*pi*alpha*f*R).*...
                 besselj(mm,2*pi*f*w) , 0 , Inf);
                     
-            Cphizi_jpj = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
-            Cphizi_jjp = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
+            Cphiai_jpj = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
+            Cphiai_jjp = cellfun( @(x) zeros(np,zern.nMode), cell(n1,n2) , 'uniformOutput', false);
             
             fprintf(' +++ < a_ijp phi_j > and  < a_ij phi_jp > computing +++\n')
             
@@ -1215,7 +1204,7 @@ classdef zernikeStats
                             Inm = atmSlab.layer.fractionnalR0*cst.*...
                                 arrayfun( @(x) InmFun(n,alpha2,m,x) , abs(w1) );
                             
-                            Cphizi_jpj{k1,k2}(:,kMode) = Cphizi_jpj{k1,k2}(:,kMode) + ...
+                            Cphiai_jpj{k1,k2}(:,kMode) = Cphiai_jpj{k1,k2}(:,kMode) + ...
                                 (2*sqrt(n+1)/(alpha2*R)).*Inm.*...
                                 (-1).^((n-m*nkrkr)/2).*2.^(0.5*nkrkr).*...
                                 cos(m*angle(w1)+pi*nkrkr*((-1)^j-1)/4);
@@ -1230,7 +1219,7 @@ classdef zernikeStats
                             Inm = atmSlab.layer.fractionnalR0*cst.*...
                                 arrayfun( @(x) InmFun(n,alpha1,m,x) , abs(w2) );
                             
-                            Cphizi_jjp{k1,k2}(:,kMode) = Cphizi_jjp{k1,k2}(:,kMode) + ...
+                            Cphiai_jjp{k1,k2}(:,kMode) = Cphiai_jjp{k1,k2}(:,kMode) + ...
                                 (2*sqrt(n+1)/(alpha1*R)).*Inm.*...
                                 (-1).^((n-m*nkrkr)/2).*2.^(0.5*nkrkr).*...
                                 cos(m*angle(w2)+pi*nkrkr*((-1)^j-1)/4);
@@ -1246,10 +1235,6 @@ classdef zernikeStats
                 
             end % k1
             
-% <<<<<<< HEAD
-%             Cphizi_jpj  = cellfun( @(x) x*zp', Cphizi_jpj , 'uniformOutput', false);%  x*zp'+ zp*y'
-%             Cphizi_jjp  = cellfun( @(y) zp*y', Cphizi_jjp , 'uniformOutput', false);%  x*zp'+ zp*y'
-% =======
             subplot(1,3,3)
             imagesc([cell2mat(Cphiai_jpj),cell2mat(Cphiai_jjp)])
             colorbar('location','southOutside')
@@ -1258,17 +1243,11 @@ classdef zernikeStats
             
             Cphizi_jpj  = cellfun( @(x) x*zp', Cphiai_jpj , 'uniformOutput', false);%  x*zp'+ zp*y'
             Cphizi_jjp  = cellfun( @(y) zp*y', Cphiai_jjp , 'uniformOutput', false);%  x*zp'+ zp*y'
-% >>>>>>> devel
 
             switch nargout
                 case 1
                     varargout{1} = Cphi_xx + cell2mat(Czizj) - cell2mat(Cphizi_jpj) - cell2mat(Cphizi_jjp);
                 case 2
-% <<<<<<< HEAD
-%                     u2 = 1:n2;
-%                     varargout{1} = Cphi_xx + cell2mat(Czizj(u2,:)) - cell2mat(Cphizi_jpj(u2,:)) - cell2mat(Cphizi_jjp(u2,:));
-%                     varargout{2} = cell2mat(Cphi_ox) - cell2mat(Cphizi_jpj(n1,:));
-% =======
                     if isempty(srcTT)
                         
                         u2 = 1:n2;
@@ -1509,7 +1488,6 @@ classdef zernikeStats
                             cell2mat(Cphi_ox) - cell2mat(Cphizi_jpj(n1,u2)) ];
                         
                     end
-% >>>>>>> devel
                 case 5
                     varargout{1} = Cphi_xx;
                     varargout{2} = Cphi_ox;

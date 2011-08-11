@@ -283,14 +283,7 @@ classdef telescopeAbstract < handle
                 if isinf(obj.samplingTime)
                     
                     for kLayer=1:obj.atm.nLayer
-% <<<<<<< HEAD
-%                         
-%                         obj.atm.layer(kLayer).phase = ...
-%                             fourierPhaseScreen(slab(obj.atm,kLayer));
-%                         
-% =======
                         obj.atm.layer(kLayer).phase = fourierPhaseScreen(slab(obj.atm,kLayer));
-% >>>>>>> devel
                     end
 %                    choleskyPhaseScreen(obj.atm);
                     
