@@ -314,7 +314,7 @@ classdef telescopeAbstract < handle
                             notDoneOnce = false;
                             
                             if obj.count(kLayer)==0
-%                                                             fprintf(' ------>      : expanding!\n')
+                                                            fprintf(' ------>      : expanding!\n')
                                 % 1 pixel around phase increase
                                 Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
                                 X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
@@ -467,7 +467,7 @@ classdef telescopeAbstract < handle
                     end
 %                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                     out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
-                end
+               end
                 src.phase = fresnelPropagation(src,obj) + out;
                 src.timeStamp = src.timeStamp + obj.samplingTime;
             end

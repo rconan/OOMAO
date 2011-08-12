@@ -663,6 +663,7 @@ classdef linearMMSE < handle
             end
             obj.mmseBuilder = m_mmseBuilder;
             obj.Bmse = [];
+            obj.p_otf = [];
         end
         
     end
