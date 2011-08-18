@@ -185,20 +185,25 @@ classdef zernike < telescopeAbstract
             % obj = obj + newMode adds polynomials matching 
             % newMode to the Zernike basis
             
-            newObj = zernike(val,obj.D,...
-                'resolution',obj.resolution,...
-                'radius',obj.r,...
-                'angle',obj.o,...
-                'pupil',obj.pupil,...
-                'logging',false);
-            j = [obj.j newObj.j];
-            n = [obj.n newObj.n];
-            m = [obj.m newObj.m];
-            p = [obj.p_p newObj.p_p];
-            [obj.j,index] = sort(j);
-            obj.n = n(index);
-            obj.m = m(index);
-            obj.p_p = p(:,index);
+            if isnumeric(val)
+                newObj = zernike(val,obj.D,...
+                    'resolution',obj.resolution,...
+                    'radius',obj.r,...
+                    'angle',obj.o,...
+                    'pupil',obj.pupil,...
+                    'logging',false);
+                j = [obj.j newObj.j];
+                n = [obj.n newObj.n];
+                m = [obj.m newObj.m];
+                p = [obj.p_p newObj.p_p];
+                [obj.j,index] = sort(j);
+                obj.n = n(index);
+                obj.m = m(index);
+                obj.p_p = p(:,index);
+            else
+                plus@telescopeAbstract(obj,val)
+            end
+            
         end
         
         function [obj,varargout] = ldivide(obj,val)
@@ -220,12 +225,12 @@ classdef zernike < telescopeAbstract
                 obj.c = zernP.c;%(ismember(zernP.j,obj.j),:);
             else
                 if isa(val,'source')
-%                     nVal = length(val);
-%                     phaseMap = zeros(length(val(1).phase(:)),nVal);
-%                     for kVal=1:nVal
-%                         phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
-%                     end
-                    phaseMap = utilities.toggleFrame(val.phase,2)/val.waveNumber;
+                    nVal = length(val);
+                    phaseMap = zeros(length(val(1).phase(:)),nVal);
+                    for kVal=1:nVal
+                        phaseMap(:,kVal) = val(kVal).phase(:)/val(kVal).waveNumber;
+                    end
+%                     phaseMap = utilities.toggleFrame(val.phase,2)/val.waveNumber;
                 else
                     phaseMap = utilities.toggleFrame(val,2);
                 end
