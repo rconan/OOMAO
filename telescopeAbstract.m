@@ -294,7 +294,7 @@ classdef telescopeAbstract < handle
                         pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                         % 1 pixel increased phase sampling vector
                         u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-                        [x0,y0] = meshgrid(u0);
+%                         [x0,y0] = meshgrid(u0);
                         %                     [xu0,yu0] = meshgrid(u0);
                         % phase sampling vector
                         u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
@@ -314,7 +314,7 @@ classdef telescopeAbstract < handle
                             notDoneOnce = false;
                             
                             if obj.count(kLayer)==0
-%                                                             fprintf(' ------>      : expanding!\n')
+                                                            fprintf(' ------>      : expanding!\n')
                                 % 1 pixel around phase increase
                                 Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
                                 X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
@@ -328,10 +328,10 @@ classdef telescopeAbstract < handle
                             
                             xShift = u - step(1);
                             yShift = u - step(2);
-                            [xi,yi] = meshgrid(xShift,yShift);
-%                             obj.atm.layer(kLayer).phase ...
-%                                 = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-                            obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
+%                             [xi,yi] = meshgrid(xShift,yShift);
+                            obj.atm.layer(kLayer).phase ...
+                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+%                             obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
 %                                                     obj.atm.layer(kLayer).phase ...
 %                                                            = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
 
@@ -467,7 +467,7 @@ classdef telescopeAbstract < handle
                     end
 %                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                     out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
-                end
+               end
                 src.phase = fresnelPropagation(src,obj) + out;
                 src.timeStamp = src.timeStamp + obj.samplingTime;
             end
