@@ -311,7 +311,7 @@ classdef influenceFunction < handle
                         buffer = sparse(wv(:,iIF)*wu(:,jIF)');
                         kIF = kIF + 1;
                         obj.modes(:,kIF) = buffer(:);
-%                         fprintf('\b\b\b\b%4d',kIF)
+                        fprintf('\b\b\b\b%4d',kIF)
                     end
                 end
                 

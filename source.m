@@ -468,11 +468,11 @@ classdef source < stochasticWave & hgsetget
             % from the given view point to the telescope primary mirror and
             % returns the wavefront in radian
 
-            if isempty(obj.tel) || ~isequal(obj.tel,tel)
+            if isempty(obj.tel) || ~isequal(obj.tel,tel.focalDistance)
                 fprintf(' @(source)> Computing the wavefront ...\n')
-                obj.tel = tel;
+                obj.tel = tel.focalDistance;
                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
-                        ( numel(obj.height)==1 && obj.height==obj.tel.focalDistance )                  
+                        ( numel(obj.height)==1 && obj.height==obj.tel )                  
                     obj.wavefront = zeros(tel.resolution);
                 else
                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...

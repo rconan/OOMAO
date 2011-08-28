@@ -66,7 +66,7 @@ classdef detector < handle
             % Frame listener
             obj.frameListener = addlistener(obj,'frame','PostSet',...
                 @(src,evnt) obj.imagesc );
-            obj.frameListener.Enabled = true;
+            obj.frameListener.Enabled = false;
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Detector';
