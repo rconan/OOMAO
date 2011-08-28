@@ -30,6 +30,8 @@ classdef deformableMirror < handle
         coefsUnit = 1;%e-6;
         % deformableMirror tag
         tag = 'DEFORMABLE MIRROR';
+        % poke(interaction) matrix 
+        pokeMatrix;
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -202,6 +204,45 @@ classdef deformableMirror < handle
             F = obj.modes.modes(src.mask,:);
             maps = utilities.toggleFrame(src.phase,2);
             obj.coefs = 0.5*(F\maps(src.mask,:))/src.waveNumber;
+        end
+        
+        function obj = calibration(obj,sensor,src,calibDmStroke)
+            %% CALIBRATION DM calibration
+            %
+            % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
+            % the DM object with the sensor object using the calibration
+            % source src and the actuator stroke calibDmStroke
+            
+            obj.coefs = 0;
+            src = src*obj*sensor;
+            
+            calibDmCommands = speye(obj.nValidActuator)*calibDmStroke;
+            
+            if obj.nValidActuator>1000
+                steps           = 25;
+            else
+                steps = 1;
+            end
+            
+            if steps==1
+                obj.coefs = calibDmCommands;
+                +src;
+                obj.pokeMatrix = sensor.slopes;
+            else
+                nC              = floor(obj.nValidActuator/steps);
+                u               = 0;
+                obj.pokeMatrix  = zeros(sensor.nSlope,obj.nValidActuator);
+                fprintf(' . actuators range:          ')
+                while u(end)<obj.nValidActuator
+                    u = u(end)+1:min(u(end)+nC,obj.nValidActuator);
+                    fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
+                    obj.coefs = calibDmCommands(:,u);
+                    +src;
+                    obj.pokeMatrix(:,u) = sensor.slopes;
+                end
+            end
+            obj.pokeMatrix = obj.pokeMatrix./calibDmStroke;
+            obj.coefs = 0;
         end
         
         function out = fittingError(obj,telAtm,src,unit)
