@@ -582,6 +582,24 @@ classdef utilities
             title(sprintf('%d segments',nSegment))
         end
         
+        function V = gramSchmidt(V)
+            %% GRAMSCHMIDT Gram-Schmidt orthonormalization process
+            %
+            % V = gramSchmidt(V) orthonormalize the vector set V according
+            % to the Gram-Schimdt process
+            
+            k = size(V,2);
+            for j=1:k
+                v = V(:,j);
+                for i=1:j-1
+                    u = V(:,i);
+                    v = v - u*(u'*v)*(u'*u);
+                end
+                V(:,j) = v/norm(v);
+            end
+            
+        end
+        
     end
 
 end

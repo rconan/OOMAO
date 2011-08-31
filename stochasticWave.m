@@ -70,7 +70,7 @@ classdef stochasticWave < handle
         %% Get/Set amplitude
         function out = get.amplitude(obj)
             out = obj.p_amplitude;
-            out(~obj.mask) = 0;
+            out = bsxfun(@times,out,obj.mask);
         end
         function set.amplitude(obj,val)
             obj.p_amplitude = bsxfun( @times, obj.p_amplitude , val);
@@ -79,7 +79,7 @@ classdef stochasticWave < handle
         %% Get/Set phase
         function out = get.phase(obj)
             out = obj.p_phase;
-            out(~obj.mask) = 0;
+            out = bsxfun(@times,out,obj.mask);
         end
         function set.phase(obj,val)
             obj.p_phase = bsxfun( @plus, obj.p_phase , val);
