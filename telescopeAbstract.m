@@ -440,7 +440,7 @@ classdef telescopeAbstract < handle
                         srcDirectionVector2 = src.directionVector(2);
                         srcHeight = src.height;
                         out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
-                        for kLayer = 1:nLayer
+                        parfor kLayer = 1:nLayer
 %                             disp(kLayer)
                             height = altitude_m(kLayer);
 %                             sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };

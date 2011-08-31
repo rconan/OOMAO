@@ -585,7 +585,8 @@ classdef utilities
         function V = gramSchmidt(V)
             %% GRAMSCHMIDT Gram-Schmidt orthonormalization process
             %
-            % V = gramSchmidt(V) orthonormalize the vector set V
+            % V = gramSchmidt(V) orthonormalize the vector set V according
+            % to the Gram-Schimdt process
             
             k = size(V,2);
             for j=1:k

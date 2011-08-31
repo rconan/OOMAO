@@ -30,8 +30,6 @@ classdef deformableMirror < handle
         coefsUnit = 1;%e-6;
         % deformableMirror tag
         tag = 'DEFORMABLE MIRROR';
-        % poke(interaction) matrix 
-        pokeMatrix;
     end
     
     properties (SetObservable=true,Dependent,SetAccess=private)
@@ -206,7 +204,7 @@ classdef deformableMirror < handle
             obj.coefs = 0.5*(F\maps(src.mask,:))/src.waveNumber;
         end
         
-        function obj = calibration(obj,sensor,src,calibDmStroke)
+        function calib = calibration(obj,sensor,src,calibDmStroke)
             %% CALIBRATION DM calibration
             %
             % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
@@ -214,34 +212,68 @@ classdef deformableMirror < handle
             % source src and the actuator stroke calibDmStroke
             
             obj.coefs = 0;
-            src = src*obj*sensor;
             
-            calibDmCommands = speye(obj.nValidActuator)*calibDmStroke;
-            
-            if obj.nValidActuator>1000
-                steps           = 25;
-            else
-                steps = 1;
-            end
-            
-            if steps==1
-                obj.coefs = calibDmCommands;
-                +src;
-                obj.pokeMatrix = sensor.slopes;
-            else
-                nC              = floor(obj.nValidActuator/steps);
-                u               = 0;
-                obj.pokeMatrix  = zeros(sensor.nSlope,obj.nValidActuator);
-                fprintf(' . actuators range:          ')
-                while u(end)<obj.nValidActuator
-                    u = u(end)+1:min(u(end)+nC,obj.nValidActuator);
-                    fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
-                    obj.coefs = calibDmCommands(:,u);
-                    +src;
-                    obj.pokeMatrix(:,u) = sensor.slopes;
+            if sensor.lenslets.nLenslet>1
+                
+                src = src*obj*sensor;
+                
+                if isscalar(calibDmStroke)
+                    calibDmCommands = speye(obj.nValidActuator)*calibDmStroke;
+                else
+                    calibDmCommands = calibDmStroke;
+                    calibDmStroke = 1;
                 end
+                
+                if obj.nValidActuator>1000
+                    steps           = 25;
+                else
+                    steps = 1;
+                end
+                
+                if steps==1
+                    obj.coefs = calibDmCommands;
+                    +src;
+                    pokeMatrix = sensor.slopes;
+                else
+                    nMode = size(calibDmCommands,2);
+                    nC              = floor(nMode/steps);
+                    u               = 0;
+                    pokeMatrix  = zeros(sensor.nSlope,nMode);
+                    fprintf(' . actuators range:          ')
+                    while u(end)<nMode
+                        u = u(end)+1:min(u(end)+nC,nMode);
+                        fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
+                        obj.coefs = calibDmCommands(:,u);
+                        +src;
+                        pokeMatrix(:,u) = sensor.slopes;
+                    end
+                end
+                pokeMatrix = pokeMatrix./calibDmStroke;
+                calib = calibrationVault(obj,sensor,pokeMatrix);
+                
+            else
+                
+                tel = src.opticalPath{1};
+                zern = zernike(tel,2:3);
+                zern.c = eye(2)*src.wavelength/4;
+                src = src.*zern;
+                buf = reshape(src.phase,tel.resolution,2*tel.resolution);
+                % zernike projection onto DM influence functions
+                obj = obj\src;
+                src = src.*tel*obj;
+                dmTtCoefs = obj.coefs;
+                buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
+                figure(101)
+                imagesc(buf)
+                axis square
+                colorbar
+                obj.coefs = dmTtCoefs*calibDmStroke;
+                src = src.*tel*obj*sensor;
+                pokeTipTilt = sensor.slopes/calibDmStroke;
+                calib = calibrationVault(obj,sensor,pokeTipTilt);
+                calib.spaceJump = dmTtCoefs;
             end
-            obj.pokeMatrix = obj.pokeMatrix./calibDmStroke;
+            
             obj.coefs = 0;
         end
         
