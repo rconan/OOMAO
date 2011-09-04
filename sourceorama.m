@@ -1,4 +1,16 @@
 classdef sourceorama < handle
+    %% SOURCEORAMA Create a sourceorama object
+    %
+    % srcorma =
+    % sourceorama(hdf5file,srcs,sequenceTimeLength,tel,dataSetTimeLength)
+    % create a sourceorama object from a hdf5 filename, a sources vector,
+    % the time length of the source propagation sequence, a
+    % telescope+atmosphere object and the time length of one data set
+    %
+    % srcorma = sourceorama(hdf5file,srcs)
+    % create a sourceorama object from a hdf5 filename and a sources
+    % vector. This constructor is used to re-play a recorded source
+    % propagation sequence.
    
     properties
         
@@ -12,6 +24,8 @@ classdef sourceorama < handle
         sequenceTimeLength
         % tag
         tag = 'SOURCEORAMA';
+        newh5File = true;
+        chronometer = 0;
     end
     
     properties (Dependent)
@@ -30,45 +44,69 @@ classdef sourceorama < handle
         p_dataSetTimeLength;
         % data buffer
         buffer
-        opdCount;
-        bufferCount;
+        opdCount = 1;
+        bufferCount = 0;;
+        dataSetTimeLimit;
         log;
     end
     
     methods
         
         %% Constructor
-        function obj = sourceorama(hdf5file,srcs,sequenceTimeLength,tel,dataSetTimeLength)
+        function obj = sourceorama(hdf5file,srcs,varargin)
             
-            obj.srcs = srcs(:)';
-            obj.hdf5file = hdf5file;
+            p = inputParser;
+            p.addRequired('hdf5file'          , @ischar);
+            p.addRequired('srcs'              , @(x) isa(x,'source') );
+            p.addOptional('sequenceTimeLength', Inf, @isnumeric );
+            p.addOptional('tel'               , [] , @(x) isa(x,'telescope') );
+            p.addOptional('dataSetTimeLength' , 1  , @isnumeric );
+            p.parse(hdf5file,srcs,varargin{:});
             
-            if nargin>2
-                
-                obj.sequenceTimeLength = sequenceTimeLength;
-                obj.tel = tel;
+            obj.srcs     = p.Results.srcs(:)';
+            obj.hdf5file = p.Results.hdf5file;
+            obj.sequenceTimeLength ...
+                = p.Results.sequenceTimeLength;
+            obj.tel      = p.Results.tel;
+            obj.log      = logBook.checkIn(obj);
+            obj.dataSetTimeLength ...
+                = p.Results.dataSetTimeLength;
+
+            if exist(obj.hdf5file,'file')>0
+                add(obj.log,obj,sprintf('Found HDF5 file %s, data will be extracted from it!',...
+                    obj.hdf5file))
+                h5disp(obj.hdf5file)
+                obj.newh5File = false;
+                obj.sequenceTimeLength = h5readatt(obj.hdf5file,'/','sequenceTimeLength');
+                obj.buffer      = h5read(obj.hdf5file,'/opdSet1');
                 obj.log = logBook.checkIn(obj);
-                if nargin<5
-                    dataSetTimeLength = 1;
-                end
-                obj.dataSetTimeLength = dataSetTimeLength;
-            else
-                
-                if exist(obj.hdf5file,'file')>0
-                    obj.sequenceTimeLength = h5readatt(obj.hdf5file,'/','sequenceTimeLength');
-                    obj.buffer      = h5read(obj.hdf5file,'/opdSet1');
-                    obj.opdCount    = 1;
-                    obj.bufferCount = 0;
-                    obj.log = logBook.checkIn(obj);
-              else
-                    error('oomao:sourceorama','File %s not found!',bj.hdf5file)
-                end
-                
             end
+            
         end
 
         %% Destructor
         function delete(obj)
+            if obj.newh5File
+                
+                m_srcs               = obj.srcs;
+                m_tel                = obj.tel;
+                m_hdf5file           = obj.hdf5file;
+                
+                if obj.chronometer <= obj.sequenceTimeLength
+                    add(obj.log,obj,sprintf('Save %d runs to opd%d in %s!',...
+                        obj.bufferCount,obj.opdCount,m_hdf5file))
+                    dataSetName = sprintf('/opdSet%d',obj.opdCount);
+                    h5create(m_hdf5file',dataSetName,[nPx,nPx,nSrcs,obj.bufferCount]);
+                    h5write(m_hdf5file',dataSetName,obj.buffer(:,:,:,1:obj.bufferCount));
+                end
+                
+                h5writeatt(m_hdf5file,'/','creationDate',datestr(now));
+                h5writeatt(m_hdf5file,'/','sequenceTimeLength',obj.sequenceTimeLength);
+                h5writeatt(m_hdf5file,'/','samplingTime',m_tel.samplingTime);
+                h5writeatt(m_hdf5file,'/','sourceZenith',[m_srcs.zenith]);
+                h5writeatt(m_hdf5file,'/','sourceAzimuth',[m_srcs.azimuth]);
+                h5writeatt(m_hdf5file,'/','sourceHeight',[m_srcs.height]);
+            end
             checkOut(obj.log,obj)
         end
         
@@ -80,6 +118,16 @@ classdef sourceorama < handle
                 obj.tel.resolution^2*...
                 obj.p_dataSetTimeLength/obj.tel.samplingTime/2^30;
             add(obj.log,obj,sprintf('%3.1fs of data corresponds to %3.1fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))
+            
+            obj.dataSetTimeLimit = min(obj.opdCount*obj.p_dataSetTimeLength,obj.sequenceTimeLength);
+            
+            if ~isempty(obj.tel)
+                nSrcs    = length(obj.srcs);
+                nPx      = obj.tel.resolution;
+                obj.buffer = ...
+                    zeros(nPx,nPx,nSrcs,ceil(obj.p_dataSetTimeLength/obj.tel.samplingTime));
+            end
+            
         end
         function val = get.dataSetTimeLength(obj)
             val = obj.p_dataSetTimeLength;
@@ -102,19 +150,19 @@ classdef sourceorama < handle
             nDataSet = ceil(m_sequenceTimeLength/m_dataSetTimeLength);
             nSrcs    = length(m_srcs);
             nPx      = m_tel.resolution;
-            data     = ...
-                zeros(nPx,nPx,nSrcs,ceil(m_dataSetTimeLength/m_samplingTime));
-            chronometer = 0;
+            data     = obj.buffer;
+            obj.buffer = [];
+            m_chronometer = 0;
             m_srcs = m_srcs.*m_tel;
             
             for kDataSet = 1:nDataSet
                 
-                dataSetTimeLimit = min(kDataSet*m_dataSetTimeLength,m_sequenceTimeLength);
+                m_dataSetTimeLimit = min(kDataSet*m_dataSetTimeLength,m_sequenceTimeLength);
                 count = 0;
                 
                 tic
-                while chronometer<=dataSetTimeLimit
-                    chronometer = chronometer + m_samplingTime;
+                while m_chronometer<m_dataSetTimeLimit
+                    m_chronometer = m_chronometer + m_samplingTime;
                     count = count + 1;
                     +m_tel; %#ok<VUNUS>
                     +m_srcs; %#ok<VUNUS>
@@ -138,6 +186,8 @@ classdef sourceorama < handle
             h5writeatt(m_hdf5file,'/','sourceHeight',[m_srcs.height]);
             
             add(obj.log,obj,'Stop recording!')
+            obj.newh5File = false;
+            
         end
 
         function uplus(obj)
@@ -145,15 +195,53 @@ classdef sourceorama < handle
             %
             % +obj
             
-            obj.bufferCount = obj.bufferCount + 1;
-            for kSrcs = 1:length(obj.srcs)
-                obj.srcs(kSrcs).resetPhase = obj.buffer(:,:,kSrcs,obj.bufferCount);
-            end
-            if obj.bufferCount==size(obj.buffer,4)
-                obj.opdCount    = obj.opdCount + 1;
-                add(obj.log,obj,sprintf('Loading /opdSet%d',obj.opdCount));
-                obj.buffer      = h5read(obj.hdf5file,sprintf('/opdSet%d',obj.opdCount));
-                obj.bufferCount = 0;                
+            if obj.newh5File
+                
+                if obj.chronometer<=obj.sequenceTimeLength
+                    
+                    m_srcs               = obj.srcs;
+                    m_tel                = obj.tel;
+                    
+                    obj.chronometer = obj.chronometer + obj.tel.samplingTime;
+                    
+                    obj.bufferCount  = obj.bufferCount + 1;
+                    +m_tel; %#ok<VUNUS>
+                    m_srcs = m_srcs.*m_tel;
+                    obj.buffer(:,:,:,obj.bufferCount) = cat(3,m_srcs.opd);
+                    
+                    if obj.chronometer>=obj.dataSetTimeLimit
+                        
+                        m_hdf5file           = obj.hdf5file;
+                        nSrcs    = length(m_srcs);
+                        nPx      = m_tel.resolution;
+                        
+                        add(obj.log,obj,sprintf('Save %d runs to opd%d in %s!',...
+                            obj.bufferCount,obj.opdCount,m_hdf5file))
+                        dataSetName = sprintf('/opdSet%d',obj.opdCount);
+                        h5create(m_hdf5file',dataSetName,[nPx,nPx,nSrcs,obj.bufferCount]);
+                        h5write(m_hdf5file',dataSetName,obj.buffer(:,:,:,1:obj.bufferCount));
+                        
+                        obj.opdCount = obj.opdCount + 1;
+                        obj.dataSetTimeLimit = min(obj.opdCount*obj.p_dataSetTimeLength,obj.sequenceTimeLength);
+                        obj.bufferCount = 0;
+                        
+                    end
+                    
+                end
+                
+            else
+                
+                if obj.bufferCount==size(obj.buffer,4)
+                    obj.opdCount    = obj.opdCount + 1;
+                    add(obj.log,obj,sprintf('Loading /opdSet%d',obj.opdCount));
+                    obj.buffer      = h5read(obj.hdf5file,sprintf('/opdSet%d',obj.opdCount));
+                    obj.bufferCount = 0;
+                end
+                obj.bufferCount = obj.bufferCount + 1;
+                for kSrcs = 1:length(obj.srcs)
+                    obj.srcs(kSrcs).resetPhase = obj.buffer(:,:,kSrcs,obj.bufferCount)*obj.srcs(kSrcs).waveNumber;
+                end
+                
             end
         end
         
