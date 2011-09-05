@@ -27,6 +27,8 @@ classdef stochasticWave < handle
         amplitude;
         % wave phase        
         phase;   
+        % reset the wave phase 
+        resetPhase
         % intensity
         intensity;
         % buffer sequence
@@ -111,6 +113,9 @@ classdef stochasticWave < handle
 %                 obj.image = abs( fft2( a , 2*n , 2*m ) ).^2;
 %                 obj.cumImage = obj.cumImage + obj.image;
 %             end
+        end
+        function set.resetPhase(obj,val)
+            obj.p_phase = val;
         end
         
         %% Get the wave
