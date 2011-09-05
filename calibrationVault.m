@@ -55,7 +55,7 @@ classdef calibrationVault < handle
             
             add(obj.log,obj,'Computing the SVD of the calibration matrix!')
             
-            [obj.U,S,obj.V] = svd(calibMatrix);
+            [obj.U,S,obj.V] = svd(calibMatrix,0);
             obj.eigenValues = diag(S);
             
             figure
@@ -113,13 +113,11 @@ classdef calibrationVault < handle
             drawnow
 
             add(obj.log,obj,'Updating the command matrix!')
-
-            iS = diag(1./obj.eigenValues(1:end-obj.nThresholded));
-            [nS,nC] = size(obj.D);
-            if obj.nThresholded>0
-                iS(nC,nS) = 0;
-            end
-            obj.M = obj.V*iS*obj.U';
+    
+            nEigenValues = length(obj.eigenValues) - obj.nThresholded;
+            u = 1:nEigenValues;
+            iS = diag(1./obj.eigenValues(u));
+            obj.M = obj.V(:,u)*iS*obj.U(:,u)';
             obj.M = obj.spaceJump*obj.M;
         end
         

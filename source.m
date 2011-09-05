@@ -55,6 +55,8 @@ classdef source < stochasticWave & hgsetget
 %         abcd = eye(2);
         % for geometric ray matrix propagation
         offsetAngle;
+        % focal length of the objective the source is imaged through
+        objectiveFocalLength;
     end
     
     properties (SetAccess=private)
@@ -81,6 +83,8 @@ classdef source < stochasticWave & hgsetget
     
     properties (Dependent,SetAccess=private)
         wavelengthInMicron;
+        % optical path difference
+        opd;
     end
     
     properties (Access=private)
@@ -148,9 +152,11 @@ classdef source < stochasticWave & hgsetget
                 obj( 1 , nObj , nHeight ) = source;
                 for kObj = 1:nObj
                     for kHeight = 1:nHeight
-                        obj(1,kObj,kHeight).p_zenith     = z(kObj);
-                        obj(1,kObj,kHeight).p_azimuth    = a(kObj);
+                        obj(1,kObj,kHeight).p_zenith   = z(kObj);
+                        obj(1,kObj,kHeight).p_azimuth  = a(kObj);
                         obj(1,kObj,kHeight).height     = p.Results.height(kHeight);
+                        obj(1,kObj,kHeight).objectiveFocalLength ...
+                                                       = p.Results.height(kHeight);
                         obj(1,kObj,kHeight).wavelength = p.Results.wavelength;
 %                         obj(1,kObj,kHeight).nPhoton    = p.Results.nPhoton;
                         if ~isempty(magnitude)
@@ -165,9 +171,11 @@ classdef source < stochasticWave & hgsetget
                 end
                 nCall = [];
             else
-                obj.p_zenith     = p.Results.zenith;
-                obj.p_azimuth    = p.Results.azimuth;
+                obj.p_zenith   = p.Results.zenith;
+                obj.p_azimuth  = p.Results.azimuth;
                 obj.height     = p.Results.height;
+                obj.objectiveFocalLength...
+                               = p.Results.height;
                 obj.wavelength = p.Results.wavelength;
 %                 obj.nPhoton    = p.Results.nPhoton;
                 obj.magnitude  = p.Results.magnitude;
@@ -274,6 +282,11 @@ classdef source < stochasticWave & hgsetget
         function set.viewPoint(obj,val)
             obj.p_viewPoint = val;
             obj.tel         = [];
+        end
+        
+        %% Get the opd
+        function out = get.opd(obj)
+            out = obj.phase/obj.waveNumber;
         end
         
         %% Get the opd vector
@@ -463,31 +476,33 @@ classdef source < stochasticWave & hgsetget
             %% FRESNELPROPAGATION Source propagation to the light collector
             %
             % fresnelPropagation(a,tel) propagates the source seen
-            % from the given view point to the telescope primary mirror
+            % from the given view point to the objective image plane
             % out = fresnelPropagation(a,tel) propagates the source seen
-            % from the given view point to the telescope primary mirror and
+            % from the given view point to the objective image plane and
             % returns the wavefront in radian
-
-            if isempty(obj.tel) || ~isequal(obj.tel,tel.focalDistance)
-                fprintf(' @(source)> Computing the wavefront ...\n')
-                obj.tel = tel.focalDistance;
-                if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
-                        ( numel(obj.height)==1 && obj.height==obj.tel )                  
-                    obj.wavefront = zeros(tel.resolution);
+            
+            %             if isempty(obj.tel) || ~isequal(obj.tel,tel.focalDistance)
+            %                 obj.tel = tel.focalDistance;
+            %                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
+            %                         ( numel(obj.height)==1 && obj.height==obj.tel )
+            if isempty(obj.wavefront)
+                add(obj.log,obj,'Computing the objective wavefront transmitance ...')
+                if obj.height==obj.objectiveFocalLength
+                    obj.wavefront = 0;%zeros(tel.resolution);
                 else
                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
                         'offset',obj.viewPoint,'output','radius');
-                    if isinf(tel.focalDistance)
+                    if isinf(obj.objectiveFocalLength)
                         s0 = 0;
                     else
-                        s0 = hypot(rho,tel.focalDistance);
+                        s0 = hypot(rho,obj.objectiveFocalLength);
                     end
                     h       = reshape(obj.height,[1,1,length(obj.height)]);
                     s = sqrt(bsxfun(@plus,rho.^2,h.^2));
                     obj.wavefront = bsxfun(@minus,s,s0);
                     obj.wavefront = 2*pi*obj.wavefront/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
-%                     obj.wavefront = mod(obj.wavefront,2*pi);
+                    %                     obj.wavefront = mod(obj.wavefront,2*pi);
                     %                     obj.wavefront = exp(1i.*2*pi*obj.wavefront/obj.wavelength)./s;
                 end
             end
