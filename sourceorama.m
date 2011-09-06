@@ -93,6 +93,8 @@ classdef sourceorama < handle
                 m_hdf5file           = obj.hdf5file;
                 
                 if obj.chronometer <= obj.sequenceTimeLength
+                    nSrcs    = length(m_srcs);
+                    nPx      = m_tel.resolution;
                     add(obj.log,obj,sprintf('Save %d runs to opd%d in %s!',...
                         obj.bufferCount,obj.opdCount,m_hdf5file))
                     dataSetName = sprintf('/opdSet%d',obj.opdCount);
@@ -117,7 +119,7 @@ classdef sourceorama < handle
                 length(obj.srcs)*...
                 obj.tel.resolution^2*...
                 obj.p_dataSetTimeLength/obj.tel.samplingTime/2^30;
-            add(obj.log,obj,sprintf('%3.1fs of data corresponds to %3.1fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))
+            add(obj.log,obj,sprintf('%.3fs of data corresponds to %.2fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))
             
             obj.dataSetTimeLimit = min(obj.opdCount*obj.p_dataSetTimeLength,obj.sequenceTimeLength);
             
