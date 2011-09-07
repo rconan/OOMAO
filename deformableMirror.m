@@ -204,7 +204,7 @@ classdef deformableMirror < handle
             obj.coefs = 0.5*(F\maps(src.mask,:))/src.waveNumber;
         end
         
-        function calib = calibration(obj,sensor,src,calibDmStroke)
+        function calib = calibration(obj,sensor,src,calibDmStroke,steps)
             %% CALIBRATION DM calibration
             %
             % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
@@ -212,6 +212,12 @@ classdef deformableMirror < handle
             % source src and the actuator stroke calibDmStroke
             
             obj.coefs = 0;
+            if nargin<5
+                steps = 1;
+                if obj.nValidActuator>1000
+                    steps  = 25;
+                end
+            end
             
             if sensor.lenslets.nLenslet>1
                 
@@ -222,12 +228,6 @@ classdef deformableMirror < handle
                 else
                     calibDmCommands = calibDmStroke;
                     calibDmStroke = 1;
-                end
-                
-                if obj.nValidActuator>1000
-                    steps           = 25;
-                else
-                    steps = 1;
                 end
                 
                 if steps==1
