@@ -517,39 +517,28 @@ classdef shackHartmann < hgsetget
             
             if ~isempty(src(1).extent)
                 
-                disp('convolution')
-                
                 srcExtent = src(1).extent;
                 picture   = obj.lenslets.imagelets;
-                size(picture)
                 
                 [nPx,mPx] = size(picture);
                 nLensletArray = obj.lenslets.nArray;
                 nPxLenslet = nPx/obj.lenslets.nLenslet;
                 mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
-%                 try
-%                     buffer     = picture(obj.indexRasterLenslet);
-%                 catch ME
-%                     fprintf( '@(shackHartmann)> %s\n',ME.identifier)
-                    indexRasterLenslet ...
-                        = utilities.rearrange([nPx,mPx],[nPxLenslet,mPxLenslet]);
-                    v = ~obj.validLenslet(:);
-                    v = repmat(v,nLensletArray,1);
-                    obj.indexRasterLenslet(:,v) = [];
-                    buffer     = picture(indexRasterLenslet);
-                end
+                
+                indexRasterLenslet_ ...
+                    = utilities.rearrange([nPx,mPx],[nPxLenslet,mPxLenslet]);
+                v = ~obj.validLenslet(:);
+                v = repmat(v,nLensletArray,1);
+                indexRasterLenslet_(:,v) = [];
+                buffer     = picture(indexRasterLenslet_);
                 
                 buffer     = reshape(buffer,nPxLenslet,nPxLenslet,[]);
-                size(buffer)
-                figure
-                for kLenslet=1:size(buffer,3)
+                tic
+                parfor kLenslet=1:size(buffer,3)
                     buffer(:,:,kLenslet) = conv2(buffer(:,:,kLenslet),srcExtent,'same');
-                    imagesc(buffer(:,:,kLenslet))
-                    axis square
-                    title(sprintf('#%d',kLenslet))
-                    drawnow
                 end
-                picture(indexRasterLenslet) = buffer;
+                toc
+                picture(indexRasterLenslet_) = buffer;
                 obj.lenslets.imagelets = reshape( picture , nPx , mPx );
                 
             end
