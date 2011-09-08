@@ -55,8 +55,6 @@ classdef source < stochasticWave & hgsetget
 %         abcd = eye(2);
         % for geometric ray matrix propagation
         offsetAngle;
-        % focal length of the objective the source is imaged through
-        objectiveFocalLength;
     end
     
     properties (SetAccess=private)
@@ -79,6 +77,8 @@ classdef source < stochasticWave & hgsetget
         wavelength;
         % source view point
         viewPoint;
+        % focal length of the objective the source is imaged through
+        objectiveFocalLength;
     end
     
     properties (Dependent,SetAccess=private)
@@ -93,7 +93,7 @@ classdef source < stochasticWave & hgsetget
         p_azimuth;
         p_magnitude;
         p_viewPoint;
-        tel;
+        p_objectiveFocalLength;
     end
         
     methods
@@ -281,7 +281,16 @@ classdef source < stochasticWave & hgsetget
         end
         function set.viewPoint(obj,val)
             obj.p_viewPoint = val;
-            obj.tel         = [];
+            obj.wavefront   = [];
+        end
+        
+        %% Get/Set the objective focal length
+        function out = get.objectiveFocalLength(obj)
+            out = obj.p_objectiveFocalLength;
+        end
+        function set.objectiveFocalLength(obj,val)
+            obj.p_objectiveFocalLength = val;
+            obj.wavefront   = [];
         end
         
         %% Get the opd
@@ -485,7 +494,7 @@ classdef source < stochasticWave & hgsetget
             %                 obj.tel = tel.focalDistance;
             %                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
             %                         ( numel(obj.height)==1 && obj.height==obj.tel )
-            if isempty(obj.wavefront)
+            if isempty(obj.wavefront) || length(obj.wavefront)~=tel.resolution
                 add(obj.log,obj,'Computing the objective wavefront transmitance ...')
                 if obj.height==obj.objectiveFocalLength
                     obj.wavefront = 0;%zeros(tel.resolution);
@@ -581,14 +590,14 @@ classdef source < stochasticWave & hgsetget
             o2 = 0;
             zPropDir = 1;
             for kOP=1:nOP-1
-                fprintf(1,'-->> %d -- %d\n',kOP,kOP+1)
+                fprintf(1,'-->> %d -- %d\n',kOP,kOP+1);
                 oa1 = obj.opticalPath{kOP}.offsetAngle;
                 oa2 = obj.opticalPath{kOP+1}.offsetAngle;
                 o1 = o1 + obj.opticalPath{kOP}.offset;
                 o2 = o2 + obj.opticalPath{kOP+1}.offset;
                 zPropDir = zPropDir.*obj.opticalPath{kOP}.zPropDir;
-                x = x0 + [0 ; obj.opticalPath{kOP}.thickness*zPropDir]*ones(1,nOA)
-                y = [oa1(1,:) + o1 ; oa2(1,:) + o2]
+                x = x0 + [0 ; obj.opticalPath{kOP}.thickness*zPropDir]*ones(1,nOA);
+                y = [oa1(1,:) + o1 ; oa2(1,:) + o2];
                 line(x,y,'color',col)
                 x0 = x(end);
 %                 pause
@@ -598,9 +607,9 @@ classdef source < stochasticWave & hgsetget
             o1 = o1 + obj.opticalPath{end}.offset;
             o2 = o2 + obj.opticalPath{end}.offset;
             zPropDir = zPropDir.*obj.opticalPath{end}.zPropDir;
-            x = x0 + [0 ; obj.opticalPath{end}.thickness*zPropDir]*ones(1,nOA)
+            x = x0 + [0 ; obj.opticalPath{end}.thickness*zPropDir]*ones(1,nOA);
             y = [oa1(1,:) + o1 ; ...
-                oa2(1,:) + o2]
+                oa2(1,:) + o2];
             line(x,y,'color',col)
         end
     end

@@ -68,6 +68,10 @@ classdef sourceorama < handle
             obj.sequenceTimeLength ...
                 = p.Results.sequenceTimeLength;
             obj.tel      = p.Results.tel;
+            % May be needed by does not seem to work!
+%             obj.tel      = obj.tel - obj.tel.opticalAberration;
+%             obj.srcs     = obj.srcs.*obj.tel;
+%             obj.tel      = obj.tel + obj.tel.opticalAberration;
             obj.log      = logBook.checkIn(obj);
             obj.dataSetTimeLength ...
                 = p.Results.dataSetTimeLength;
@@ -75,7 +79,7 @@ classdef sourceorama < handle
             if exist(obj.hdf5file,'file')>0
                 add(obj.log,obj,sprintf('Found HDF5 file %s, data will be extracted from it!',...
                     obj.hdf5file))
-                h5disp(obj.hdf5file)
+                disp(h5info(obj.hdf5file))
                 obj.newh5File = false;
                 obj.sequenceTimeLength = h5readatt(obj.hdf5file,'/','sequenceTimeLength');
                 obj.buffer      = h5read(obj.hdf5file,'/opdSet1');
@@ -93,6 +97,8 @@ classdef sourceorama < handle
                 m_hdf5file           = obj.hdf5file;
                 
                 if obj.chronometer <= obj.sequenceTimeLength
+                    nSrcs    = length(m_srcs);
+                    nPx      = m_tel.resolution;
                     add(obj.log,obj,sprintf('Save %d runs to opd%d in %s!',...
                         obj.bufferCount,obj.opdCount,m_hdf5file))
                     dataSetName = sprintf('/opdSet%d',obj.opdCount);
@@ -117,7 +123,7 @@ classdef sourceorama < handle
                 length(obj.srcs)*...
                 obj.tel.resolution^2*...
                 obj.p_dataSetTimeLength/obj.tel.samplingTime/2^30;
-            add(obj.log,obj,sprintf('%3.1fs of data corresponds to %3.1fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))
+            add(obj.log,obj,sprintf('%.3fs of data corresponds to %.2fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))
             
             obj.dataSetTimeLimit = min(obj.opdCount*obj.p_dataSetTimeLength,obj.sequenceTimeLength);
             
