@@ -120,10 +120,9 @@ classdef shackHartmann < hgsetget
             obj.referenceSlopes = zeros(obj.nValidLenslet*2,1);
             obj.p_referenceSlopes = ...
                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
-            % Slopes listener
-            obj.slopesListener = addlistener(obj,'slopes','PostSet',...
-                @(src,evnt) obj.slopesDisplay );
-            obj.slopesListener.Enabled = false;
+
+            setSlopesListener(obj)
+            
             %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
             %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
             %                 @(src,evnt) intensityDisplay(obj) );
@@ -192,6 +191,12 @@ classdef shackHartmann < hgsetget
             display(obj.camera)
             
         end
+        
+        function obj = saveobj(obj)
+            %% SAVEOBJ
+            delete(obj.slopesListener)
+            add(obj.log,obj,'Save!')
+        end        
         
         function INIT(obj)
             %% INIT WFS initialization
@@ -1142,6 +1147,28 @@ classdef shackHartmann < hgsetget
         
     end
     
+    methods (Static)
+            
+        function obj = loadobj(obj)
+            %% LOADOBJ
+            add(obj.log,obj,'Load!')
+            setSlopesListener(obj)
+            obj.log = logBook.checkIn(obj);
+        end
+        
+    end
+    
+    methods (Access=private)
+        
+        function setSlopesListener(obj)
+            %% SETSLOPESLISTENER Slopes listener
+            obj.slopesListener = addlistener(obj,'slopes','PostSet',...
+                @(src,evnt) obj.slopesDisplay );
+            obj.slopesListener.Enabled = false;            
+        end
+        
+    end
+
 end
 
 function y = linearSpline(x)

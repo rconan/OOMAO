@@ -22,8 +22,8 @@ classdef detector < handle
         roiSouthWestCorner;
         % frame rate [Hz]
         frameRate = 1;
-        % Exposure time [second]
-        exposureTime = 1;
+        % clock rate [Hz]
+        clockRate = 1;
         %  Delay after which the camera start integrating
         startDelay = 0;
         % detector timer
@@ -38,6 +38,11 @@ classdef detector < handle
         frameCount  = 0;
     end
     
+    properties (Dependent)
+        % Exposure time [second]
+        exposureTime;
+    end
+    
     properties (SetObservable=true)
         % detector frame
         frame;
@@ -46,6 +51,10 @@ classdef detector < handle
     properties (Access=protected)
         frameHandle;
         log;
+    end
+    
+    properties (Access=private)
+        p_exposureTime;
     end
     
     methods
@@ -63,10 +72,10 @@ classdef detector < handle
             if nargin>1
                 obj.pixelScale  = pixelScale;
             end
-            % Frame listener
-            obj.frameListener = addlistener(obj,'frame','PostSet',...
-                @(src,evnt) obj.imagesc );
-            obj.frameListener.Enabled = false;
+            obj.exposureTime = 1;
+
+            setFrameListener(obj)
+            
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Detector';
@@ -125,6 +134,24 @@ classdef detector < handle
             
         end
         
+        function obj = saveobj(obj)
+            %% SAVEOBJ
+            delete(obj.frameListener)
+            add(obj.log,obj,'Save!')
+        end                
+        
+        %% Set/Get exposureTime
+        function set.exposureTime(obj,val)
+            obj.p_exposureTime = val;
+            if obj.clockRate==1
+                obj.clockRate = 1/obj.p_exposureTime;
+                fprintf('Clock rate is: %.2fHz\n',obj.clockRate)
+            end
+        end
+        function val = get.exposureTime(obj)
+            val = obj.p_exposureTime;
+        end
+        
         function imagesc(obj,varargin)
             %% IMAGESC Display the detector frame
             %
@@ -155,7 +182,7 @@ classdef detector < handle
                     set(obj.frameHandle(2),'String',...
                         sprintf('Frame #%d',obj.frameCount))
                     [n,m] = size(m_frame);
-                    set(gca,'xlim',0.5+[0 m],'ylim',0.5+[0 n])
+                    set(get(obj.frameHandle(1),'parent'),'xlim',0.5+[0 m],'ylim',0.5+[0 n])
                 else
                     if isempty(obj.pixelScale)
                         obj.frameHandle(1) = image(m_frame,...
@@ -250,7 +277,7 @@ classdef detector < handle
                 image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
             obj.frameCount = obj.frameCount + 1;
-            if obj.frameCount<obj.exposureTime
+            if obj.frameCount<obj.p_exposureTime*obj.clockRate
                 obj.frameBuffer = obj.frameBuffer + image;
                 obj.frame = [];
             else
@@ -281,6 +308,28 @@ classdef detector < handle
                 obj.frame = image;
                 obj.frameBuffer = 0;
             end
+        end
+        
+    end
+    
+    methods (Static)
+            
+        function obj = loadobj(obj)
+            %% LOADOBJ
+            add(obj.log,obj,'Load!')
+            setFrameListener(obj)
+            obj.log = logBook.checkIn(obj);
+        end
+        
+    end
+    
+    methods (Access=private)
+        
+        function setFrameListener(obj)
+            %% SETFRAMELISTENER % Frame listener
+            obj.frameListener = addlistener(obj,'frame','PostSet',...
+                @(src,evnt) obj.imagesc );
+            obj.frameListener.Enabled = false;
         end
         
     end

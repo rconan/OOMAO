@@ -70,9 +70,9 @@ classdef lensletArray < handle
             obj.nLenslet        = nLenslet;
             obj.minLightRatio   = 0;
             obj.nyquistSampling = 1;
-            obj.imageletsListener = addlistener(obj,'imagelets','PostSet',...
-                @(src,evnt) obj.imagesc );
-            obj.imageletsListener.Enabled = false;
+            
+            setImageletsListener(obj)
+            
             obj.log = logBook.checkIn(obj);
         end
 
@@ -106,6 +106,12 @@ classdef lensletArray < handle
             fprintf('----------------------------------------------------\n')
             
         end
+        
+        function obj = saveobj(obj)
+            %% SAVEOBJ
+            delete(obj.imageletsListener)
+            add(obj.log,obj,'Save!')
+        end        
 
         %% Lenslet image sampling
         function nLensletImagePx = get.nLensletImagePx(obj)
@@ -360,7 +366,25 @@ classdef lensletArray < handle
                 obj.fftPhasor = [];
             end            
         end
+        
+        function setImageletsListener(obj)
+            %% SETIMAGELETSLISTENERS Imagelets listener
+            obj.imageletsListener = addlistener(obj,'imagelets','PostSet',...
+                @(src,evnt) obj.imagesc );
+            obj.imageletsListener.Enabled = false;
+        end
 
     end
-
+    
+    methods (Static)
+            
+        function obj = loadobj(obj)
+            %% LOADOBJ
+            add(obj.log,obj,'Load!')
+            setImageletsListener(obj)
+            obj.log = logBook.checkIn(obj);
+        end
+        
+    end
+    
 end
