@@ -78,6 +78,10 @@ classdef shackHartmann < hgsetget
         validActuator;
         % zernike coefficients
         zernCoefs;
+        % X slopes map
+        xSlopesMap
+        % Y slopes map
+        ySlopesMap
     end
     
     properties (Access=private)
@@ -239,6 +243,18 @@ classdef shackHartmann < hgsetget
         %% Get number of slopes
         function nSlope = get.nSlope(obj)
             nSlope = obj.nValidLenslet*2;
+        end
+        
+        %% Get X slopes map
+        function out = get.xSlopesMap(obj)
+            out = zeros(obj.lenslets.nLenslet);
+            out(obj.validLenslet) = obj.slopes(1:end/2);
+        end
+        
+        %% Get Y slopes map
+        function out = get.ySlopesMap(obj)
+            out = zeros(obj.lenslets.nLenslet);
+            out(obj.validLenslet) = obj.slopes(1+end/2:end);
         end
         
         %% Get valid actuators
@@ -498,7 +514,48 @@ classdef shackHartmann < hgsetget
 %             end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
+            
+            if ~isempty(src(1).extent)
+                
+                disp('convolution')
+                
+                srcExtent = src(1).extent;
+                picture   = obj.lenslets.imagelets;
+                size(picture)
+                
+                [nPx,mPx] = size(picture);
+                nLensletArray = obj.lenslets.nArray;
+                nPxLenslet = nPx/obj.lenslets.nLenslet;
+                mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
+%                 try
+%                     buffer     = picture(obj.indexRasterLenslet);
+%                 catch ME
+%                     fprintf( '@(shackHartmann)> %s\n',ME.identifier)
+                    indexRasterLenslet ...
+                        = utilities.rearrange([nPx,mPx],[nPxLenslet,mPxLenslet]);
+                    v = ~obj.validLenslet(:);
+                    v = repmat(v,nLensletArray,1);
+                    obj.indexRasterLenslet(:,v) = [];
+                    buffer     = picture(indexRasterLenslet);
+                end
+                
+                buffer     = reshape(buffer,nPxLenslet,nPxLenslet,[]);
+                size(buffer)
+                figure
+                for kLenslet=1:size(buffer,3)
+                    buffer(:,:,kLenslet) = conv2(buffer(:,:,kLenslet),srcExtent,'same');
+                    imagesc(buffer(:,:,kLenslet))
+                    axis square
+                    title(sprintf('#%d',kLenslet))
+                    drawnow
+                end
+                picture(indexRasterLenslet) = buffer;
+                obj.lenslets.imagelets = reshape( picture , nPx , mPx );
+                
+            end
+            
             grab(obj.camera)
+
             if obj.camera.frameCount==0
                 dataProcessing(obj);
             else

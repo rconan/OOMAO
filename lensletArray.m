@@ -288,7 +288,7 @@ classdef lensletArray < handle
             [n,m] = size(wavePrgted);
             wavePrgted = reshape(wavePrgted,[n,m/nWave,nWave]);
             if obj.sumStack
-                wavePrgted = sum(wavePrgted,3);
+                wavePrgted = mean(wavePrgted,3);
             end
             obj.imagelets = wavePrgted*obj.throughput;
         end

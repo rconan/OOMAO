@@ -55,6 +55,8 @@ classdef source < stochasticWave & hgsetget
 %         abcd = eye(2);
         % for geometric ray matrix propagation
         offsetAngle;
+        % source extent 2D profile
+        extent;
     end
     
     properties (SetAccess=private)
@@ -499,8 +501,11 @@ classdef source < stochasticWave & hgsetget
                 if obj.height==obj.objectiveFocalLength
                     obj.wavefront = 0;%zeros(tel.resolution);
                 else
-                    rho     = utilities.cartAndPol(tel.resolution,tel.R,...
-                        'offset',obj.viewPoint,'output','radius');
+%                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
+%                         'offset',obj.viewPoint,'output','radius');
+                    [x,y] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
+                    rho = hypot( x - obj.viewPoint(1) , y - obj.viewPoint(2) );
+                    
                     if isinf(obj.objectiveFocalLength)
                         s0 = 0;
                     else
