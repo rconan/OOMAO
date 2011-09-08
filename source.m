@@ -512,7 +512,7 @@ classdef source < stochasticWave & hgsetget
                         s0 = hypot(rho,obj.objectiveFocalLength);
                     end
                     h       = reshape(obj.height,[1,1,length(obj.height)]);
-                    s = sqrt(bsxfun(@plus,rho.^2,h.^2));
+                    s = bsxfun(@hypot,rho,h);
                     obj.wavefront = bsxfun(@minus,s,s0);
                     obj.wavefront = 2*pi*obj.wavefront/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
