@@ -517,6 +517,8 @@ classdef shackHartmann < hgsetget
             
             if ~isempty(src(1).extent)
                 
+                add(obj.log,obj,'Convolution of the spots by source kernel!')
+                
                 srcExtent = src(1).extent;
                 picture   = obj.lenslets.imagelets;
                 

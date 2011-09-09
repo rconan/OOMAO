@@ -491,15 +491,11 @@ classdef source < stochasticWave & hgsetget
             % out = fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the objective image plane and
             % returns the wavefront in radian
-            
-            %             if isempty(obj.tel) || ~isequal(obj.tel,tel.focalDistance)
-            %                 obj.tel = tel.focalDistance;
-            %                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
-            %                         ( numel(obj.height)==1 && obj.height==obj.tel )
+
             if isempty(obj.wavefront) || length(obj.wavefront)~=tel.resolution
                 add(obj.log,obj,'Computing the objective wavefront transmitance ...')
                 if obj.height==obj.objectiveFocalLength
-                    obj.wavefront = 0;%zeros(tel.resolution);
+                    obj.wavefront = zeros(tel.resolution);
                 else
 %                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
 %                         'offset',obj.viewPoint,'output','radius');

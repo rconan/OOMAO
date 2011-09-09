@@ -158,7 +158,7 @@ classdef lensletArray < handle
 %             logBook.add(obj,'Set the wave reshaping index (2D to 3D)')
         end  
 
-        function propagateThrough(obj,src)
+        function propagateThrough(obj,src_in)
             %% PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane
             %
             % propagateThrough(obj) progates the object wave throught the
@@ -172,6 +172,27 @@ classdef lensletArray < handle
             % setting fftPad=1, fieldStopSize should be set to default
             % n/nLenslet/nyquistSampling/2
             
+            % Check for LGS asterisms
+            [n1,n2,n3] = size(src_in);
+            n12 = n1*n2;
+            if ndims(src_in)==3 && n12>1
+                m_imagelets = zeros(obj.nLensletsImagePx,obj.nLensletsImagePx,n12);
+                count       = 0;
+                for k1 = 1:n1
+                    for k2 = 1:n2
+                        count = count + 1;
+                        add(obj.log,obj,sprintf('Processing LGS #%d/%d',count,n12))
+                        tic; propagateThrough(obj,src_in(k1,k2,:)); toc
+                        m_imagelets(:,:,count) = obj.imagelets;
+                    end
+                end
+                obj.imagelets = reshape(m_imagelets,size(m_imagelets,1),[]);
+                obj.nArray = n12;
+                return
+            else
+                src = src_in;
+            end
+                
             if ndims(src)==3
                 obj.sumStack = true;
                 obj.nArray = 1;
