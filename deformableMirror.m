@@ -76,9 +76,7 @@ classdef deformableMirror < handle
             obj.p_validActuator     = p.Results.validActuator;
             obj.modes             = p.Results.modes;
             obj.zLocation             = p.Results.zLocation;
-            obj.surfaceListener = addlistener(obj,'surface','PostSet',...
-                @(src,evnt) obj.imagesc );
-            obj.surfaceListener.Enabled = false;
+            setSurfaceListener(obj)
             if ( isa(obj.modes,'influenceFunction') || isa(obj.modes,'hexagonalPistonTipTilt')) && ~isempty(p.Results.resolution)
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
             elseif isa(obj.modes,'zernike')
@@ -118,6 +116,12 @@ classdef deformableMirror < handle
             end
 
         end
+        
+        function obj = saveobj(obj)
+            %% SAVEOBJ
+            delete(obj.surfaceListener)
+            add(obj.log,obj,'Save!')
+        end        
         
         %% Get nValidActuator
         function out = get.nValidActuator(obj)
@@ -355,5 +359,27 @@ classdef deformableMirror < handle
         
         
     end
+        
+    methods (Static)
+            
+        function obj = loadobj(obj)
+            %% LOADOBJ
+            add(obj.log,obj,'Load!')
+            setSurfaceListener(obj)
+            obj.log = logBook.checkIn(obj);
+        end
+        
+    end
     
+    methods (Access=private)
+        
+        function setSurfaceListener(obj)
+            %% SETSLOPESLISTENER Slopes listener
+            obj.surfaceListener = addlistener(obj,'surface','PostSet',...
+                @(src,evnt) obj.imagesc );
+            obj.surfaceListener.Enabled = false;
+        end
+        
+    end
+
 end
