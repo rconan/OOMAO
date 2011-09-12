@@ -57,6 +57,7 @@ classdef source < stochasticWave & hgsetget
         offsetAngle;
         % source extent 2D profile
         extent;
+        saveWavefront = true;
     end
     
     properties (SetAccess=private)
@@ -304,6 +305,13 @@ classdef source < stochasticWave & hgsetget
         function out = opdVector(obj)
             out = phaseVector(obj)/obj(1).waveNumber;
         end
+        
+        % Set source extent
+        function set.extent(obj,val)
+            obj.extent = val./sum(val(:));
+        end
+        
+        
         %         function bool = eq(obj1,obj2)
         %             % == (EQ) Sources comparison
         %             % src1==src2 returns true if both objects have the same zenith
@@ -495,10 +503,10 @@ classdef source < stochasticWave & hgsetget
             if isempty(obj.wavefront) || length(obj.wavefront)~=tel.resolution
                 add(obj.log,obj,'Computing the objective wavefront transmitance ...')
                 if obj.height==obj.objectiveFocalLength
-                    obj.wavefront = zeros(tel.resolution);
+                    out = zeros(tel.resolution);
                 else
-%                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
-%                         'offset',obj.viewPoint,'output','radius');
+                    %                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
+                    %                         'offset',obj.viewPoint,'output','radius');
                     [x,y] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
                     rho = hypot( x - obj.viewPoint(1) , y - obj.viewPoint(2) );
                     
@@ -509,14 +517,16 @@ classdef source < stochasticWave & hgsetget
                     end
                     h       = reshape(obj.height,[1,1,length(obj.height)]);
                     s = bsxfun(@hypot,rho,h);
-                    obj.wavefront = bsxfun(@minus,s,s0);
-                    obj.wavefront = 2*pi*obj.wavefront/obj.wavelength;
+                    out = bsxfun(@minus,s,s0);
+                    out = 2*pi*out/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
                     %                     obj.wavefront = mod(obj.wavefront,2*pi);
                     %                     obj.wavefront = exp(1i.*2*pi*obj.wavefront/obj.wavelength)./s;
                 end
-            end
-            if nargout>0
+                if obj.saveWavefront
+                    obj.wavefront = out;
+                end
+            else
                 out = obj.wavefront;
             end
         end
