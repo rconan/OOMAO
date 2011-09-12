@@ -7,10 +7,6 @@ classdef calibrationVault < handle
     % the dm command matix
     
     properties
-        % the device to calibrate
-        device;
-        % the sensor used to calibrate the device
-        sensor;
         % the calibration matrix
         D;
         % the SVD decomposition of the calibration matrix
@@ -45,13 +41,10 @@ classdef calibrationVault < handle
     methods
         
         %% Constructor
-        function obj = calibrationVault(device,sensor,calibMatrix)
+        function obj = calibrationVault(calibMatrix)
             
-            obj.device = device;
-            obj.sensor = sensor;
             obj.D      = calibMatrix;
             obj.log    = logBook.checkIn(obj);
-            
             
             add(obj.log,obj,'Computing the SVD of the calibration matrix!')
             
@@ -103,7 +96,7 @@ classdef calibrationVault < handle
             ylabel('Eigen values')
             
             if ~isempty(obj.eigLine)
-                obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis)
+                obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis);
             end
             drawnow
 
