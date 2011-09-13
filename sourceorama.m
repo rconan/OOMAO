@@ -59,7 +59,7 @@ classdef sourceorama < handle
             p.addRequired('hdf5file'          , @ischar);
             p.addRequired('srcs'              , @(x) isa(x,'source') );
             p.addOptional('sequenceTimeLength', Inf, @isnumeric );
-            p.addOptional('tel'               , [] , @(x) isa(x,'telescope') );
+            p.addOptional('tel'               , [] , @(x) isa(x,'telescopeAbstract') );
             p.addOptional('dataSetTimeLength' , 1  , @isnumeric );
             p.parse(hdf5file,srcs,varargin{:});
             
@@ -249,6 +249,12 @@ classdef sourceorama < handle
                 end
                 
             end
+        end
+        
+        function reset(obj)
+            obj.chronometer = 0;
+            obj.bufferCount = 0;
+            obj.opdCount    = 1;
         end
         
     end
