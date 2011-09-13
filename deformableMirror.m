@@ -256,7 +256,7 @@ classdef deformableMirror < handle
                     close(h)
                 end
                 pokeMatrix = pokeMatrix./calibDmStroke;
-                calib = calibrationVault(obj,sensor,pokeMatrix);
+                calib = calibrationVault(pokeMatrix);
                 
             else 
                 
@@ -282,7 +282,7 @@ classdef deformableMirror < handle
                 obj.coefs = dmTtCoefs*calibDmStroke;
                 src = src.*tel*obj*sensor;
                 pokeTipTilt = sensor.slopes/calibDmStroke;
-                calib = calibrationVault(obj,sensor,pokeTipTilt);
+                calib = calibrationVault(pokeTipTilt);
                 calib.spaceJump = dmTtCoefs;
             end
             

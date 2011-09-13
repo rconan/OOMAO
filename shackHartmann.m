@@ -514,6 +514,17 @@ classdef shackHartmann < hgsetget
 %             end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
+            spotsSrcKernelConvolution(obj,src)
+            grab(obj.camera)
+
+            if obj.camera.frameCount==0
+                dataProcessing(obj);
+            else
+                obj.slopes = zeros(obj.nSlope,1);
+            end
+        end
+        
+        function spotsSrcKernelConvolution(obj,src)
             
             if ~isempty(src(1).extent)
                 
@@ -545,13 +556,6 @@ classdef shackHartmann < hgsetget
                 
             end
             
-            grab(obj.camera)
-
-            if obj.camera.frameCount==0
-                dataProcessing(obj);
-            else
-                obj.slopes = zeros(obj.nSlope,1);
-            end
         end
         
         function varargout = slopesDisplay(obj,varargin)

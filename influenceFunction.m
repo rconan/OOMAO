@@ -302,12 +302,13 @@ classdef influenceFunction < handle
                 kIF = 1:nValid;
                 wv = wv(:,iIF(kIF));
                 wu = wu(:,jIF(kIF));
-                fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d)\n',nValid)
+                fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d,    \n',nValid)
                 for kIF = 1:nValid
-                    %                 fprintf('\b\b\b\b%4d',kIF)
+                    fprintf('\b\b\b\b%4d',kIF)
                     buffer = wv(:,kIF)*wu(:,kIF)';
                     m_modes(:,kIF) = buffer(:);
                 end
+                fprintf('\n')
                 obj.modes = m_modes;
             else
                 
