@@ -55,6 +55,9 @@ classdef source < stochasticWave & hgsetget
 %         abcd = eye(2);
         % for geometric ray matrix propagation
         offsetAngle;
+        % source extent 2D profile
+        extent;
+        saveWavefront = true;
     end
     
     properties (SetAccess=private)
@@ -195,6 +198,8 @@ classdef source < stochasticWave & hgsetget
         
         %% Destructor
         function delete(obj)
+            obj.wavefront   = [];
+            obj.opticalPath = [];
             persistent countObj
             if isempty(countObj)
                 countObj = obj.nSrc;
@@ -302,6 +307,13 @@ classdef source < stochasticWave & hgsetget
         function out = opdVector(obj)
             out = phaseVector(obj)/obj(1).waveNumber;
         end
+        
+        % Set source extent
+        function set.extent(obj,val)
+            obj.extent = val./sum(val(:));
+        end
+        
+        
         %         function bool = eq(obj1,obj2)
         %             % == (EQ) Sources comparison
         %             % src1==src2 returns true if both objects have the same zenith
@@ -489,33 +501,34 @@ classdef source < stochasticWave & hgsetget
             % out = fresnelPropagation(a,tel) propagates the source seen
             % from the given view point to the objective image plane and
             % returns the wavefront in radian
-            
-            %             if isempty(obj.tel) || ~isequal(obj.tel,tel.focalDistance)
-            %                 obj.tel = tel.focalDistance;
-            %                 if ( numel(obj.height)==1 && isinf(obj.height) ) || ...
-            %                         ( numel(obj.height)==1 && obj.height==obj.tel )
+
             if isempty(obj.wavefront) || length(obj.wavefront)~=tel.resolution
                 add(obj.log,obj,'Computing the objective wavefront transmitance ...')
                 if obj.height==obj.objectiveFocalLength
-                    obj.wavefront = 0;%zeros(tel.resolution);
+                    out = zeros(tel.resolution);
                 else
-                    rho     = utilities.cartAndPol(tel.resolution,tel.R,...
-                        'offset',obj.viewPoint,'output','radius');
+                    %                     rho     = utilities.cartAndPol(tel.resolution,tel.R,...
+                    %                         'offset',obj.viewPoint,'output','radius');
+                    [x,y] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
+                    rho = hypot( x - obj.viewPoint(1) , y - obj.viewPoint(2) );
+                    
                     if isinf(obj.objectiveFocalLength)
                         s0 = 0;
                     else
                         s0 = hypot(rho,obj.objectiveFocalLength);
                     end
                     h       = reshape(obj.height,[1,1,length(obj.height)]);
-                    s = sqrt(bsxfun(@plus,rho.^2,h.^2));
-                    obj.wavefront = bsxfun(@minus,s,s0);
-                    obj.wavefront = 2*pi*obj.wavefront/obj.wavelength;
+                    s = bsxfun(@hypot,rho,h);
+                    out = bsxfun(@minus,s,s0);
+                    out = 2*pi*out/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
                     %                     obj.wavefront = mod(obj.wavefront,2*pi);
                     %                     obj.wavefront = exp(1i.*2*pi*obj.wavefront/obj.wavelength)./s;
                 end
-            end
-            if nargout>0
+                if obj.saveWavefront
+                    obj.wavefront = out;
+                end
+            else
                 out = obj.wavefront;
             end
         end

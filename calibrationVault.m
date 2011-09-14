@@ -7,10 +7,6 @@ classdef calibrationVault < handle
     % the dm command matix
     
     properties
-        % the device to calibrate
-        device;
-        % the sensor used to calibrate the device
-        sensor;
         % the calibration matrix
         D;
         % the SVD decomposition of the calibration matrix
@@ -45,29 +41,17 @@ classdef calibrationVault < handle
     methods
         
         %% Constructor
-        function obj = calibrationVault(device,sensor,calibMatrix)
+        function obj = calibrationVault(calibMatrix)
             
-            obj.device = device;
-            obj.sensor = sensor;
             obj.D      = calibMatrix;
             obj.log    = logBook.checkIn(obj);
-            
             
             add(obj.log,obj,'Computing the SVD of the calibration matrix!')
             
             [obj.U,S,obj.V] = svd(calibMatrix,0);
             obj.eigenValues = diag(S);
             
-            figure
-            subplot(1,2,1)
-            imagesc(calibMatrix)
-            xlabel('DM actuators')
-            ylabel('WFS slopes')
-            ylabel(colorbar,'slopes/actuator stroke')
-            obj.eigAxis = subplot(1,2,2);
-            semilogy(obj.eigenValues,'.')
-            xlabel('Eigen modes')
-            ylabel('Eigen values')
+            show(obj)
             
         end
         
@@ -97,6 +81,27 @@ classdef calibrationVault < handle
             val = obj.p_nThresholded;
         end
         
+          
+        function show(obj)
+            
+            figure
+            subplot(1,2,1)
+            imagesc(obj.D)
+            xlabel('DM actuators')
+            ylabel('WFS slopes')
+            ylabel(colorbar,'slopes/actuator stroke')
+            obj.eigAxis = subplot(1,2,2);
+            semilogy(obj.eigenValues,'.')
+            xlabel('Eigen modes')
+            ylabel('Eigen values')
+            
+            if ~isempty(obj.eigLine)
+                obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis);
+            end
+            drawnow
+
+        end
+        
     end
     
     methods (Access=private)
@@ -106,7 +111,7 @@ classdef calibrationVault < handle
             
             figure(get(obj.eigAxis,'parent'))
             if isempty(obj.eigLine)
-                line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis)
+                obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis);
             else
                 set('ydata',ones(1,2)*obj.p_threshold)
             end
@@ -121,5 +126,12 @@ classdef calibrationVault < handle
             obj.M = obj.spaceJump*obj.M;
         end
         
+    end
+    
+    methods (Static)
+        
+        function obj = loadobj(obj)
+            show(obj)
+        end
     end
 end

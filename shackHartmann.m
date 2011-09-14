@@ -78,6 +78,10 @@ classdef shackHartmann < hgsetget
         validActuator;
         % zernike coefficients
         zernCoefs;
+        % X slopes map
+        xSlopesMap
+        % Y slopes map
+        ySlopesMap
     end
     
     properties (Access=private)
@@ -241,6 +245,18 @@ classdef shackHartmann < hgsetget
             nSlope = obj.nValidLenslet*2;
         end
         
+        %% Get X slopes map
+        function out = get.xSlopesMap(obj)
+            out = zeros(obj.lenslets.nLenslet);
+            out(obj.validLenslet) = obj.slopes(1:end/2);
+        end
+        
+        %% Get Y slopes map
+        function out = get.ySlopesMap(obj)
+            out = zeros(obj.lenslets.nLenslet);
+            out(obj.validLenslet) = obj.slopes(1+end/2:end);
+        end
+        
         %% Get valid actuators
         function val = get.validActuator(obj)
             nElements            = 2*obj.lenslets.nLenslet+1; % Linear number of lenslet+actuator
@@ -352,7 +368,9 @@ classdef shackHartmann < hgsetget
             nLensletArray = obj.lenslets.nArray;
             nPxLenslet = nPx/obj.lenslets.nLenslet;
             mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
-            if numel(obj.indexRasterLenslet)~=(nPxLenslet*mPxLenslet*obj.nValidLenslet*nLensletArray*nFrame)
+%             size(obj.indexRasterLenslet)
+%             if numel(obj.indexRasterLenslet)~=(nPxLenslet*mPxLenslet*obj.nValidLenslet*nLensletArray*nFrame)
+            if size(obj.indexRasterLenslet,1)~=(nPxLenslet*mPxLenslet)
                 %             try
                 % %                 u = obj.indexRasterLenslet;
                 % %                 if nFrame>1
@@ -498,12 +516,48 @@ classdef shackHartmann < hgsetget
 %             end
             propagateThrough(obj.lenslets,src)
             %             grabAndProcess(obj)
+            spotsSrcKernelConvolution(obj,src)
             grab(obj.camera)
+
             if obj.camera.frameCount==0
                 dataProcessing(obj);
             else
                 obj.slopes = zeros(obj.nSlope,1);
             end
+        end
+        
+        function spotsSrcKernelConvolution(obj,src)
+            
+            if ~isempty(src(1).extent)
+                
+                add(obj.log,obj,'Convolution of the spots by source kernel!')
+                
+                srcExtent = src(1).extent;
+                picture   = obj.lenslets.imagelets;
+                
+                [nPx,mPx] = size(picture);
+                nLensletArray = obj.lenslets.nArray;
+                nPxLenslet = nPx/obj.lenslets.nLenslet;
+                mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
+                
+                indexRasterLenslet_ ...
+                    = utilities.rearrange([nPx,mPx],[nPxLenslet,mPxLenslet]);
+                v = ~obj.validLenslet(:);
+                v = repmat(v,nLensletArray,1);
+                indexRasterLenslet_(:,v) = [];
+                buffer     = picture(indexRasterLenslet_);
+                
+                buffer     = reshape(buffer,nPxLenslet,nPxLenslet,[]);
+                tic
+                parfor kLenslet=1:size(buffer,3)
+                    buffer(:,:,kLenslet) = conv2(buffer(:,:,kLenslet),srcExtent,'same');
+                end
+                toc
+                picture(indexRasterLenslet_) = buffer;
+                obj.lenslets.imagelets = reshape( picture , nPx , mPx );
+                
+            end
+            
         end
         
         function varargout = slopesDisplay(obj,varargin)

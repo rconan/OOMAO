@@ -76,9 +76,7 @@ classdef deformableMirror < handle
             obj.p_validActuator     = p.Results.validActuator;
             obj.modes             = p.Results.modes;
             obj.zLocation             = p.Results.zLocation;
-            obj.surfaceListener = addlistener(obj,'surface','PostSet',...
-                @(src,evnt) obj.imagesc );
-            obj.surfaceListener.Enabled = false;
+            setSurfaceListener(obj)
             if ( isa(obj.modes,'influenceFunction') || isa(obj.modes,'hexagonalPistonTipTilt')) && ~isempty(p.Results.resolution)
                 setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
             elseif isa(obj.modes,'zernike')
@@ -118,6 +116,12 @@ classdef deformableMirror < handle
             end
 
         end
+        
+        function obj = saveobj(obj)
+            %% SAVEOBJ
+            delete(obj.surfaceListener)
+            add(obj.log,obj,'Save!')
+        end        
         
         %% Get nValidActuator
         function out = get.nValidActuator(obj)
@@ -239,38 +243,46 @@ classdef deformableMirror < handle
                     nC              = floor(nMode/steps);
                     u               = 0;
                     pokeMatrix  = zeros(sensor.nSlope,nMode);
-                    fprintf(' . actuators range:          ')
+%                     fprintf(' . actuators range:          ')
+                    h = waitbar(0,'DM/WFS calibration ...');
                     while u(end)<nMode
                         u = u(end)+1:min(u(end)+nC,nMode);
-                        fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
+                        waitbar(u(end)/nMode)
+%                         fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
                         obj.coefs = calibDmCommands(:,u);
                         +src;
                         pokeMatrix(:,u) = sensor.slopes;
                     end
+                    close(h)
                 end
                 pokeMatrix = pokeMatrix./calibDmStroke;
-                calib = calibrationVault(obj,sensor,pokeMatrix);
+                calib = calibrationVault(pokeMatrix);
                 
-            else
+            else 
+                
+                %%% Tip-Tilt sensor calibration
                 
                 tel = src.opticalPath{1};
                 zern = zernike(tel,2:3);
                 zern.c = eye(2)*src.wavelength/4;
                 src = src.*zern;
                 buf = reshape(src.phase,tel.resolution,2*tel.resolution);
+                
                 % zernike projection onto DM influence functions
                 obj = obj\src;
                 src = src.*tel*obj;
                 dmTtCoefs = obj.coefs;
+                
                 buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
                 figure(101)
                 imagesc(buf)
                 axis square
                 colorbar
+                
                 obj.coefs = dmTtCoefs*calibDmStroke;
                 src = src.*tel*obj*sensor;
                 pokeTipTilt = sensor.slopes/calibDmStroke;
-                calib = calibrationVault(obj,sensor,pokeTipTilt);
+                calib = calibrationVault(pokeTipTilt);
                 calib.spaceJump = dmTtCoefs;
             end
             
@@ -347,5 +359,27 @@ classdef deformableMirror < handle
         
         
     end
+        
+    methods (Static)
+            
+        function obj = loadobj(obj)
+            %% LOADOBJ
+            add(obj.log,obj,'Load!')
+            setSurfaceListener(obj)
+            obj.log = logBook.checkIn(obj);
+        end
+        
+    end
     
+    methods (Access=private)
+        
+        function setSurfaceListener(obj)
+            %% SETSLOPESLISTENER Slopes listener
+            obj.surfaceListener = addlistener(obj,'surface','PostSet',...
+                @(src,evnt) obj.imagesc );
+            obj.surfaceListener.Enabled = false;
+        end
+        
+    end
+
 end

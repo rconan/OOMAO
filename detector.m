@@ -95,8 +95,8 @@ classdef detector < handle
         
         %% Destructor
         function delete(obj)
-            if ishandle(obj.frameHandle)
-                delete(get(obj.frameHandle,'Parent'));
+            if ishandle(obj.frameHandle(1))
+                delete(get(obj.frameHandle(1),'Parent'));
             end
             if isvalid(obj.paceMaker)
                 if strcmp(obj.paceMaker.Running,'on')
