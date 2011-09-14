@@ -368,9 +368,11 @@ classdef shackHartmann < hgsetget
             nLensletArray = obj.lenslets.nArray;
             nPxLenslet = nPx/obj.lenslets.nLenslet;
             mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
-%             size(obj.indexRasterLenslet)
+%             siz(obj.indexRasterLenslet)
+%             obj.nValidLenslet*nLensletArray*nFrame
 %             if numel(obj.indexRasterLenslet)~=(nPxLenslet*mPxLenslet*obj.nValidLenslet*nLensletArray*nFrame)
-            if size(obj.indexRasterLenslet,1)~=(nPxLenslet*mPxLenslet)
+            if size(obj.indexRasterLenslet,1)~=(nPxLenslet*mPxLenslet) || ...
+                    size(obj.indexRasterLenslet,2)~=(obj.nValidLenslet*nLensletArray*nFrame)
                 %             try
                 % %                 u = obj.indexRasterLenslet;
                 % %                 if nFrame>1
