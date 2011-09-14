@@ -198,6 +198,8 @@ classdef source < stochasticWave & hgsetget
         
         %% Destructor
         function delete(obj)
+            obj.wavefront   = [];
+            obj.opticalPath = [];
             persistent countObj
             if isempty(countObj)
                 countObj = obj.nSrc;
