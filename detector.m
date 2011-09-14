@@ -95,7 +95,7 @@ classdef detector < handle
         
         %% Destructor
         function delete(obj)
-            if ishandle(obj.frameHandle(1))
+            if ~isempty(obj.frameHandle) && ishandle(obj.frameHandle(1))
                 delete(get(obj.frameHandle(1),'Parent'));
             end
             if isvalid(obj.paceMaker)
