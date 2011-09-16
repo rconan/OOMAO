@@ -115,7 +115,6 @@ classdef zernike < telescopeAbstract
             end
             obj.p_p = polynomials(obj,p.Results.unitNorm);
             obj.c = ones(length(obj.j),1);
-            obj.log = logBook.checkIn(obj);
             if obj.log.writable
                 display(obj)
             end

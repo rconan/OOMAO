@@ -408,8 +408,10 @@ classdef shackHartmann < hgsetget
                         = sum(buffer)';
                 xBuffer = buffer'*obj.quadCellX./massLenslet;
                 yBuffer = buffer'*obj.quadCellY./massLenslet;
+                xBuffer = reshape(xBuffer,obj.nValidLenslet,nLensletArray*nFrame);
+                yBuffer = reshape(yBuffer,obj.nValidLenslet,nLensletArray*nFrame);
                 sBuffer ...
-                        = bsxfun(@minus,[xBuffer yBuffer]',obj.referenceSlopes).*obj.slopesUnits;
+                        = bsxfun(@minus,[xBuffer ; yBuffer],obj.referenceSlopes).*obj.slopesUnits;
                 index = isnan(sBuffer);
                 if any(index(:)) % if all pixels threshold
                     warning('OOMAO:shackHartmann:dataProcessing',...
@@ -537,13 +539,15 @@ classdef shackHartmann < hgsetget
                 srcExtent = src(1).extent;
                 picture   = obj.lenslets.imagelets;
                 
-                [nPx,mPx] = size(picture);
-                nLensletArray = obj.lenslets.nArray;
+                [nPx,mPx,nPicture] = size(picture);
                 nPxLenslet = nPx/obj.lenslets.nLenslet;
-                mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
+                mPxLenslet = mPx/obj.lenslets.nLenslet/obj.lenslets.nArray;
+                mPxNPicture = mPx*nPicture;
+                picture = reshape(picture,nPx,mPxNPicture);
+                nLensletArray = obj.lenslets.nArray*nPicture;
                 
                 indexRasterLenslet_ ...
-                    = utilities.rearrange([nPx,mPx],[nPxLenslet,mPxLenslet]);
+                    = utilities.rearrange(size(picture),[nPxLenslet,mPxLenslet]);
                 v = ~obj.validLenslet(:);
                 v = repmat(v,nLensletArray,1);
                 indexRasterLenslet_(:,v) = [];
@@ -556,7 +560,7 @@ classdef shackHartmann < hgsetget
                 end
                 toc
                 picture(indexRasterLenslet_) = buffer;
-                obj.lenslets.imagelets = reshape( picture , nPx , mPx );
+                obj.lenslets.imagelets = reshape( picture , nPx , mPx , nPicture);
                 
             end
             
