@@ -193,13 +193,10 @@ classdef lensletArray < handle
                 src = src_in;
             end
                 
-            if ndims(src)==3
+            val = src.catWave; % get complex amplitudes
+            if ndims(src)==3 % if src object array is 3D then it is an LGS hence collapse the 3D imagelets 
                 obj.sumStack = true;
-                obj.nArray = 1;
-            else
-                obj.nArray = numel(src);
             end
-            val = src.catWave;
             if isscalar(val) % if source amplitude and phase not set, set a default one
                 n = obj.nLensletWavePx*obj.nLenslet;
                 set(src,...
@@ -212,6 +209,11 @@ classdef lensletArray < handle
                 val = src.catWave;
             end
             [nLensletsWavePx,nLensletsWavePxNGuideStar,nWave] = size(val);
+            if ndims(src)==3 || nWave>1 
+                obj.nArray = 1;
+            else
+                obj.nArray = numel(src);
+            end
             % Resize the 3D input into a 2D input
             nLensletsWavePxNGuideStar = nLensletsWavePxNGuideStar*nWave;
             val = reshape(val,nLensletsWavePx,nLensletsWavePxNGuideStar);
@@ -220,6 +222,7 @@ classdef lensletArray < handle
                 obj.nLensletWavePx = nLensletWavePx;
             end
             nLensletArray = nLensletsWavePxNGuideStar/nLensletsWavePx;
+%             obj.nArray = nLensletArray;
             % Invocation of the zoom optics for conjugation to finite
             % distance
 %             if isfinite(obj.conjugationAltitude)
@@ -311,6 +314,7 @@ classdef lensletArray < handle
             if obj.sumStack
                 wavePrgted = mean(wavePrgted,3);
             end
+            obj.sumStack = false;
             obj.imagelets = wavePrgted*obj.throughput;
         end
         

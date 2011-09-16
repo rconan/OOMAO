@@ -113,7 +113,7 @@ classdef calibrationVault < handle
             if isempty(obj.eigLine)
                 obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis);
             else
-                set('ydata',ones(1,2)*obj.p_threshold)
+                set(obj.eigLine,'ydata',ones(1,2)*obj.p_threshold)
             end
             drawnow
 
