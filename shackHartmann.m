@@ -577,87 +577,99 @@ classdef shackHartmann < hgsetget
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
             
+            nSlopes   = size(wfs.slopes,2);
+            slopesMap = zeros(wfs.lenslets.nLenslet^2,nSlopes);
+            p         = repmat(wfs.validLenslet(:),1,nSlopes);
+            slopesMap(p) = wfs.slopes;
+            slopesMap    = reshape(slopesMap,wfs.lenslets.nLenslet,nSlopes);
+            
             if ishandle(obj.slopesDisplayHandle)
-                if nargin>1
-                    set(obj.slopesDisplayHandle,varargin{:})
-                end
-                hc = get(obj.slopesDisplayHandle,'children');
-                u = obj.referenceSlopes(1:end/2)+...
-                    obj.slopes(1:end/2)+obj.lensletCenterX;
-                v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
-                set(hc(1),'xData',u,'yData',v)
+                set(obj.slopesDisplayHandle,'CData',slopesMap)
             else
-                obj.slopesDisplayHandle = hgtransform(varargin{:});
-                [nPx,mPx]  = size(obj.camera.frame);
-                nLensletArray = obj.lenslets.nArray;
-                nPxLenslet = nPx/obj.lenslets.nLenslet;
-                mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
-                % Display lenslet center with a cross
-                u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);%(1:nPxLenslet-1:nPx-1)-1
-                v = (0:(obj.lenslets.nLenslet-1)*nLensletArray)*(mPxLenslet-1);%(1:mPxLenslet-1:mPx-1)-1
-                [obj.lensletCenterX,obj.lensletCenterY] = meshgrid(u,v);
-                obj.lensletCenterX = obj.lensletCenterX(obj.validLenslet(:));
-                obj.lensletCenterY = obj.lensletCenterY(obj.validLenslet(:));
-                if nLensletArray>1
-                    offset = (0:nLensletArray-1).*nPx;
-                    obj.lensletCenterX = repmat(obj.lensletCenterX,1,nLensletArray);
-                    obj.lensletCenterX = bsxfun(@plus,obj.lensletCenterX,offset);
-                    obj.lensletCenterX = obj.lensletCenterX(:);
-                    obj.lensletCenterY = repmat(obj.lensletCenterY,nLensletArray,1);
-                end
-                line(obj.lensletCenterX + (nPxLenslet-1)/2,...
-                    obj.lensletCenterY + (mPxLenslet-1)/2,...
-                    'color','k','Marker','.',...
-                    'linestyle','none',...
-                    'parent',obj.slopesDisplayHandle)
-                axis equal tight
-                % Display lenslet footprint
-%                 if obj.lenslets.nLenslet>1
-%                     lc = ones(1,3)*0.75;
-%                     u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
-%                     kLenslet = 1;
-%                     v = u(obj.validLenslet(:,kLenslet));
-%                     prev_v = v;
-%                     v = [v v(end)+nPxLenslet-1];
-%                     while length(v)>=length(prev_v) && kLenslet<obj.lenslets.nLenslet
-%                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
-%                         line(v,w,'LineStyle','-','color',lc)
-%                         line(w,v,'LineStyle','-','color',lc)
-%                         prev_v = v;
-%                         kLenslet = kLenslet + 1;
-%                         v = u(obj.validLenslet(:,kLenslet));
-%                         v = [v v(end)+nPxLenslet-1];
-%                     end
-%                     w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
-%                     line(prev_v,w,'LineStyle','-','color',lc)
-%                     line(w,prev_v,'LineStyle','-','color',lc)
-%                     while kLenslet<=obj.lenslets.nLenslet && kLenslet<obj.lenslets.nLenslet
-%                         v = u(obj.validLenslet(:,kLenslet));
-%                         v = [v v(end)+nPxLenslet-1];
-%                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
-%                         line(v,w,'LineStyle','-','color',lc)
-%                         line(w,v,'LineStyle','-','color',lc)
-%                         kLenslet = kLenslet + 1;
-%                     end
-%                 end
-                % Display slopes reference
-                u = obj.referenceSlopes(1:end/2)+obj.lensletCenterX;
-                v = obj.referenceSlopes(1+end/2:end)+obj.lensletCenterY;
-                line(u,v,'color','b','marker','x',...
-                    'linestyle','none',...
-                    'parent',obj.slopesDisplayHandle)
-                % Display slopes
-                u = obj.referenceSlopes(1:end/2)+...
-                    obj.slopes(1:end/2)+obj.lensletCenterX;
-                v = obj.referenceSlopes(1+end/2:end)+...
-                    obj.slopes(1+end/2:end)+obj.lensletCenterY;
-                line(u,v,'color','r','marker','+',...
-                    'linestyle','none',...
-                    'parent',obj.slopesDisplayHandle)
-                set(gca,'xlim',[0,obj.lenslets.nLenslet*(nPxLenslet-1)],...
-                    'ylim',[0,obj.lenslets.nLenslet*(mPxLenslet-1)],'visible','off')
+                obj.slopesDisplayHandle = imagesc(slopesMap);
             end
+            
+%             if ishandle(obj.slopesDisplayHandle)
+%                 if nargin>1
+%                     set(obj.slopesDisplayHandle,varargin{:})
+%                 end
+%                 hc = get(obj.slopesDisplayHandle,'children');
+%                 u = obj.referenceSlopes(1:end/2)+...
+%                     obj.slopes(1:end/2)+obj.lensletCenterX;
+%                 v = obj.referenceSlopes(1+end/2:end)+...
+%                     obj.slopes(1+end/2:end)+obj.lensletCenterY;
+%                 set(hc(1),'xData',u,'yData',v)
+%             else
+%                 obj.slopesDisplayHandle = hgtransform(varargin{:});
+%                 [nPx,mPx]  = size(obj.camera.frame);
+%                 nLensletArray = obj.lenslets.nArray;
+%                 nPxLenslet = nPx/obj.lenslets.nLenslet;
+%                 mPxLenslet = mPx/obj.lenslets.nLenslet/nLensletArray;
+%                 % Display lenslet center with a cross
+%                 u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);%(1:nPxLenslet-1:nPx-1)-1
+%                 v = (0:(obj.lenslets.nLenslet-1)*nLensletArray)*(mPxLenslet-1);%(1:mPxLenslet-1:mPx-1)-1
+%                 [obj.lensletCenterX,obj.lensletCenterY] = meshgrid(u,v);
+%                 obj.lensletCenterX = obj.lensletCenterX(obj.validLenslet(:));
+%                 obj.lensletCenterY = obj.lensletCenterY(obj.validLenslet(:));
+%                 if nLensletArray>1
+%                     offset = (0:nLensletArray-1).*nPx;
+%                     obj.lensletCenterX = repmat(obj.lensletCenterX,1,nLensletArray);
+%                     obj.lensletCenterX = bsxfun(@plus,obj.lensletCenterX,offset);
+%                     obj.lensletCenterX = obj.lensletCenterX(:);
+%                     obj.lensletCenterY = repmat(obj.lensletCenterY,nLensletArray,1);
+%                 end
+%                 line(obj.lensletCenterX + (nPxLenslet-1)/2,...
+%                     obj.lensletCenterY + (mPxLenslet-1)/2,...
+%                     'color','k','Marker','.',...
+%                     'linestyle','none',...
+%                     'parent',obj.slopesDisplayHandle)
+%                 axis equal tight
+%                 % Display lenslet footprint
+% %                 if obj.lenslets.nLenslet>1
+% %                     lc = ones(1,3)*0.75;
+% %                     u = (0:obj.lenslets.nLenslet-1)*(nPxLenslet-1);
+% %                     kLenslet = 1;
+% %                     v = u(obj.validLenslet(:,kLenslet));
+% %                     prev_v = v;
+% %                     v = [v v(end)+nPxLenslet-1];
+% %                     while length(v)>=length(prev_v) && kLenslet<obj.lenslets.nLenslet
+% %                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*(kLenslet-1)*(nPxLenslet-1);
+% %                         line(v,w,'LineStyle','-','color',lc)
+% %                         line(w,v,'LineStyle','-','color',lc)
+% %                         prev_v = v;
+% %                         kLenslet = kLenslet + 1;
+% %                         v = u(obj.validLenslet(:,kLenslet));
+% %                         v = [v v(end)+nPxLenslet-1];
+% %                     end
+% %                     w = ones(1+sum(obj.validLenslet(:,kLenslet-1)),1)*(kLenslet-1)*(nPxLenslet-1);
+% %                     line(prev_v,w,'LineStyle','-','color',lc)
+% %                     line(w,prev_v,'LineStyle','-','color',lc)
+% %                     while kLenslet<=obj.lenslets.nLenslet && kLenslet<obj.lenslets.nLenslet
+% %                         v = u(obj.validLenslet(:,kLenslet));
+% %                         v = [v v(end)+nPxLenslet-1];
+% %                         w = ones(1+sum(obj.validLenslet(:,kLenslet)),1)*kLenslet*(nPxLenslet-1);
+% %                         line(v,w,'LineStyle','-','color',lc)
+% %                         line(w,v,'LineStyle','-','color',lc)
+% %                         kLenslet = kLenslet + 1;
+% %                     end
+% %                 end
+%                 % Display slopes reference
+%                 u = obj.referenceSlopes(1:end/2)+obj.lensletCenterX;
+%                 v = obj.referenceSlopes(1+end/2:end)+obj.lensletCenterY;
+%                 line(u,v,'color','b','marker','x',...
+%                     'linestyle','none',...
+%                     'parent',obj.slopesDisplayHandle)
+%                 % Display slopes
+%                 u = obj.referenceSlopes(1:end/2)+...
+%                     obj.slopes(1:end/2)+obj.lensletCenterX;
+%                 v = obj.referenceSlopes(1+end/2:end)+...
+%                     obj.slopes(1+end/2:end)+obj.lensletCenterY;
+%                 line(u,v,'color','r','marker','+',...
+%                     'linestyle','none',...
+%                     'parent',obj.slopesDisplayHandle)
+%                 set(gca,'xlim',[0,obj.lenslets.nLenslet*(nPxLenslet-1)],...
+%                     'ylim',[0,obj.lenslets.nLenslet*(mPxLenslet-1)],'visible','off')
+%             end
             if nargout>0
                 varargout{1} = obj.slopesDisplayHandle;
             end
