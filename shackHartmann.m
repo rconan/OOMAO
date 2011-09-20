@@ -577,16 +577,18 @@ classdef shackHartmann < hgsetget
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
             
-            nSlopes   = size(wfs.slopes,2);
-            slopesMap = zeros(wfs.lenslets.nLenslet^2,nSlopes);
-            p         = repmat(wfs.validLenslet(:),1,nSlopes);
-            slopesMap(p) = wfs.slopes;
-            slopesMap    = reshape(slopesMap,wfs.lenslets.nLenslet,nSlopes);
+            nSlopes   = size(obj.slopes,2);
+            slopesMap = zeros(2*obj.lenslets.nLenslet^2,nSlopes);
+            p         = repmat(obj.validLenslet(:),2,nSlopes);
+            slopesMap(p) = obj.slopes;
+            slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
             
             if ishandle(obj.slopesDisplayHandle)
                 set(obj.slopesDisplayHandle,'CData',slopesMap)
             else
                 obj.slopesDisplayHandle = imagesc(slopesMap);
+                axis equal tight
+                colorbar('location','northOutside')
             end
             
 %             if ishandle(obj.slopesDisplayHandle)

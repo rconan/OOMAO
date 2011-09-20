@@ -329,12 +329,12 @@ classdef deformableMirror < handle
         end
         
         function varargout = imagesc(obj,varargin)
-            %% IMAGESC Display the lenslet imagelets
+            %% IMAGESC Display the deformable mirror surface
             %
-            % imagesc(obj) displays the imagelets of the lenslet array object
+            % imagesc(obj) displays the deformable mirror surface
             %
-            % imagesc(obj,'PropertyName',PropertyValue) displays the imagelets
-            % of the lenslet array object and set the properties of the
+            % imagesc(obj,'PropertyName',PropertyValue) displays the
+            % deformable mirror surface and set the properties of the
             % graphics object imagesc
             %
             % h = imagesc(obj,...) returns the graphics handle
@@ -342,15 +342,15 @@ classdef deformableMirror < handle
             % See also: imagesc
             
             if ishandle(obj.imageHandle)
-                set(obj.imageHandle,'Cdata',obj.surface,varargin{:});
+                set(obj.imageHandle,'Cdata',obj.surface*1e6,varargin{:});
             else
                 %                 figure
-                obj.imageHandle = image(obj.surface,...
+                obj.imageHandle = image(obj.surface*1e6,...
                     'CDataMApping','Scaled',varargin{:});
                 set( get(obj.imageHandle,'parent') ,'visible','off')
                 colormap(pink)
                 axis square
-                colorbar
+                ylabel(colorbar,'[micron]')
             end
             if nargout>0
                 varargout{1} = obj.imageHandle;
