@@ -90,7 +90,6 @@ classdef detector < handle
 %             end
             %             obj.frameRate = 1;
             obj.log = logBook.checkIn(obj);
-            display(obj)
         end
         
         %% Destructor
@@ -126,7 +125,7 @@ classdef detector < handle
             else
                 fprintf('  . photon noise disabled\n')
             end
-            fprintf('  . %.1f photo-events rms read-out moise \n',...
+            fprintf('  . %.1f photo-events rms read-out noise \n',...
                 obj.readOutNoise)
             fprintf('  . %3.1fms exposure time and %3.1fHz frame rate \n',...
                 obj.exposureTime*1e3,obj.frameRate)

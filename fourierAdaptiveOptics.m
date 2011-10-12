@@ -3,15 +3,21 @@ classdef fourierAdaptiveOptics < handle
     properties
         psf;
         paramListener;
+        psfRootListener;
     end
     
     properties (SetObservable=true)
         tel;
         atm;
+        src;
         noiseVariance;
         nActuator;
         psfResolution;
         psfPixelScaleInMas;
+        loopGain;     % loop gain
+        exposureTime; % exposure time
+        latency;      % delay
+        psfRoot = 1;
     end
     
     properties (Dependent)
@@ -25,16 +31,23 @@ classdef fourierAdaptiveOptics < handle
     
     methods 
         
-        function obj = fourierAdaptiveOptics(tel,atm,nActuator,noiseVariance)
+        function obj = fourierAdaptiveOptics(tel,atm,nActuator,noiseVariance,g,T,tau)
             obj.tel           = tel;
             obj.atm           = atm;
             obj.noiseVariance = noiseVariance;
             obj.nActuator     = nActuator;
+            if nargin>4
+                obj.loopGain = g;
+                obj.exposureTime = T;
+                obj.latency = tau;
+            end
             obj.paramListener = ...
                 addlistener(obj,...
                 {'noiseVariance','nActuator','tel',...
-                'atm','psfResolution','psfPixelScaleInMas'},...
+                'atm','psfResolution','psfPixelScaleInMas',...
+                'loopGain','exposureTime','latency','src'},...
                 'PostSet',@obj.resetPsf);
+            obj.psfRootListener = addlistener(obj,'psfRoot','PostSet',@obj.resetPsfScale);
         end
         
         function out = get.fc(obj)
@@ -68,7 +81,7 @@ classdef fourierAdaptiveOptics < handle
                 out(index) = obj.noiseVariance./...
                     ( 2*pi*f.*tools.sinc(0.5*fx(index)/fc).*tools.sinc(0.5*fy(index)/fc)).^2;
             end
-            out = out.*pistonFilter(obj,hypot(fx,fy));
+            out = out.*averageClosedLoopNoise(obj,fx,fy).*pistonFilter(obj,hypot(fx,fy));
        end
         
         function out = aliasingPSD(obj,fx,fy)
@@ -119,12 +132,64 @@ classdef fourierAdaptiveOptics < handle
                al(nind) = al(nind) + 0.25*sin(2*fo(nind)).^2.*(fx(nind)./fmy(nind)+fy(nind)./flx(nind)).^2.*...
                    phaseStats.spectrum(flm(nind),obj.atm);
            end
-           out(index) =  al;
+           out(index) =  al.*averageClosedLoopAliasing(obj,fx,fy);
            out = out.*pf;
         end
         
+        function out = servoLagPSD(obj,fx,fy)
+            %% SERVOLAGPSD Servo-lag power spectrum density
+            
+            fc    = obj.fc;
+            out   = zeros(size(fx));
+            index = ~(abs(fx)>fc | abs(fy)>fc);
+            pf = pistonFilter(obj,hypot(fx,fy));
+            fx     = fx(index);
+            fy     = fy(index);
+            
+            out(index) = phaseStats.spectrum(hypot(fx,fy),obj.atm).*averageClosedLoopRejection(obj,fx,fy);
+            out = pf.*out;
+        end
+        
+        function out = anisoplanatismPSD(obj,fx,fy)
+            %% ANISOPLANATISM Anisoplanatism power spectrum density
+            
+            zLayer = [obj.atm.layer.altitude];
+            fr0    = [obj.atm.layer.fractionnalR0];
+            A = zeros(size(fx));
+            for kLayer=1:obj.atm.nLayer
+                red = 2*pi*zLayer(kLayer)*...
+                    ( fx*obj.src.directionVector(1) + fy*obj.src.directionVector(2) );
+                A  = A + fr0(kLayer)*( 1 - cos(red) );
+            end
+            out = pistonFilter(obj,hypot(fx,fy)).*A.*phaseStats.spectrum(hypot(fx,fy),obj.atm);
+        end
+        
+        function out = powerSpectrumDensity(obj,fx,fy)
+            %% POWERSPECTRUMDENSITY AO system power spectrum density
+            
+            out = fittingPSD(obj,fx,fy) + ...
+                noisePSD(obj,fx,fy) + ...
+                aliasingPSD(obj,fx,fy) + ...
+                servoLagPSD(obj,fx,fy);
+            if ~isempty(obj.src)
+                out = out + anisoplanatismPSD(obj,fx,fy);
+            end
+        end
+        
+        function out = varServoLag(obj)
+            fc  = obj.fc;
+            out = quad2d( @(fx,fy) servoLagPSD(obj,fx,fy),-fc,fc,-fc,fc);
+        end
+        
+        function out = varNoise(obj)
+            fc  = obj.fc;
+            out = quad2d( @(fx,fy) noisePSD(obj,fx,fy),-fc,fc,-fc,fc);
+        end
+        
         function varargout = image(obj,resolution,pixelScaleInMas)
-            %% OMAGE Point spread function
+            %% IMAGE Point spread function
+            
+            fprintf('Computing image plane ...\n')
             
             obj.psfResolution = resolution;
             obj.psfPixelScaleInMas = pixelScaleInMas;
@@ -135,7 +200,7 @@ classdef fourierAdaptiveOptics < handle
             fx = pixelScale*fx*resolution/2;
             fy = pixelScale*fy*resolution/2;
             
-            psd = fittingPSD(obj,fx,fy) + noisePSD(obj,fx,fy) + aliasingPSD(obj,fx,fy);
+            psd = powerSpectrumDensity(obj,fx,fy);
             sf  = fft2(fftshift(psd))*pixelScale^2;
             sf  = 2*fftshift( sf(1) - sf );
             
@@ -161,7 +226,7 @@ classdef fourierAdaptiveOptics < handle
                 obj.figHandle = figure;
             end
             figure(obj.figHandle)
-            imagesc(alpha,alpha,obj.psf.^0.25)
+            imagesc(alpha,alpha,obj.psf.^(1/obj.psfRoot))
             if any(abs(alpha)>obj.fcInMas)
                 u = [-1 1 1 -1 -1]*obj.fcInMas;
                 v = [-1 -1 1 1 -1]*obj.fcInMas;
@@ -189,11 +254,84 @@ classdef fourierAdaptiveOptics < handle
             end
         end
         
+        function resetPsfScale(obj,varargin)
+            if ~isempty(obj.psf)
+                figure(obj.figHandle)
+                h = findobj(obj.figHandle,'type','image');
+                set(h,'Cdata',obj.psf.^(1/obj.psfRoot))
+            end
+        end
+        
         function out = pistonFilter(obj,f)
             red = pi*obj.tel.D*f;
             out = 1 - 4*tools.sombrero(1,red).^2;
             
         end
+        
+        function out = closedLoopRejection(obj,nu)
+            %% CLOSEDLOOPREJECTION Closed loop rejection transfer function
+            
+            out   = zeros(size(nu));
+            index = nu~=0;
+            nu   = nu(index);
+            red = obj.loopGain.*tools.sinc(nu.*obj.exposureTime)./(2*pi*nu*obj.exposureTime);            
+            out(index) = ....
+                1./( 1 + red.^2 - 2.*red.*sin( 2*pi*nu*(obj.exposureTime+obj.latency) ) );
+            
+        end
+        
+        function E = averageClosedLoopRejection(obj,fx,fy)
+            %% AVERAGECLOSEDLOOPREJECTION Atmosphere average closed loop rejection transfer function
+            
+            E = averageRejection(obj,fx,fy,@(nu)closedLoopRejection(obj,nu));
+        end
+        
+        function out = closedLoopAliasing(obj,nu)
+            %% CLOSEDLOOPALIASING Closed loop aliasing transfer function
+            
+            out   = ones(size(nu));
+            index = nu~=0;
+            nu   = nu(index);
+            red = obj.loopGain.*tools.sinc(nu.*obj.exposureTime)./(2*pi*nu*obj.exposureTime);            
+            out(index) = ....
+                red.^2./( 1 + red.^2 - 2.*red.*sin( 2*pi*nu*(obj.exposureTime+obj.latency) ) );
+            
+        end
+        
+        function E = averageClosedLoopAliasing(obj,fx,fy)
+            %% AVERAGECLOSEDLOOPALIASING Atmosphere average closed loop aliasing transfer function
+            
+            E = averageRejection(obj,fx,fy,@(nu)closedLoopAliasing(obj,nu));
+        end
+        
+        function out = closedLoopNoise(obj,nu)
+            %% CLOSEDLOOPALIASING Closed loop noise transfer function
+            
+            out   = ones(size(nu));
+            index = nu~=0;
+            nu   = nu(index);
+            red = obj.loopGain.*tools.sinc(nu.*obj.exposureTime)./(2*pi*nu*obj.exposureTime);            
+            out(index) = (red./tools.sinc(nu.*obj.exposureTime)).^2./...
+                ( 1 + red.^2 - 2.*red.*sin( 2*pi*nu*(obj.exposureTime+obj.latency) ) );
+            
+        end
+        
+        function E = averageClosedLoopNoise(obj,fx,fy)
+            %% AVERAGECLOSEDLOOPALIASING Atmosphere average closed loop noise transfer function
+            
+            E = averageRejection(obj,fx,fy,@(nu)closedLoopNoise(obj,nu));
+        end
+        
+        function E = averageRejection(obj,fx,fy,fun)
+            [vx,vy] = pol2cart([obj.atm.layer.windDirection],[obj.atm.layer.windSpeed]);
+            fr0     = [obj.atm.layer.fractionnalR0];
+            E = zeros(size(fx));
+            for kLayer=1:obj.atm.nLayer
+                nu = fx*vx(kLayer) + fy*vy(kLayer);
+                E  = E + fr0(kLayer)*fun(nu);
+            end
+        end
+        
     end
     
     methods (Static)
@@ -203,16 +341,20 @@ classdef fourierAdaptiveOptics < handle
             d_atm = gmtAtmosphere(1);
             d_atm.wavelength = wavelength;
             d_atm.r0 = wavelength/(0.6/constants.radian2arcsec);
-            resolution = 88*9;
+            resolution = 2^10;
             gmt = giantMagellanTelescope('resolution',resolution);
-            fao = fourierAdaptiveOptics(gmt,d_atm,51,1.5);
-            image(fao,resolution,6/9)
+            fao = fourierAdaptiveOptics(gmt,d_atm,51,1.5,0.5,1/500,0);
+            figure
+            imagesc(image(gmt,resolution,1/wavelength/constants.radian2mas).^0.25)
+            axis square
+            image(fao,resolution,1)
         end
         
         function fao = psdDemo
             d_tel = telescope(8);
-            d_atm = atmosphere(photometry.V,15e-2,30);
-            fao = fourierAdaptiveOptics(d_tel,d_atm,10,5);
+%             d_atm = atmosphere(photometry.V,15e-2,30,'windSpeed',10,'windDirection',0);
+            d_atm = gmtAtmosphere(1);
+            fao = fourierAdaptiveOptics(d_tel,d_atm,10,5,0.5,1e-3,1e-3);
             
             pixelScaleInMas = 2.5;
             pixelScale = pixelScaleInMas*1e-3*constants.arcsec2radian/fao.atm.wavelength;
@@ -237,7 +379,7 @@ classdef fourierAdaptiveOptics < handle
             imagesc(alpha,alpha,aliasingPSD(fao,fx,fy))
             colorbar
             subplot(2,2,4)
-            imagesc(pistonFilter(fao,hypot(fx,fy)))
+            imagesc(alpha,alpha,servoLagPSD(fao,fx,fy))
             colorbar
        end
         

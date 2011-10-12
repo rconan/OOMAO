@@ -71,6 +71,7 @@ classdef deformableMirror < handle
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('validActuator', ones(nActuator), @islogical);
             p.addParamValue('zLocation', 0, @isnumeric);
+            p.addParamValue('offset', [0,0], @isnumeric);
             p.parse(nActuator, varargin{:});
             obj.nActuator         = p.Results.nActuator;
             obj.p_validActuator     = p.Results.validActuator;
@@ -78,7 +79,8 @@ classdef deformableMirror < handle
             obj.zLocation             = p.Results.zLocation;
             setSurfaceListener(obj)
             if ( isa(obj.modes,'influenceFunction') || isa(obj.modes,'hexagonalPistonTipTilt')) && ~isempty(p.Results.resolution)
-                setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
+                setInfluenceFunction(obj.modes,obj.nActuator,...
+                    p.Results.resolution,obj.validActuator,1,p.Results.offset);
             elseif isa(obj.modes,'zernike')
                 obj.p_validActuator = true(1,obj.modes.nMode);
             end
@@ -274,7 +276,7 @@ classdef deformableMirror < handle
                 dmTtCoefs = obj.coefs;
                 
                 buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
-                figure(101)
+                figure
                 imagesc(buf)
                 axis square
                 colorbar
@@ -284,6 +286,7 @@ classdef deformableMirror < handle
                 pokeTipTilt = sensor.slopes/calibDmStroke;
                 calib = calibrationVault(pokeTipTilt);
                 calib.spaceJump = dmTtCoefs;
+                calib.nThresholded = 0;
             end
             
             obj.coefs = 0;
@@ -329,12 +332,12 @@ classdef deformableMirror < handle
         end
         
         function varargout = imagesc(obj,varargin)
-            %% IMAGESC Display the lenslet imagelets
+            %% IMAGESC Display the deformable mirror surface
             %
-            % imagesc(obj) displays the imagelets of the lenslet array object
+            % imagesc(obj) displays the deformable mirror surface
             %
-            % imagesc(obj,'PropertyName',PropertyValue) displays the imagelets
-            % of the lenslet array object and set the properties of the
+            % imagesc(obj,'PropertyName',PropertyValue) displays the
+            % deformable mirror surface and set the properties of the
             % graphics object imagesc
             %
             % h = imagesc(obj,...) returns the graphics handle
@@ -342,15 +345,15 @@ classdef deformableMirror < handle
             % See also: imagesc
             
             if ishandle(obj.imageHandle)
-                set(obj.imageHandle,'Cdata',obj.surface,varargin{:});
+                set(obj.imageHandle,'Cdata',obj.surface*1e6,varargin{:});
             else
                 %                 figure
-                obj.imageHandle = image(obj.surface,...
+                obj.imageHandle = image(obj.surface*1e6,...
                     'CDataMApping','Scaled',varargin{:});
                 set( get(obj.imageHandle,'parent') ,'visible','off')
                 colormap(pink)
                 axis square
-                colorbar
+                ylabel(colorbar,'[micron]')
             end
             if nargout>0
                 varargout{1} = obj.imageHandle;
