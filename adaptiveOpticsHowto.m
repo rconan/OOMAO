@@ -78,14 +78,15 @@ ngs = ngs.*tel*wfs;
 %%
 % Selecting the subapertures illuminated at 75% or more with respect to a
 % fully illuminated subaperture
-setValidLenslet(wfs)
-%%
-% A new frame read-out and slopes computing:
-+wfs;
-%%
-% Setting the reference slopes to the current slopes that corresponds to a
-% flat wavefront
-wfs.referenceSlopes = wfs.slopes;
+% setValidLenslet(wfs)
+% %%
+% % A new frame read-out and slopes computing:
+% +wfs;
+% %%
+% % Setting the reference slopes to the current slopes that corresponds to a
+% % flat wavefront
+% wfs.referenceSlopes = wfs.slopes;
+wfs.INIT
 %%
 % A new frame read-out and slopes computing:
 +wfs;
@@ -131,50 +132,53 @@ dm = deformableMirror(nActuator,...
 
 
 %% Interaction matrix: DM/WFS calibration
+ngs=ngs.*tel;
+dmCalib = calibration(dm,wfs,ngs,ngs.wavelength/2);
 % The influence functions are normalized to 1, the actuator are then
 % controlled in stroke in meter, here we choose a half a wavelength stroke.
-stroke = ngs.wavelength/2;
-%%
-% The DM actuator commands or coefficients is set to an identity matrix
-% scaled to the required stroke; each column of the matrix is one set of
-% actuator coefficients (commands)
-dm.coefs = eye(dm.nValidActuator)*stroke;
-%%
-% Propagation of the source through the telescope and the DM to the WFS
-ngs=ngs.*tel*dm*wfs;
-%%
-% The source has been propagated through the DM as many times as the number
-% of column in the DM coefficients matrix. As a result, the slopes in the
-% WFs object is also a matrix, each column correspond to one actuactor. The
-% interaction matrix is then easily derived from the slopes:
-interactionMatrix = wfs.slopes./stroke;
-figure(10)
-subplot(1,2,1)
-imagesc(interactionMatrix)
-xlabel('DM actuators')
-ylabel('WFS slopes')
-ylabel(colorbar,'slopes/actuator stroke')
-
-
-%% Command matrix derivation
-% The command matrix is obtained by computing first the singular value
-% decomposition of the interaction matrix,
-[U,S,V] = svd(interactionMatrix);
-eigenValues = diag(S);
-subplot(1,2,2)
-semilogy(eigenValues,'.')
-xlabel('Eigen modes')
-ylabel('Eigen values')
-%%
-% the 4 last eigen values are filtered out
-nThresholded = 4;
-iS = diag(1./eigenValues(1:end-nThresholded));
-[nS,nC] = size(interactionMatrix);
-iS(nC,nS) = 0;
-%%
-% and then the command matrix is derived.
-commandMatrix = V*iS*U';
-
+% stroke = ngs.wavelength/2;
+% %%
+% % The DM actuator commands or coefficients is set to an identity matrix
+% % scaled to the required stroke; each column of the matrix is one set of
+% % actuator coefficients (commands)
+% dm.coefs = eye(dm.nValidActuator)*stroke;
+% %%
+% % Propagation of the source through the telescope and the DM to the WFS
+% ngs=ngs.*tel*dm*wfs;
+% %%
+% % The source has been propagated through the DM as many times as the number
+% % of column in the DM coefficients matrix. As a result, the slopes in the
+% % WFs object is also a matrix, each column correspond to one actuactor. The
+% % interaction matrix is then easily derived from the slopes:
+% interactionMatrix = wfs.slopes./stroke;
+% figure(10)
+% subplot(1,2,1)
+% imagesc(interactionMatrix)
+% xlabel('DM actuators')
+% ylabel('WFS slopes')
+% ylabel(colorbar,'slopes/actuator stroke')
+% 
+% 
+% %% Command matrix derivation
+% % The command matrix is obtained by computing first the singular value
+% % decomposition of the interaction matrix,
+% [U,S,V] = svd(interactionMatrix);
+% eigenValues = diag(S);
+% subplot(1,2,2)
+% semilogy(eigenValues,'.')
+% xlabel('Eigen modes')
+% ylabel('Eigen values')
+% %%
+% % the 4 last eigen values are filtered out
+% nThresholded = 4;
+% iS = diag(1./eigenValues(1:end-nThresholded));
+% [nS,nC] = size(interactionMatrix);
+% iS(nC,nS) = 0;
+% %%
+% % and then the command matrix is derived.
+% commandMatrix = V*iS*U';
+dmCalib.nThresholded = 5;
+commandMatrix = dmCalib.M;
 %% The closed loop
 % Combining the atmosphere and the telescope
 tel = tel+atm;
