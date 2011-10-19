@@ -167,7 +167,7 @@ classdef linearMMSE < handle
                 
                 case 'zonal'
                     
-                    if matlabpool('size')==0
+                    if matlabpool('size')==0 && isempty(getCurrentJob) ~= 0
                         matlabpool('open')
                         poolWasAlreadyOpen = false;
                     end
