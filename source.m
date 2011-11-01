@@ -522,6 +522,7 @@ classdef source < stochasticWave & hgsetget
                     out = bsxfun(@minus,s,s0);
                     out = 2*pi*out/obj.wavelength;
                     % 2\pi demodulation for a meamingfull phase
+%                     out = mod(out,2*pi);
                     %                     obj.wavefront = mod(obj.wavefront,2*pi);
                     %                     obj.wavefront = exp(1i.*2*pi*obj.wavefront/obj.wavelength)./s;
                 end
