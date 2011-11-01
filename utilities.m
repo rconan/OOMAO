@@ -576,7 +576,7 @@ classdef utilities
             f = reshape(1:6*nSegment,6,nSegment);
             figure(nSegment)
             patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
-            line(real(center),imag(center),'color','r','marker','.')
+%             line(real(center),imag(center),'color','r','marker','.')
             axis square
             set(gca,'ylim',get(gca,'xlim'))
             title(sprintf('%d segments',nSegment))
