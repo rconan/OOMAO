@@ -84,7 +84,7 @@ classdef shackHartmann < hgsetget
         ySlopesMap
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         %         p_slopes;
         p_referenceSlopes=0;
         p_validLenslet;
@@ -104,6 +104,7 @@ classdef shackHartmann < hgsetget
         
         %% Constructor
         function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
+            if nargin>1
             error(nargchk(1, 4, nargin))
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
@@ -124,8 +125,6 @@ classdef shackHartmann < hgsetget
             obj.referenceSlopes = zeros(obj.nValidLenslet*2,1);
             obj.p_referenceSlopes = ...
                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
-
-            setSlopesListener(obj)
             
             %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
             %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
@@ -139,12 +138,14 @@ classdef shackHartmann < hgsetget
             obj.paceMaker.BusyMode = 'drop';
             obj.paceMaker.Period = 1e-1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
-            obj.log = logBook.checkIn(obj);
             %             function timerCallBack( timerObj, event, a)
             %                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
             %                 a.grabAndProcess
             %             end
             display(obj)
+            obj.log = logBook.checkIn(obj);
+            end
+            setSlopesListener(obj)
         end
         
         %% Destructor
@@ -169,7 +170,9 @@ classdef shackHartmann < hgsetget
             end
             delete(obj.lenslets)
             delete(obj.camera)
-            checkOut(obj.log,obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj);
+            end
         end
         
         function display(obj)

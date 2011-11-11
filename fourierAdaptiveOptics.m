@@ -80,8 +80,8 @@ classdef fourierAdaptiveOptics < handle
                 f     = hypot(fx(index),fy(index));
                 out(index) = obj.noiseVariance./...
                     ( 2*pi*f.*tools.sinc(0.5*fx(index)/fc).*tools.sinc(0.5*fy(index)/fc)).^2;
-            end
             out = out.*averageClosedLoopNoise(obj,fx,fy).*pistonFilter(obj,hypot(fx,fy));
+            end
        end
         
         function out = aliasingPSD(obj,fx,fy)
@@ -184,6 +184,10 @@ classdef fourierAdaptiveOptics < handle
         function out = varNoise(obj)
             fc  = obj.fc;
             out = quad2d( @(fx,fy) noisePSD(obj,fx,fy),-fc,fc,-fc,fc);
+        end
+        
+        function out = varAo(obj,fLim)
+            out = quad2d( @(fx,fy) powerSpectrumDensity(obj,fx,fy),-fLim,fLim,-fLim,fLim);
         end
         
         function varargout = image(obj,resolution,pixelScaleInMas)
