@@ -546,9 +546,9 @@ classdef utilities
         function [vertex,center] = hexagonalArray(nCycle,pitch)
             %% HEXAGONALARRAY Array of hexagonals
             %
-            % [vertex,center] = hexagonalArray(nSegment,pitch) computes the
-            % vertex and center coordinates of nSegment hexagonals with a
-            % the given pitch arranged in a hexagonal array
+            % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
+            % vertex and center coordinates of hexagons with the given
+            % pitch arranged in a hexagonal array
             
             if nargin<2
                 pitch=1;
@@ -576,7 +576,7 @@ classdef utilities
             f = reshape(1:6*nSegment,6,nSegment);
             figure(nSegment)
             patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
-            line(real(center),imag(center),'color','r','marker','.')
+%             line(real(center),imag(center),'color','r','marker','.')
             axis square
             set(gca,'ylim',get(gca,'xlim'))
             title(sprintf('%d segments',nSegment))

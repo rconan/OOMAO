@@ -71,6 +71,7 @@ classdef deformableMirror < handle
             p.addParamValue('resolution', [], @isnumeric);
             p.addParamValue('validActuator', ones(nActuator), @islogical);
             p.addParamValue('zLocation', 0, @isnumeric);
+            p.addParamValue('offset', [0,0], @isnumeric);
             p.parse(nActuator, varargin{:});
             obj.nActuator         = p.Results.nActuator;
             obj.p_validActuator     = p.Results.validActuator;
@@ -78,7 +79,8 @@ classdef deformableMirror < handle
             obj.zLocation             = p.Results.zLocation;
             setSurfaceListener(obj)
             if ( isa(obj.modes,'influenceFunction') || isa(obj.modes,'hexagonalPistonTipTilt')) && ~isempty(p.Results.resolution)
-                setInfluenceFunction(obj.modes,obj.nActuator,p.Results.resolution,obj.validActuator,1,[0,0]);
+                setInfluenceFunction(obj.modes,obj.nActuator,...
+                    p.Results.resolution,obj.validActuator,1,p.Results.offset);
             elseif isa(obj.modes,'zernike')
                 obj.p_validActuator = true(1,obj.modes.nMode);
             end
@@ -274,7 +276,7 @@ classdef deformableMirror < handle
                 dmTtCoefs = obj.coefs;
                 
                 buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
-                figure(101)
+                figure
                 imagesc(buf)
                 axis square
                 colorbar
@@ -284,6 +286,7 @@ classdef deformableMirror < handle
                 pokeTipTilt = sensor.slopes/calibDmStroke;
                 calib = calibrationVault(pokeTipTilt);
                 calib.spaceJump = dmTtCoefs;
+                calib.nThresholded = 0;
             end
             
             obj.coefs = 0;
