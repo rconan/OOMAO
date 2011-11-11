@@ -143,10 +143,10 @@ classdef telescopeAbstract < handle
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
         end
                 
-        function out = zernike(obj,modes)
+        function out = zernike(obj,modes,varargin)
             %% ZERNIKE
             
-            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil);
+            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil,varargin{:});
         end
         
         function reset(obj)

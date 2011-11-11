@@ -397,9 +397,23 @@ classdef shackHartmann < hgsetget
             % Buffer pre-processing
             buffer     = obj.camera.frame(obj.indexRasterLenslet);
             buffer = (buffer - obj.flatField)./obj.pixelGains;
+%             % Thresholding
+%             if isfinite(obj.framePixelThreshold)
+%                 buffer           = buffer - obj.framePixelThreshold;
+%                 buffer(buffer<0) = 0;
+%             end
             % Thresholding
             if isfinite(obj.framePixelThreshold)
-                buffer           = buffer - obj.framePixelThreshold;
+                if numel(obj.framePixelThreshold)>1
+                    % intensity based thresholding
+                    maxIntensity = max(buffer);
+                    threshold    = maxIntensity*obj.framePixelThreshold(2);
+                    threshold(threshold<obj.framePixelThreshold(1)) = obj.framePixelThreshold(1);
+                    buffer       = bsxfun( @minus , buffer , threshold);
+                else
+                    % usual thresholding
+                    buffer           = buffer - obj.framePixelThreshold;
+                end
                 buffer(buffer<0) = 0;
             end
             % Centroiding

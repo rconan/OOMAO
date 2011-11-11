@@ -27,8 +27,8 @@ classdef imager < detector
     end
         
     properties (Access=private)
-        % integration count;
-        frameCount=0;
+%         % integration count;
+%         frameCount=0;
         % telescope
         tel;
     end
