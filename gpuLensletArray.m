@@ -29,17 +29,25 @@ classdef gpuLensletArray < lensletArray
             phasor = exp(-1i*pi.*u);
             phasor = phasor.'*phasor;
             
-            w = 1:nLensletWavePx;
-            intensity = zeros(nLensletWavePx,nLensletWavePx,obj.nArray*obj.nLenslet^2);
+            nLensletTotal = obj.nArray*obj.nLenslet^2;
+            w = gpuArray(1:nLensletWavePx);
+            index     = gpuArray(index);
+            phasor    = gpuArray(single(phasor));
+            phasor    = repmat( phasor , [1,1,nLensletTotal] );
+%             nOutWavePx     = gpuArray(nOutWavePx);
+%             nLensletWavePx = gpuArray(nLensletWavePx);
+%             nSrcStack      = gpuArray(nSrcStack);
+            intensity = parallel.gpu.GPUArray.zeros(nLensletWavePx,nLensletWavePx,nLensletTotal,'single');
             
             for kSrcStack=1:nSrcStack
                 
-                m_wave = src(1,:,kSrcStack).catWave/nOutWavePx;
+                m_wave = gpuArray(single(src(1,:,kSrcStack).catWave/nOutWavePx));
                 % reshape the lenslet in a 3D array, 1 lenslet in each frame
                 m_wave = reshape( m_wave(index), nLensletWavePx , nLensletWavePx , [] );
-                m_wave = bsxfun( @times , m_wave , phasor );
+                m_wave = m_wave.*phasor;
                 % and perform the 2D fft
-                m_wave = fft2( m_wave , nOutWavePx , nOutWavePx );
+                m_wave( nOutWavePx , nOutWavePx , nLensletTotal ) = 0;
+                m_wave = fft2( m_wave);
                 
                 % apply a field stop the size of the lenslet field of view
                 m_wave = m_wave(w,w,:);
@@ -50,8 +58,8 @@ classdef gpuLensletArray < lensletArray
             clear m_wave
             % reshape intensity into a 2D image
             obj.imagelets        = zeros(n1,n2);
-            obj.imagelets(index) = intensity(:);
-            obj.imagelets        = obj.imagelets*obj.throughput/nSrcStack;
+            obj.imagelets(index) = gather(intensity(:));
+            obj.imagelets        = obj.imagelets/nSrcStack;%*obj.throughput
             
         end
 

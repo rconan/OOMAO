@@ -1185,9 +1185,9 @@ classdef shackHartmann < hgsetget
                 
                 figure
                 map = zeros(nLenslet);
-                size(map(obj.validLenslet))
-                size(sigma2Y)
-                map(obj.validLenslet) = sigma2Y;
+%                 size(map(obj.validLenslet))
+%                 size(sigma2Y)
+                map(obj.validLenslet) = sigma2Y + sigma2X;
                 imagesc(map)
                 
                 B = zeros(obj.nSlope*nGs,3);

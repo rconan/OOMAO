@@ -469,6 +469,7 @@ classdef telescopeAbstract < handle
                     out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
                 src.phase = fresnelPropagation(src,obj) + out;
+                if isfinite(src.height);src.amplitude = 1./src.height;end
                 src.timeStamp = src.timeStamp + obj.samplingTime;
             end
             
