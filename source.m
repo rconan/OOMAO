@@ -152,7 +152,11 @@ classdef source < stochasticWave & hgsetget
                 end
                 magnitude = p.Results.magnitude;
                 nMag = length(magnitude);
-                obj( 1 , nObj , nHeight ) = source;
+                if strcmp(class(obj),'gpuSource')
+                    obj( 1 , nObj , nHeight ) = gpuSource;
+                else
+                    obj( 1 , nObj , nHeight ) = source;
+                end
                 for kObj = 1:nObj
                     for kHeight = 1:nHeight
                         obj(1,kObj,kHeight).p_zenith   = z(kObj);

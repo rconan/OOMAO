@@ -81,22 +81,16 @@ classdef telescope < telescopeAbstract
         
         %% Constructor
         function obj = telescope(D,varargin)
-            p = inputParser;
-            p.addRequired('D', @isnumeric);
-            p.addParamValue('obstructionRatio', 0, @isnumeric);
-            p.addParamValue('fieldOfViewInArcsec', [], @isnumeric);
-            p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
-            p.addParamValue('resolution', [], @isnumeric);
-            p.addParamValue('samplingTime', [], @isnumeric);
-            p.addParamValue('opticalAberration', [], @(x) isa(x,'atmosphere'));
-            p.parse(D,varargin{:});
-            obj = obj@telescopeAbstract(D,...
-                'obstructionRatio',p.Results.obstructionRatio,...
-                'fieldOfViewInArcsec',p.Results.fieldOfViewInArcsec,...
-                'fieldOfViewInArcmin',p.Results.fieldOfViewInArcmin,...
-                'resolution',p.Results.resolution,...
-                'samplingTime',p.Results.samplingTime,...
-                'opticalAberration',p.Results.opticalAberration);
+%             p = inputParser;
+%             p.addRequired('D', @isnumeric);
+%             p.addParamValue('obstructionRatio', 0, @isnumeric);
+%             p.addParamValue('fieldOfViewInArcsec', [], @isnumeric);
+%             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
+%             p.addParamValue('resolution', [], @isnumeric);
+%             p.addParamValue('samplingTime', [], @isnumeric);
+%             p.addParamValue('opticalAberration', [], @(x) isa(x,'atmosphere'));
+%             p.parse(D,varargin{:});
+            obj = obj@telescopeAbstract(D,varargin{:});
             display(obj)
         end
         

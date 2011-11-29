@@ -84,7 +84,7 @@ classdef shackHartmann < hgsetget
         ySlopesMap
     end
     
-    properties (Access=private)
+    properties (Access=protected)
         %         p_slopes;
         p_referenceSlopes=0;
         p_validLenslet;
@@ -104,6 +104,7 @@ classdef shackHartmann < hgsetget
         
         %% Constructor
         function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
+            if nargin>1
             error(nargchk(1, 4, nargin))
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
@@ -124,8 +125,6 @@ classdef shackHartmann < hgsetget
             obj.referenceSlopes = zeros(obj.nValidLenslet*2,1);
             obj.p_referenceSlopes = ...
                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
-
-            setSlopesListener(obj)
             
             %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
             %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
@@ -139,12 +138,14 @@ classdef shackHartmann < hgsetget
             obj.paceMaker.BusyMode = 'drop';
             obj.paceMaker.Period = 1e-1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
-            obj.log = logBook.checkIn(obj);
             %             function timerCallBack( timerObj, event, a)
             %                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
             %                 a.grabAndProcess
             %             end
             display(obj)
+            obj.log = logBook.checkIn(obj);
+            end
+            setSlopesListener(obj)
         end
         
         %% Destructor
@@ -169,7 +170,9 @@ classdef shackHartmann < hgsetget
             end
             delete(obj.lenslets)
             delete(obj.camera)
-            checkOut(obj.log,obj)
+            if ~isempty(obj.log)
+                checkOut(obj.log,obj);
+            end
         end
         
         function display(obj)
@@ -397,6 +400,11 @@ classdef shackHartmann < hgsetget
             % Buffer pre-processing
             buffer     = obj.camera.frame(obj.indexRasterLenslet);
             buffer = (buffer - obj.flatField)./obj.pixelGains;
+%             % Thresholding
+%             if isfinite(obj.framePixelThreshold)
+%                 buffer           = buffer - obj.framePixelThreshold;
+%                 buffer(buffer<0) = 0;
+%             end
             % Thresholding
             if isfinite(obj.framePixelThreshold)
                 if numel(obj.framePixelThreshold)>1
@@ -709,7 +717,7 @@ classdef shackHartmann < hgsetget
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
                 axis equal tight xy
-                %                 set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
+                set(gca,'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
                 colorbar
             end
             if nargout>0
@@ -1177,9 +1185,9 @@ classdef shackHartmann < hgsetget
                 
                 figure
                 map = zeros(nLenslet);
-                size(map(obj.validLenslet))
-                size(sigma2Y)
-                map(obj.validLenslet) = sigma2Y;
+%                 size(map(obj.validLenslet))
+%                 size(sigma2Y)
+                map(obj.validLenslet) = sigma2Y + sigma2X;
                 imagesc(map)
                 
                 B = zeros(obj.nSlope*nGs,3);

@@ -21,10 +21,12 @@ classdef telescopeAbstract < handle
         D;
         % central obstruction ratio
         obstructionRatio;
-        % conjugation altitude
-        conjugationHeight;
-        % focalisation distance
-        focalDistance;
+%         % conjugation altitude
+%         conjugationHeight;
+%         % focalisation distance
+%         focalDistance;
+        % elevation
+        elevation;
         % field-of-view
         fieldOfView;
         % diameter resolution in pixel
@@ -94,8 +96,9 @@ classdef telescopeAbstract < handle
             p = inputParser;
             p.addRequired('D', @isnumeric);
             p.addParamValue('obstructionRatio', 0, @isnumeric);
-            p.addParamValue('conjugationHeight', 0, @isnumeric);
-            p.addParamValue('focalDistance', Inf, @isnumeric);
+%             p.addParamValue('conjugationHeight', 0, @isnumeric);
+%             p.addParamValue('focalDistance', Inf, @isnumeric);
+            p.addParamValue('elevation', 0, @isnumeric);
             p.addParamValue('fieldOfViewInArcsec', [], @isnumeric);
             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
             p.addParamValue('resolution', [], @isnumeric);
@@ -103,9 +106,10 @@ classdef telescopeAbstract < handle
             p.addParamValue('opticalAberration', [], @(x) true);
             p.parse(D, varargin{:});
             obj.D                = p.Results.D;
-            obj.conjugationHeight = p.Results.conjugationHeight;
-            obj.focalDistance = p.Results.focalDistance;
+%             obj.conjugationHeight = p.Results.conjugationHeight;
+%             obj.focalDistance = p.Results.focalDistance;
             obj.obstructionRatio = p.Results.obstructionRatio;
+            obj.elevation = p.Results.elevation;
             if ~isempty(p.Results.fieldOfViewInArcsec)
                 obj.fieldOfView      = p.Results.fieldOfViewInArcsec./cougarConstants.radian2arcsec;
             elseif ~isempty(p.Results.fieldOfViewInArcmin)
@@ -143,10 +147,10 @@ classdef telescopeAbstract < handle
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
         end
                 
-        function out = zernike(obj,modes)
+        function out = zernike(obj,modes,varargin)
             %% ZERNIKE
             
-            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil);
+            out = zernike(modes,obj.D,'resolution',obj.resolution,'pupil',obj.pupil,varargin{:});
         end
         
         function reset(obj)
@@ -468,7 +472,8 @@ classdef telescopeAbstract < handle
 %                     out = (obj.atm.wavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                     out = (obj.phaseScreenWavelength/src.wavelength)*out; % Scale the phase according to the src wavelength
                 end
-                src.phase = fresnelPropagation(src,obj) + out;
+                src.phase = fresnelPropagation(src,obj) + out/sqrt( cos( obj.elevation ) );
+                if isfinite(src.height);src.amplitude = 1./src.height;end
                 src.timeStamp = src.timeStamp + obj.samplingTime;
             end
             

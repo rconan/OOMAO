@@ -214,7 +214,7 @@ classdef detector < handle
             % out = grab(obj) grabs a frame and returns it
             
             switch class(obj.frameGrabber)
-                case 'lensletArray'
+                case {'lensletArray','gpuLensletArray'}
                     readOut(obj,obj.frameGrabber.imagelets)
                 case 'function_handle'
                     buffer = obj.frameGrabber();

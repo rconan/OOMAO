@@ -546,9 +546,9 @@ classdef utilities
         function [vertex,center] = hexagonalArray(nCycle,pitch)
             %% HEXAGONALARRAY Array of hexagonals
             %
-            % [vertex,center] = hexagonalArray(nSegment,pitch) computes the
-            % vertex and center coordinates of nSegment hexagonals with a
-            % the given pitch arranged in a hexagonal array
+            % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
+            % vertex and center coordinates of hexagons with the given
+            % pitch arranged in a hexagonal array
             
             if nargin<2
                 pitch=1;
