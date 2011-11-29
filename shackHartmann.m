@@ -717,7 +717,7 @@ classdef shackHartmann < hgsetget
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
                 axis equal tight xy
-                %                 set(gca,'Clim',[floor(min(intensity(v))),max(intensity(v))])
+                set(gca,'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
                 colorbar
             end
             if nargout>0

@@ -73,6 +73,7 @@ classdef gpuSource < source
             nValidLenslet = wfs.nValidLenslet;
             nPixelLenslet = wfs.lenslets.nLensletImagePx;
             nArray         = size(obj,2);
+            wfs.lenslets.nArray = nArray;
             nLenslet2      = nLenslet^2;
             nLenslets      = nLenslet^2*nArray;
             nValidLenslets = nValidLenslet*nArray;
@@ -87,9 +88,7 @@ classdef gpuSource < source
             phasor = phasor.'*phasor;
             %%
             index    = tools.rearrange( [n1,n1]  , [nLensletWavePx,nLensletWavePx] );
-            lgsHeight0 = [obj(1,1,:).height];
-            c2 = 285e4/sum(1./lgsHeight0.^2);
-            telPupil = tel.pupil.*sqrt(tel.samplingTime*c2.*tel.area/tel.pixelArea)/nOutWavePx;
+            telPupil = tel.pupil.*sqrt(tel.samplingTime*tel.area/tel.pixelArea)/nOutWavePx;
             telPupil = reshape( telPupil(index) , nPixelLenslet,nPixelLenslet,nLenslet2);
             [xPup,yPup] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
             yPup     = reshape( yPup(index)     , nPixelLenslet,nPixelLenslet,nLenslet2);
@@ -110,20 +109,24 @@ classdef gpuSource < source
             fr = gsingle(fr);
             waveNumber = obj(1).waveNumber;
             objectiveFocalLength = obj(1).objectiveFocalLength;
-            srcHeight  = gdouble( [obj(1,1,:).height] );
+            srcHeight  = gdouble( [obj(1,1,:).height]/cos(tel.elevation) );
             nHeight = size(obj,3);
             kLenslet_ = 1:nLenslets;
             validLenslet = repmat( wfs.validLenslet(:)' , 1 , nArray );
             kLenslet_( ~validLenslet ) = [];
             kLenslet_ = gsingle( kLenslet_ );
+            naProfile = [obj(1,1,:).nPhoton];
             %%
             lensletIntensity = gzeros(nPixelLenslet*nPixelLenslet,nValidLenslets,'single');
-            gsync
-            t = tic;
+%             gsync
+%             t = tic;
             for kHeight = 1:nHeight;
                 
-                height  = srcHeight(kHeight);
+                height         = srcHeight(kHeight);
+                naProfileHeight = naProfile(kHeight);
                 
+                try
+                    
                 gfor kValidLenslet = 1:nValidLenslets
                 
                 kLenslet = kLenslet_(kValidLenslet);
@@ -136,48 +139,63 @@ classdef gpuSource < source
                 buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
                 buf2(:)      = abs( buf1(lensletIndex) ).^2;
                 buf2         = conv2( buf2 , fr ,'same');
-                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + buf2(:);
+                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                    buf2(:)*naProfileHeight;
                 
                 gend
-                geval(lensletIntensity)
-                gsync
+%                 geval(lensletIntensity)
+%                 gsync
+
+                catch err
+                    
+                    if ~strcmp(err.identifier,'jacket:runtime')
+                        rethrow(err)
+                    end
+                    
+                gfor kValidLenslet = 1:nValidLenslets/2
+                
+                kLenslet = kLenslet_(kValidLenslet);
+                n = fix((kLenslet-1)/nLenslet2);
+                k = kLenslet - n*nLenslet2;
+                
+                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                    height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
+                
+                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                buf2         = conv2( buf2 , fr ,'same');
+                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                    buf2(:)*naProfileHeight;
+                
+                gend
+                gfor kValidLenslet = 1+nValidLenslets/2:nValidLenslets
+                
+                kLenslet = kLenslet_(kValidLenslet);
+                n = fix((kLenslet-1)/nLenslet2);
+                k = kLenslet - n*nLenslet2;
+                
+                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                    height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
+                
+                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                buf2         = conv2( buf2 , fr ,'same');
+                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                    buf2(:)*naProfileHeight;
+                
+                gend                    
+                    
+                end
                 
             end
-            toc(t)
+%             toc(t)
             %%
             imagelets  = zeros(n1,n2);
             index = tools.rearrange( [n1,n2] , [nLensletWavePx,nLensletWavePx] );
-            imagelets(index(:,validLenslet)) = double(lensletIntensity(:))/nHeight;
+            imagelets(index(:,validLenslet)) = wfs.lenslets.throughput*double(lensletIntensity(:));
             wfs.lenslets.imagelets = imagelets;
             
-            +wfs;
-            % imagelets(index) = double(lensletIntensity(:))/nHeight;
-%             figure(1)
-%             imagesc(imagelets)
-%             axis equal tight
-            
-%             %%
-%             frame = tools.binning(imagelets,[nPxDetector,nPxDetector*nArray]);
-%             figure(2)
-%             % hold all
-%             % plot(  frame(368,:) )
-%             % xlabel('Pixel')
-%             % ylabel('Intensity')
-%             imagesc(frame)
-%             axis equal tight
-%             set(gca,'xlim',[0,nPxDetector]+0.5,'ylim',[0,nPxDetector]+0.5)
-%             axis square
-%             
-%             %%
-%             intensityMap = zeros(1,nLenslet*nLenslet*nArray);
-%             intensityMap(validLenslet) = double(sum(lensletIntensity));
-%             % intensityMap = double(sum(lensletIntensity));
-%             intensityMap = reshape( intensityMap , nLenslet , nLenslet*nArray );
-%             figure(3)
-%             imagesc(intensityMap)
-%             set(gca,'clim',[floor(min(intensityMap(intensityMap>0))),ceil(max(intensityMap(:)))])
-%             axis equal tight
-%             colorbar('location','northOutside')
+            +wfs; %#ok<VUNUS>
         end
         
     end
