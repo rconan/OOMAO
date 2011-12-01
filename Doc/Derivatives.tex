@@ -1,0 +1,28 @@
+% To be compiled with pdflatex
+% This file is to be included into master file via \input command
+% Note that there is no \begin{document} \end{document} brackets!
+
+\newpage
+\section{Appendix: \\ Matrix derivatives}
+\label{sec:MDerivative}
+
+Derivative of linear matrix functional $$p^T F z$$ with respect to matrix $F$
+is computed as follows:
+\begin{enumerate}
+ \item Write the functional in element-wise form:
+   $$ f = p^T F z = \sum_i \sum_j p_i F_{ij} z_j. $$
+ \item Differentiate with respect to $F_{ij}$:
+    $$ \frac{\partial f}{\partial F_{ij}} = p_i z_j. $$
+ \item Thus $$ \frac{\partial}{\partial F} (p^T F z) = p z^T. $$
+\end{enumerate}
+
+Derivative of quadratic matrix functional $$z^T F^T A F z,$$ where $A$ is
+symmetric real valued matrix, with respect to matrix $F$ is computed as follows:
+\begin{enumerate}
+ \item Write the functional in element-wise form:
+    $$ f = z^T F^T A F z = \sum_{i=1}^m \sum_{l=1}^n \sum_{j=1}^m \sum_{k=1}^n
+    F_{il} F_{jk} A_{ij} z_l z_k $$
+ \item Most conveniently, by writing down the above equation for a case of
+ small matrix size, say, 2x2, find by inspection that
+    $$ \frac{\partial}{\partial F} (z^T F^T A F z) = 2 A F zz^T. $$
+\end{enumerate}
