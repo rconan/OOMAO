@@ -1,0 +1,399 @@
+% To be compiled with pdf LaTeX
+% This file is to be included into master file via \input command
+% Note that there is no \begin{document} \end{document} brackets!
+
+\newpage
+\section{Shack-Hartmann Wavefront sensor modeling}
+\label{sec:sh-wfs}
+
+\mbox{}
+
+\subsection{Nomenclature}
+
+\mbox{}
+
+$\bm{s} = (s_{x},s_{y})$ - vector of xy-slope measurements read from one
+Shack-Hartmann sensor subaperture, [m or pixels].
+\\
+
+$I(x,y)$ - intensity distribution in the detector focal plane, [].
+\\
+
+$\langle \bm{s} \bm{s}^{T} \rangle - \langle \bm{s} \rangle
+\langle \bm{s} \rangle^{T}$ - covariance matrix of the xy-slope measurements,
+[m$^{2}$ or pixel$^{2}$].
+\\
+
+$A$ - area of subaperture, [m$^{2}$].
+\\
+
+$p$ - detector pixel size, [m].
+\\
+
+$n_{ph}$ - number of photons passed through a subaperture, [].
+\\
+
+$\sigma_{e}$ - readout noise, [electrons/pixel].
+\\
+
+$f_{L}$ - lenslet focal distance, [m]
+\\
+
+$\Gamma_{L}$ - angular magnification in the detector exit pupil, [].
+\\
+
+$\varepsilon_{Na}$ - angular fwhm size of \texttt{Na} LGS projected to sky as
+seen from a subaperture, [rad].
+\\
+
+$\varepsilon_{0}$ - angular fwhm size of a point source projected to sky as
+seen from a subaperture, [rad].
+\\
+
+$\theta_{e}$ - orientation angle of the elongated spot on the detector, [rad].
+
+\subsection{Sensor geometry}
+\label{subsec:sh-wfs-geometry}
+
+TBD
+
+\subsection{Propagation from exit pupil to detector}
+\label{subsec:sh-wfs-propagation}
+
+\mbox{}
+
+The sampling of the pupil is derived from the sampling in the WFS detector
+focal plane.
+If $n_d$ is the number of samples across each spot on the detector and the
+fwhm of the
+diffraction limited spot is sampled with $k$ pixels, then the pupil sampling is
+$2Nn_d/k=Nn$, where $N$ is number of subapertures across the pupil diameter,
+$n$ is number of pixels across a subaperture diameter.
+It is required that either $k$ or $1/k$ is an integer and that $k\leq 2$.
+It is worth nothing that a field stop the size of a subaperture
+field--of--view is assumed.
+The pixel scale  and the field--of--view are given by $\lambda/dk$ and
+$n_d\lambda/dk$, respectively, with $\lambda$ the wavefront sensing
+wavelength and $d$ the lenslet pitch.
+
+The Shack--Hartmann wavefront sensor (SH--WFS) model
+\begin{enumerate}
+\item the telescope pupil $\Pi$ is cut in $N\times N$ square pieces of
+$n\times n$ pixels corresponding to the $N\times N$ lenslet array, for the
+lenslet $(k,l)$ this is $$a_{kl} =
+\Pi[kn,\dots,(k+1)n-1][ln,\dots,l(n+1)-1]\quad k,l=0,\dots,N-1,$$
+\item each square array is multiplied by a complex phase ramp to keep the
+spot at the center of the array in the free aberration case,
+$$a_{kl}^\prime(i,j) = a_{kl}(i,j)\exp(\iota \pi (i+j)(n-1)/n^\prime)\quad
+i,j=0,\dots,n-1$$ with $n^\prime=2n$ if $n$ is even or  $n^\prime=2n+1$ if $n$
+ is odd and $\iota=\sqrt{-1}$,
+\item each square array is padded with zeros in both directions up to
+$n^\prime$,$$a_{kl}^\prime[n,\dots,n^\prime-1][n,\dots,n^\prime-1]=0,$$
+\item a discrete Fourier transform is performed on each zero--padded array,
+$$\tilde a_{kl}^\prime = DFT\left\{a_{kl}^\prime\right\},$$
+\item each resulting array is reduced to half its size, $$\tilde a_{kl} =
+\tilde a_{kl}^\prime[0,\dots,n-1][0,\dots,n-1],$$
+\item the spot intensities are computed from the squared modulus of the
+reduced arrays, $$b_{kl} = \left| \tilde a_{kl} \right|^2,$$
+\item if needed i.e. $k<2$, the intensity map are binned to the detector
+array size, $$b_{kl}^\prime(k,l) =
+\sum_{i=kn_d}^{(k+1)n_d-1}\sum_{j=ln_d}^{(l+1)n_d-1} b_{kl}(i,j)\quad
+k,l=0,\dots,n_d-1 $$
+\end{enumerate}
+
+\subsection{Centroiding methods}
+\label{subsec:sh-wfs-centroid}
+
+The four spot centroiding methods are considered for the GMT LTAO Shack-Hartmann
+sensors:
+\begin{enumerate}
+	\item \emph{Center of Gravity}: \index{Center of Gravity centroid}
+	\begin{equation} \label{eq:CoG}
+	\left[ \begin{array}{c} s_{x} \\ s_{y} \end{array} \right] =
+	\frac{1}{\sum_{xy} I(x,y)}
+	\sum_{xy} \left[ \begin{array}{c} x \\ y \end{array} \right] I(x,y),
+	\end{equation}
+	where $\bm{s} = (s_{x},s_{y})$ is the slope readout from the spot,
+	$I(x,y)$ is the intensity distribution read out from detector pixels,
+	summation is done over the pixels in the area occupied by a single spot.
+	\item \emph{Weighted Center of Gravity} \index{Weighted Center of Gravity
+	centroid} is the Center of Gravity algorithm
+	applied to image $I(x,y) I_{0}(x,y)$, where $I_{0}(x,y)$ is a
+	\emph{reference image}. \index{reference image}
+	\item \emph{Correlation} \index{Correlation centroid} algorithm finds spot
+	position as that of maximum of the correlation function
+	\begin{equation} \label{eq:corr}
+		C(\bm{s}) = \sum_{xy} I(x,y) I_{0}(x-s_{x},y-s_{y}),
+	\end{equation}
+	where $I_{0}(x,y)$ is a reference image.
+	\item \emph{Quad cell} \index{quad cell} centroiding algorithm is used in
+	the tip/tilt WFS, which has 4 pixels per spot. The quad cell readout is
+	\begin{equation} \label{eq:quad-cell}
+		s_{x} = \frac{1}{\sum_{i=1}^{4} I_{i}} (I_{1} + I_{2} - I_{3} - I_{4}),
+	\end{equation}
+	$$
+		s_{y} = \frac{1}{\sum_{i=1}^{4} I_{i}} (I_{1} + I_{3} - I_{2} - I_{4}),
+	$$
+	where $\{ I_{i} \}_{i=1}^{4}$ are the four intensity reads from the quad
+	cell pixels.
+\end{enumerate}
+Discussion of these centroiding approaches is given in Ref.
+\cite{ConanCentroid}.
+
+\subsection{Sensor noise covariance matrix}
+\label{subsec:sh-wfs-noise-covariance}
+
+\mbox{}
+
+This section describes the derivation of the noise covariance matrix for a
+SH--WFS with a $N_L\times N_L$ lenslet array paving a telescope pupil of
+diameter $D$.
+The spots of the SH--WFS are assumed to be seeing
+limited i.e. $r_0<D/N_L$, $r_0$ is the Fried parameter. Thus, the projected to
+sky angular size of the spot formed by a lenslet is
+$\varepsilon_0=\lambda/r_0$, $\lambda$ is the WFS operational wavelength.
+The spot elongation due to elongated LGS is characterized by the
+$(\varepsilon_{Na},\theta_{e})$-pair of the fwhm angular size
+along the \texttt{Na} LGS elongation direction and the elongation
+orientation angle. Both these parameters depend on the mutual orientation
+lenslet and the LLT, altitude and thickness of the \texttt{Na} layer, and the
+LLT pointing. The calculation of the $(\varepsilon_{Na},\theta_{e})$-pair is
+described in Section \ref{sec:elongation-orientation}.
+
+The spot intensity profile due to the LGS is
+assumed to be Gaussian with elliptical cross section and the long ellipse axis
+is rotated by angle $\theta_{e}$ with respect to the camera focal plane
+xy-coordinates:
+\def\nph{n_{ph}}
+\begin{equation}
+  \label{eq:2}
+  I_{S}(x,y) = { \nph \over 2\pi \sigma_x\sigma_y }
+  \exp\left( - { x^{\prime 2} + y^{\prime 2} \over 2\sigma_x\sigma_y}\right),
+\end{equation}
+where subscript $S$ stands for the star image distribution,
+$\nph$ is the photon flux through the subaperture,
+\def\vr{\bm{r}}
+\def\vre{\bm{r_e}}
+\begin{eqnarray}
+  \label{eq:3}
+  x^{\prime} &=& x\cos(\theta_e) - y\sin(\theta_e), \\
+  y^{\prime} &=& x\sin(\theta_e) + y\cos(\theta_e),
+\end{eqnarray}
+$\sigma_x$ and $\sigma_y$ are related to the fwhm of the non-elongated and
+elongated spot, respectively, as
+\begin{eqnarray}
+  \label{eq:6}
+  \varepsilon_{x,y} &=& 2\sqrt{2\ln(2)}\sigma_{x,y}, \\
+  \varepsilon_{x,y} &=& f_{L} \Gamma_{L} \varepsilon_{0,Na},
+\end{eqnarray}
+where $f_{L}$ is the lenslet focal distance, $\Gamma_{L}$ is the angular
+magnification in the exit pupil where the lenslet array is located.
+
+The spot centroid xy-readout in the lenslet focal plane in case of the
+\emph{Center of Gravity} centroiding algorithm \index{Center of Gravity
+centroid} is given by
+\begin{equation}
+  \label{eq:10}
+  \bm{s} = \left[ \begin{array}{c} s_{x} \\ s_{y} \end{array} \right] =
+  \frac{1} {\iint_A I(x,y) {\rm d}x{\rm d}y}
+  \iint_A
+  \left[ \begin{array}{c} x \\ y \end{array} \right]
+  I(x,y) {\rm d}x{\rm d}y,
+\end{equation}
+where $I(x,y)$ is the complete intensity distribution in the spot that
+includes the star intensity disribution and some other additions,
+$A=(D/N_L)^2$ is the lenslet area.
+
+\subsection{Spot intensity distribution}
+\label{sec:spot-intensity}
+
+To proceed with computation of the spot
+readout covariance assumptions about the spot intensity distribution need to
+be made:
+\begin{enumerate}
+	\item The whole intensity distribution is
+	\begin{equation} \label{eq:whole-intensity}
+		I(x,y) = I_{S}(x,y) + I_{B}(x,y),
+	\end{equation}
+	where $I_{S}(x,y)$ is given in Eq. (\ref{eq:2}), $I_{e}(x,y)$ is the
+	background image due to sensor readout noise.
+	\item $I_{S}(x,y)$ and $I_{B}(x,y)$ are statistically independent, i.e.
+	$\langle I_{S}(x,y)I_{B}(x,y) \rangle = 0$.
+	\item $\langle I_{B}(x,y) \rangle$ = 0.
+	\item All the $I_{S}(x,y)$ distribution energy is concentrated inside region
+	$A$, so \\ $ \iint_A I_{S}(x,y) {\rm d}x{\rm d}y \approx \nph = const$.
+	\item The random process $I_{B}(x,y)$ is ergodic, so
+	$0 = \langle I_{B}(x,y)
+	\rangle \approx \iint_{A} I_{B}(x,y) {\rm d}x {\rm d}y$, which, together
+	with the previous assumption gives
+	$ \iint_A I(x,y) {\rm d}x{\rm d}y \approx \nph $.
+	\item Spot cross-talk is negligible, so
+  spots from different lenslets are statistically independent. Therefore, the
+  full WFS readout covariance matrix is block diagonal with 2x2 blocks
+  corresponding to each spot xy-slope covariance.
+  \item Pixel intensities are statistically independent, i.e.
+  $\langle I(x,y)I(x^{\prime},y^{\prime}) \rangle = 0$.
+\end{enumerate}
+Eq. (\ref{eq:10}) due to assumptions 5, 6 simplifies to
+\begin{eqnarray}
+  \label{eq:11}
+  \bm{s} =
+  \frac{1} {\nph}
+  \iint_A
+  \left[ \begin{array}{c} x \\ y \end{array} \right]
+  I(x,y) {\rm d}x{\rm d}y.
+\end{eqnarray}
+The covariance of the spot centroid readouts is given by
+\begin{equation}
+  \label{eq:12}
+  \langle \bm{s} \bm{s}^{T} \rangle -
+  \langle \bm{s} \rangle \langle \bm{s}^{T} \rangle
+\end{equation}
+$$
+  = {1 \over \nph^2} \iint_A \iint_A
+  \left[
+  \begin{array}{cc} x_{1} x_{2} & x_{1} y_{2} \\
+                    y_{1} x_{2} & y_{1} y_{2} \end{array}
+  \right]
+  ( \langle I(x_{1},y_{1}) I(x_{2},y_{2}) \rangle
+  - \langle I(x_{1},y_{1}) \rangle
+    \langle I(x_{2},y_{2}) \rangle )
+    {\rm d}x_{1}{\rm d}y_{1} {\rm d}x_{2}{\rm d}y_{2}.
+$$
+Substututing Eq. (\ref{eq:whole-intensity}) and using assumptions 2, 3, and 7
+we simplify this equation to
+\begin{equation}
+  \label{eq:13}
+  \langle \bm{s} \bm{s}^{T} \rangle -
+  \langle \bm{s} \rangle \langle \bm{s}^{T} \rangle
+\end{equation}
+$$
+ = {1 \over \nph^2} \iint_A{}
+   \left[
+   \begin{array}{cc}
+	   x^{2} & xy    \\
+	   xy    & y^{2}
+	 \end{array}
+   \right]
+   (\sigma_{I}^{2}(x,y)+\sigma_{B}^{2})
+   {\rm d}x{\rm d}y,
+$$
+where
+$$
+  \sigma_{S}^{2}(x,y) =
+  \langle I_{S}^{2}(x,y) \rangle - \langle I_{S}(x,y) \rangle^{2},
+$$
+is the variance distribution in the star intensity distribution,
+$$
+  \sigma_{B}^{2} = \langle I^{2}_{B}(x,y) \rangle = const.
+$$
+is the readout noise variance. Thus the sensor readout covariance has two
+terms that can be treated independently.
+
+\subsection{Photon noise}
+\label{sec:photon-noise}
+
+The photon noise follows a Poisson statistics distribution with variance
+$\sigma_{S}^{2}(x,y) = I_{S}(x,y)$.
+Thus the spot centroid readouts covariance in the case of
+the photon noise is given by
+\begin{equation}
+  \label{eq:1}
+  \langle \bm{s} \bm{s}^{T} \rangle_{S} -
+  \langle \bm{s} \rangle_{S} \langle \bm{s}^{T} \rangle_{S}
+\end{equation}
+$$ = {1 \over \nph^2} \iint_{A}
+   \left[
+   \begin{array}{cc}
+	   x^{2} & xy \\
+	   xy    & y^{2}
+	 \end{array}
+   \right]
+   I_{S}(x,y) \;{\rm d}x {\rm d}y,
+$$
+where $\nph$ is the number of photons per subaperture, $x$ and $y$ are the
+coordinates in the focal plane,
+the intensity $I_{S}(x,y)$ in the focal plane given by Eq. (\ref{eq:2}).
+
+Substututing Eq.(\ref{eq:2}) into Eq.~(\ref{eq:1}) and performing the
+integration leads to
+\begin{equation}
+  \label{eq:4}
+  \langle \bm{s} \bm{s}^{T} \rangle_{S} -
+  \langle \bm{s} \rangle_{S} \langle \bm{s}^{T} \rangle_{S}
+\end{equation}
+$$
+  = {1 \over \nph}
+  \left[
+  \begin{array}{cc}
+	  \sigma_{x}^{2} \cos^{2} \theta_{e} + \sigma_{y}^{2} \sin^{2} \theta_{e} &
+	  (\sigma_{x}^{2}-\sigma_{y}^{2}) \cos \theta_{e} \sin \theta_{e} \\
+	  (\sigma_{x}^{2}-\sigma_{y}^{2}) \cos \theta_{e} \sin \theta_{e} &
+	  \sigma_{x}^{2} \sin^{2} \theta_{e} + \sigma_{y}^{2} \cos^{2} \theta_{e}
+	\end{array}
+  \right]
+$$
+$$
+  =
+  \left[
+  \begin{array}{cc}
+	  \sigma^{2}_{xx} & \sigma^{2}_{xy} \\
+	  \sigma^{2}_{xy} & \sigma^{2}_{yy}
+	\end{array}
+  \right].
+$$
+
+From Eq.(\ref{eq:4}), it is obvious that covariance is null when the
+spots are oriented either along the x or y axis or if the fwhms of both x and
+y axis are the same.
+
+\subsection{Read-out noise}
+\label{sec:read-out-noise}
+
+The read-out noise follows a zero-mean
+Gaussian distribution of variance $\sigma^{2}_{B} = \sigma^2_e / p^{2}$,
+where $\sigma^{2}_{e}$ is the number of read noise electrons squared per
+pixel area $p^2$. Since $\sigma^{2}_{B} = const.$ and, with assumption that $A$
+is a square lenslet, we have
+$$
+  \sigma^{2}_{B} \iint_{A} xy {\rm d}x{\rm d}y = 0,
+$$
+$$
+  \iint_{A} x^{2} {\rm d}x{\rm d}y =
+  \iint_{A} y^{2} {\rm d}x{\rm d}y.
+$$
+Thus the readout noise covariance matrix is diagonal:
+\begin{equation} \label{eq:14}
+	\langle \bm{s} \bm{s}^{T} \rangle_{B} =
+	\left[{}
+	\begin{array}{cc}
+		\sigma^{2}_{ron} & 0 \\
+		0 & \sigma^{2}_{ron} \\
+	\end{array}
+	\right].
+\end{equation}
+For a square lenslet of size $d=D/N_L$ we get
+\begin{equation} \label{eq:15}
+     \sigma_{ron}^2 = \left(\sigma_e \over p \nph \right)^2
+     \int_{-d/2}^{d/2} \int_{-d/2}^{d/2} x^2 {\rm d}x{\rm d}y \\
+                   = {1\over 12}\left(d^2\sigma_e \over p \nph \right)^2 =
+                   {N_d^2\over 12}\left(D\sigma_e \over N_L \nph \right)^2,
+\end{equation}
+$N_d$ is the total number of pixels used for computing the centroids.
+
+Finally, the sensor readout
+noise covariance matrix for one lenslet is a sum of covariance matrices for
+photon and readout noises:
+\begin{equation}
+  \label{eq:16}
+  \langle \bm{s} \bm{s}^{T} \rangle_{S+B} -
+  \langle \bm{s} \rangle_{S+B} \langle \bm{s}^{T} \rangle_{S+B} =
+  \left[
+    \begin{array}{cc}
+      \sigma^2_{xx} + \sigma_{ron}^2 & \sigma_{xy} \\
+      \sigma_{xy} & \sigma^2_{yy} + \sigma_{ron}^2
+    \end{array}
+  \right].
+\end{equation}
+For the whole lenslet array, the noise covariance matrix is a block diagonal
+with these matrices on the diagonal.
