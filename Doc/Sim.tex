@@ -1,0 +1,72 @@
+\documentclass[10pt]{article}
+% To be compiled with pdfLaTeX
+
+% This is the master file of this template, the one to be actually
+% compiled with pdfLaTeX
+
+% Absolutely necessary packages
+\usepackage{graphicx}
+\usepackage[pdftex,bookmarks,colorlinks]{hyperref}
+\usepackage{amsfonts}
+\usepackage{bm}
+\usepackage{makeidx}
+
+% get nested equation numbering up to subsection level
+\usepackage{amsmath}
+\numberwithin{equation}{subsection}
+
+% Setup of the .pdf file to be generated
+\hypersetup{ pdftitle={GMT AO simulation Documentation},
+pdfauthor={Piotr Piatrou},
+bookmarksnumbered = true,
+bookmarksopen =   true,
+pdfstartview = {FitH},
+linkcolor = blue,
+anchorcolor = black,
+citecolor = blue,
+filecolor = magenta,
+menucolor = red,
+urlcolor = red }
+
+% Margins setup (normally LaTeX generates too narrow pages inconvenient for
+% table and graphics inclusion, this setup is a fix for it)
+\textwidth6in
+\textheight9in
+\topmargin-0.5in
+
+\makeindex % make word index
+
+\begin{document}
+
+\begin{center}
+    \vspace{5cm}
+    \LARGE{\textbf{Rodolphe Conan \\ Piotr Piatrou}} \\
+    \vspace{5cm}
+    \Huge{\textbf{GMT AO \\ simulation documentation}} \\
+    \vspace{13cm}
+    \Large{Australian National University, Canberra \\ 2011-}
+\end{center}
+
+\newpage
+\tableofcontents
+
+% The .tex files contributed by each group member are added here through
+% \input command by a person responsible for documentation keeping.
+% All the contents are included as separate .tex files.
+% If a file is not in the current folder, a full path to it should be
+% given in the \input command, e.g. /home/TeXpapers/Reports/file
+% Note that paths should be with / slash independently of platform.
+
+\input{Atmosphere}
+\input{LGS}
+\input{SHWFS}
+\input{DM}
+\input{Control}
+\input{Derivatives}
+\input{DF}
+\input{Biblio}
+
+\newpage
+\printindex % print word index in the end
+
+\end{document}

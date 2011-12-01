@@ -1,0 +1,60 @@
+% To be compiled with pdflatex
+% This file is to be included into master file via \input command
+% Note that there is no \begin{document} \end{document} brackets!
+
+\newpage
+\section{Appendix: \\ Basic discrete-time digital filter theory}
+\label{app:DF}
+
+\mbox{}
+
+Here the basic formulas for the digital linear filter theory are given.
+
+\emph{Definition}: a time-invariant, single-input-single-output (SISO), order N
+disctete-time linear digital filter is given by a
+linear, order-N difference equation with constant coefficients:
+\begin{equation} \label{eq:filter-diff}
+	y(i) = \sum_{k=0}^{N} b_{k} u(i-k) - \sum_{k=1}^{N} a_{k} y(i-k), \,\,
+	i = 0,...
+\end{equation}
+where $i$ is \emph{disctete time}, \index{discrete time} $u(i)$ is the
+\emph{input sequence}, \index{input sequance} $y(i)$ is the \emph{output
+sequence}. \index{output sequence}
+The filter in Eq. (\ref{eq:filter-diff}) is called \emph{causal} \index{causal
+filter} because
+$y(i)$ does not depend on time instances $i+1$ and on. Appying $z$-transform
+to Eq. (\ref{eq:filter-diff}) one gets:
+$$ y(z) (1+\sum_{k=1}^{N} a_{k} z^{-k}) = u(z) \sum_{k=0}^{N} b_{k} z^{-k}. $$
+from where the \emph{transfer function} \index{transfer function} is:
+\begin{equation} \label{eq:transfer-function}
+	H(z) = \frac{y(z)}{u(z)} = b_{0} + \frac{\sum_{k=1}^{N} \beta_{k} b_{k}
+	z^{-k}}{1+\sum_{k=1}^{N} a_{k} z^{-k}},
+\end{equation}
+$$ \beta_{k} = b_{k} - b_{0} a_{k}. $$
+The canonical state-space model
+\begin{equation} \label{eq:canonical-state-space}
+	\bm{x}(i+1) = \mathcal{A} \bm{x}(i) + \mathcal{B} \bm{u}(i),
+\end{equation}
+$$ \bm{y}(i) = \mathcal{C} \bm{x}(i) + \mathcal{D} \bm{u}(i) $$
+describes the filter in terms of its internal state $\bm{x}(i)$ dynamics. The
+first equation is the \emph{state dynamics equation}, \index{state dynamics
+equation} the second is the \emph{measurement equation}. \index{measurement
+equation}
+The state space model parameters for the filter are easily derivable from Eq.
+(\ref{eq:transfer-function}):
+\begin{equation} \label{eq:state-space-filter}
+	\bm{u}(i) = [u(i)],
+\end{equation}
+$$ \bm{y}(i) = [y(i)], $$
+$$ \mathcal{A} = \left[
+\begin{array}{ccccc}
+	-a_{1} & -a_{2} & \cdots & -a_{N-1} & -a_{N} \\
+	1      & 0      & \cdots & 0        & 0      \\
+	0      & 1      & \cdots & 0        & 0      \\
+	\vdots & \vdots & \ddots & \vdots   & \vdots \\
+	0      & 0      & \cdots & 1        & 0      \\
+\end{array}
+\right] $$
+$$ \mathcal{B} = [1 \, \cdots \, 0]^{T}, $$
+$$ \mathcal{C} = [\beta_{1} \, \cdots \, \beta_{N}], $$
+$$ \mathcal{D} = [b_{0}]. $$
