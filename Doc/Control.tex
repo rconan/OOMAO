@@ -14,10 +14,10 @@
 %y-slopes and from different sensors, [pixels or radians of slope].
 %\\
 
-%$\phi(x,y)$ - continuous wavefront phase distribution in exit pupil, [rad].
+%$\phi(\bm{x})$ - continuous wavefront phase distribution in exit pupil, [rad].
 %\\
 
-%$\{ \phi(x,y)_{i} \}_{i=1}^{\infty}$ - set of basis functions for the exit
+%$\{ \phi(\bm{x})_{i} \}_{i=1}^{\infty}$ - set of basis functions for the exit
 %pupil phase expansion, [rad].
 %\\
 
@@ -39,7 +39,7 @@
 %[pixels or radians of slope].
 %\\
 
-%$\{ f(x,y)_{i} \}_{i=1}^{\#actuators}$ - set of continuous phase influence
+%$\{ f(\bm{x})_{i} \}_{i=1}^{\#actuators}$ - set of continuous phase influence
 %functions of a deformable mirror, [rad].
 
 %$\bm{c}$ - vector of control commands concatenated from all correctors (DMs,
@@ -105,25 +105,25 @@ case of a single-conjugate AO system, which is modeled through the following
 fundamental inputs.
 \begin{enumerate}
 	\item A light source to be imaged with an AO system (the \emph{target})
-	creates a continuous phase distribution $\phi_{0}(x,y)$ in the
+	creates a continuous phase distribution $\phi_{0}(\bm{x})$ in the
   telescope entrance pupil,
 	which is the accumulated phase distortion along the
   path from a light source to the telescope that includes atmospheric
   turbulence distortion. It is supposed that the
   autocorrelation function $\langle \phi_{0}(x_{1},y_{1}) \phi_{0}(x_{2},y_{2})
   \rangle_{\phi}$ is known.
-  \item A set $\{ f_{i}(x,y) \}_{i=1}^{\#ACT}$ ($\#ACT$ is the number of DM
+  \item A set $\{ f_{i}(\bm{x}) \}_{i=1}^{\#ACT}$ ($\#ACT$ is the number of DM
   actuators) of the DM actuator influence
   functions projected as phase correction in the telescope entrance pupil. We
-  will write these functions in vectorial form $\bm{f}(x,y)$. Note that, same
-  as $\phi(x,y)$, these functions depend on the light source. The DM
+  will write these functions in vectorial form $\bm{f}(\bm{x})$. Note that, same
+  as $\phi(\bm{x})$, these functions depend on the light source. The DM
   correction is assumed to be a linear combination of the influence functions:
   \begin{equation} \label{eq:dm-phase-correction}
-		\phi_{DM}(x,y) = \sum_{i=1}^{\#ACT} c_{i} f_{i}(x,y)
+		\phi_{DM}(\bm{x}) = \sum_{i=1}^{\#ACT} c_{i} f_{i}(\bm{x})
 	\end{equation}
 	or
 	$$
-	  \phi_{DM}(x,y) = \bm{f}^{T}(x,y) \bm{c},
+	  \phi_{DM}(\bm{x}) = \bm{f}^{T}(\bm{x}) \bm{c},
 	$$
 	where $\bm{c}$ is the vector of DM correction commands.
   \item A wavefront sensor (WFS) accepts light from a \emph{reference} source
@@ -131,20 +131,20 @@ fundamental inputs.
   mapping of the reference wavefront $\phi{x,y}$ in the entrance pupil to a
   set of sensor measurements:
   \begin{equation} \label{eq:wfs-measurement-operator}
-    \bm{s} = \mathcal{M} [ \phi(x,y) ],
+    \bm{s} = \mathcal{M} [ \phi(\bm{x}) ],
   \end{equation}
   where $\mathcal{M}$ is a linear \emph{measurement operator}.
   \index{measurement operator} The \emph{measurement equation}
   \index{measurement equation} describing the full linear sensor model is
   \begin{equation} \label{eq:measurement-equation}
-	  \bm{s} = \mathcal{M} [ \phi(x,y) + \delta \phi(x,y) ] + \bm{n},
+	  \bm{s} = \mathcal{M} [ \phi(\bm{x}) + \delta \phi(\bm{x}) ] + \bm{n},
   \end{equation}
   where $\bm{n}$ is random sensor readout noise with known autocorrelation
   matrix $\langle \bm{n} \bm{n}^{T} \rangle_{n}$,
-  $\delta \phi(x,y)$ is an additive aberration due to propagation from
+  $\delta \phi(\bm{x})$ is an additive aberration due to propagation from
   telescope entrance pupil to the exit pupil conjugate to the WFS location. We
   will assume for the moment that this aberration can be perfectly calibrated
-  out, so $\delta \phi (x,y) = 0$.
+  out, so $\delta \phi (\bm{x}) = 0$.
 \end{enumerate}
 This small set of parameters are enough to fully describe a linear model of an
 AO system.
@@ -162,12 +162,13 @@ telescope entrance pupil
 	\langle ||\phi_{0}-\phi_{DM}||^{2} \rangle_{\phi,n},
 \end{equation}
 where Hilbert space norm
-\begin{equation} \label{eq:Hilbert-metric}
-	|| a(x,y) ||^{2} = [a(x,y),a(x,y)] = \frac{1}{|A|} \int_{A} ds \, a^{2}(x,y),
+\begin{equation} \label{eq:Hilbert-norm}
+	|| a(\bm{x}) ||^{2} = [a(\bm{x}),a(\bm{x})] =
+	\frac{1}{|A|} \int_{A} ds \, a^{2}(\bm{x}),
 \end{equation}
 is derived from the Hilbert space metric
 \begin{equation} \label{eq:Hilbert-metric}
-	[a(x,y),b(x,y)] = \frac{1}{|A|} \int_{A} ds \, a(x,y) b(x,y),
+	[a(\bm{x}),b(\bm{x})] = \frac{1}{|A|} \int_{A} ds \, a(\bm{x}) b(\bm{x}),
 \end{equation}
 $A$ is the telescope entrance pupil domain (the \emph{aperture}),
 \index{aperture} $|A|$ is the aperture area, and $\langle \rangle_{\phi}$
@@ -179,7 +180,7 @@ estimation}. \index{phase estimation}
 \subsubsection{DM fitting}
 
 The DM fitting problem statement is:
-given target wavefront phase $\phi_{0}(x,y)$ at the entrance pupil find the
+given target wavefront phase $\phi_{0}(\bm{x})$ at the entrance pupil find the
 DM command vector $\hat{\bm{c}}$ such that the deterministic wavefront error
 is minimized:
 \begin{equation} \label{eq:DM-fit-minimization}
@@ -203,8 +204,8 @@ control command
 	\hat{\bm{c}} = [\bm{f},\bm{f}^{T}]^{\dagger} [\bm{f},\phi_{0}],
 \end{equation}
 where $[\bm{f},\bm{f}^{T}]$ is called \emph{Gramm matrix} of the function set
-$\bm{f}(x,y)$, $^{\dagger}$ stands for pseudo inverse. The Gramm matrix is
-square and is invertible in case the influence functions $\bm{f} (x,y)$ are
+$\bm{f}(\bm{x})$, $^{\dagger}$ stands for pseudo inverse. The Gramm matrix is
+square and is invertible in case the influence functions $\bm{f} (\bm{x})$ are
 linearly independent. Since linear independence is not guaranteed for the real
 DM influence functions, the filtered pseudo-inverse is used. Note that in case
 of pseudo-inverse the orthogonality principle does not hold exactly. This,
@@ -231,7 +232,7 @@ $\hat{\phi}_{0}$ and
 \emph{uncontrollable} $\check{\phi}_{0}$ parts \index{controllable part}
 \index{uncontrollable part}
 \begin{equation} \label{eq:controllable-uncontrollable}
-	\phi (x,y) = \hat{\phi}_{0} (x,y) + \check{\phi}_{0} (x,y),
+	\phi (\bm{x}) = \hat{\phi}_{0} (\bm{x}) + \check{\phi}_{0} (\bm{x}),
 \end{equation}
 where
 \begin{equation} \label{eq:controllable-projection}
@@ -254,7 +255,7 @@ wavefront phase, the only part of interest in the AO control.
 \subsubsection{Phase estimation}
 
 The phase estimation problem statement is: given sensor measurements $\bm{s}$
-find an estimate $\tilde{\phi}_{0}(x,y)$ of the target source phase in the
+find an estimate $\tilde{\phi}_{0}(\bm{x})$ of the target source phase in the
 entrance pupil such
 that the mean square error is minimized over the measurement statistics, in
 our case, the joint turbulence and sensor noise statistics:
@@ -308,7 +309,8 @@ structure. Indeed, Eq. (\ref{eq:phase-estimate}) coincides with Eq.
 (\ref{eq:controllable-projection}) for the controllable part of the wavefront
 after substitutions
 $$
-  \langle \bm{s} \phi_{0}(x,y) \rangle_{\phi,n} \rightarrow \bm{f}(x,y), \,\,
+  \langle \bm{s} \phi_{0}(\bm{x}) \rangle_{\phi,n} \rightarrow
+  \bm{f}(\bm{x}), \,\,
   \texttt{(estimation influence functions)},
 $$
 $$
@@ -327,7 +329,7 @@ Thus, there exists another, ``observable-unobservable'', orthogonal
 decomposition of the input wavefront (see Ref. \cite{WibergMaxGavel2} for the
 proof):
 \begin{equation} \label{eq:observable-unobservable}
-	\phi_{0} (x,y) = \tilde{\phi}_{0} (x,y) + \bar{\phi}_{0} (x,y),
+	\phi_{0} (\bm{x}) = \tilde{\phi}_{0} (\bm{x}) + \bar{\phi}_{0} (\bm{x}),
 \end{equation}
 where
 \begin{equation} \label{eq:observable-projection}
@@ -346,16 +348,16 @@ naturally used as discrete representations of the $\tilde{\phi}_{0}$.
 \subsubsection{Joint estimation and fitting, separation principle}
 
 Now consider the problem of joint estimation and fitting, namely, given
-measurement $\bm{s}$ and a set of influence functions $\bm{f}(x,y)$ find the
+measurement $\bm{s}$ and a set of influence functions $\bm{f}(\bm{x})$ find the
 control commands $\hat{\bm{c}}$ such that
 \begin{equation} \label{eq:joint-minimization}
-	\hat{\bm{c}} = \mathcal{R} \bm{s} =
-	\arg \min_{\forall \mathcal{R}}
+	\hat{\bm{c}} = \mathcal{C} \bm{s} =
+	\arg \min_{\forall \mathcal{C}}
 	\langle
-	|| \phi_{0} - \bm{f}^{T} \mathcal{R} \bm{s} ||^{2}
+	|| \phi_{0} - \bm{f}^{T} \mathcal{C} \bm{s} ||^{2}
 	\rangle_{\phi,n},
 \end{equation}
-where $\mathcal{R}$ is the estimator matrix creating linear mapping from the
+where $\mathcal{C}$ is the estimator matrix creating linear mapping from the
 set of sensor measurements to the set of DM commands. Expanding the norm in Eq.
 (\ref{eq:joint-minimization}) one gets
 \begin{equation} \label{eq:cost-expansion}
@@ -365,15 +367,15 @@ set of sensor measurements to the set of DM commands. Expanding the norm in Eq.
 $$
  = || \bar{\phi}_{0} ||^{2} +
    2 [\bar{\phi}_{0},
-     \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{R} \bm{s} ] +
-   || \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{R} \bm{s} ||^{2},
+     \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{C} \bm{s} ] +
+   || \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{C} \bm{s} ||^{2},
 $$
 $$
-  \hat{\phi} = \bm{f}^{T} \mathcal{R} \bm{s}.
+  \hat{\phi} = \bm{f}^{T} \mathcal{C} \bm{s}.
 $$
 $
 \langle
-[\bar{\phi}_{0}, \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{R} \bm{s} ]
+[\bar{\phi}_{0}, \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{C} \bm{s} ]
 \rangle_{\phi,n} = 0
 $
 for an optimal phase estimate $\tilde{\phi}_{0}$ because of the orthogonality
@@ -385,7 +387,7 @@ principle (\ref{eq:statistical-orthogonality-principle}). Thus
 $$
   = \langle || \bar{\phi}_{0} ||^{2} \rangle_{\phi,n} +
     \langle
-    || \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{R} \bm{s} ||^{2}
+    || \tilde{\phi}_{0} - \bm{f}^{T} \mathcal{C} \bm{s} ||^{2}
     \rangle_{\phi,n},
 $$
 which is known as the \emph{separation principle of the quadratic control}.
@@ -403,7 +405,7 @@ in two independent steps:
 Following this path, i.e. substituting Eq. (\ref{eq:phase-estimate}) into Eq.
 (\ref{eq:fitting-commands}), we get for the optimal reconstructor matrix
 \begin{equation} \label{eq:reconstructor}
-	\mathcal{R} = [\bm{f},\bm{f}^{T}]^{\dagger}
+	\mathcal{C} = [\bm{f},\bm{f}^{T}]^{\dagger}
 	              [\bm{f}, \langle \bm{s}^{T} \phi_{0} \rangle_{\phi,n} ]
 	              \langle \bm{s} \bm{s}^{T} \rangle_{\phi,n}^{-1}.
 \end{equation}
@@ -423,9 +425,9 @@ $\phi_{0}$.
 
 An modification of the phase estimation algorithm is needed for the situation
 when it is necessary to find an estimate of the input phase part extractable
-from $\phi(x,y)$ by a projection operation
+from $\phi(\bm{x})$ by a projection operation
 \begin{equation} \label{eq:projection}
-	\phi_{p}(x,y) = \mathcal{P} ( \phi_{0} (x,y) ),
+	\phi_{p}(\bm{x}) = \mathcal{P} ( \phi_{0} (\bm{x}) ),
 \end{equation}
 where $\mathcal{P}$ is a linear \emph{projection operator}. \index{projection
 operator} Examples of such an operator are the controllable/uncontrollable
@@ -473,8 +475,8 @@ control algorithm based on two fundamental simplifying assumptions:
 	assumes that all the correction elements (DMs, tip/tilt mirrors, etc.) are
 	located in front of sensors and the latter measure the difference between
 	the input signal (turbulent wavefront) and its correction by DMs. In this
-	case the input to the WFS is not $\phi(x,y)$ but $\delta \phi(x,y)$ and the
-	input to
+	case the input to the WFS is not
+	$\phi(\bm{x})$ but $\delta \phi(\bm{x})$ and the input to
 	controller is not $\bm{s}$ but $\delta \bm{s}$, the \emph{error signal}.
 	\index{error signal}
   \item \emph{Non-dynamic} operation: \index{non-dynamic operation} it is
@@ -510,16 +512,16 @@ account for delays in sensor and controller; 2) a filter with $z$-domain
 transfer function (matrix) $d(z)$ to account for the DM dynamic
 effects. It is possible to derive a relationship between the open-loop (or
 \emph{feedforward})
-reconstructor $\mathcal{R}$ and the closed-loop (or \emph{feedback}) one
-$\mathcal{R}_{FB}$ by noticing that, to deliver the same output signal, it
+reconstructor $\mathcal{C}$ and the closed-loop (or \emph{feedback}) one
+$\mathcal{C}_{FB}$ by noticing that, to deliver the same output signal, it
 should be
 \begin{equation} \label{eq:open-to-close}
-  \mathcal{R} \bm{s} = \mathcal{R}_{FB} \delta \bm{s}.
+  \mathcal{C} \bm{s} = \mathcal{C}_{FB} \delta \bm{s}.
 \end{equation}
 From the diagrams:
 \begin{equation} \label{eq:sopen-to-sclose}
 	\delta \bm{s}(z) = \bm{s}(z) - z^{-k} d(z) \mathcal{M} ( \bm{f}^{T}
-	\mathcal{R}_{FB} \delta \bm{s}(z) )
+	\mathcal{C}_{FB} \delta \bm{s}(z) )
 \end{equation}
 $$
   = \bm{s}(z) - z^{-k} d(z) \mathcal{DR}_{FB} \delta \bm{s}(z),
@@ -530,7 +532,7 @@ relating action of each DM influence function on the WFS measurements.
 Substitution of Eq. (\ref{eq:sopen-to-sclose}) into Eq.
 (\ref{eq:open-to-close}) yields
 \begin{equation} \label{eq:fw-to-fb}
-	\mathcal{R}_{FB} = \mathcal{R}
+	\mathcal{C}_{FB} = \mathcal{C}
 	( \mathcal{I} - z^{-1} d(z) \mathcal{RD} )^{-1}.
 \end{equation}
 
@@ -541,14 +543,14 @@ feedback controllers shown on Fig. \ref{fig:forward-back} are:
 \begin{equation} \label{eq:forward-transfer}
 	(\phi \rightarrow \delta \phi)(z) =
 	\mathcal{I} -
-	z^{-k} d(z) \mathcal{D} \mathcal{R};
+	z^{-k} d(z) \mathcal{D} \mathcal{C};
 \end{equation}
 \begin{equation} \label{eq:feedback-transfer}
 	(\phi \rightarrow \delta \phi)_{FB}(z) =
-	( \mathcal{I}+z^{-k} d(z) \mathcal{D} \mathcal{R}_{FB} )^{-1}.
+	( \mathcal{I}+z^{-k} d(z) \mathcal{D} \mathcal{C}_{FB} )^{-1}.
 \end{equation}
 
-The open-loop reconstructor $\mathcal{R}$ can also
+The open-loop reconstructor $\mathcal{C}$ can also
 be used directly in the \emph{pseudo open-loop} \index{pseudo
 open-loop} (POL) setting of the closed-loop control when the open-loop
 measurement is approximately restored
@@ -575,7 +577,7 @@ The set of dynamic equations for the POL controller is:
   \texttt{(pseudo open-loop measurement)} \nonumber \\
 	\bm{s}(n) = \delta \bm{s}(n-k) + \hat{\bm{s}}(n); \label{eq:POL-meas} \\
 	\texttt{(pseudo open-loop command)} \nonumber \\
-  \bm{c}(n) = \mathcal{R} \bm{s}(n); \label{eq:POL-est} \\
+  \bm{c}(n) = \mathcal{C} \bm{s}(n); \label{eq:POL-est} \\
   \texttt{(command increment)} \nonumber \\
   \delta \bm{c} = \bm{c}(n) - \hat{\bm{c}}(n); \\
   \texttt{(integrator/corrector state space equations, see Appendix
@@ -594,7 +596,7 @@ controller output $\hat{\bm{c}}(n)$ (\emph{controller transfer function}):
 \begin{equation} \label{eq:WFS-to-Control}
 	(\delta \bm{s} \rightarrow \hat{\bm{c}})_{POL}(z) =
 	z^{-2} g(z) \left[ \mathcal{I} +
-	g(z) (\mathcal{I}-\mathcal{RD}) \right]^{-1} \mathcal{R},
+	g(z) (\mathcal{I}-\mathcal{RD}) \right]^{-1} \mathcal{C},
 \end{equation}
 and 2) the error rejection transfer function:
 \begin{equation} \label{eq:phase-to-error}
@@ -612,7 +614,158 @@ different stability and error propagation properties.
 \mbox{}
 
 A generalization of the single-conjugate AO control is the \emph{star-oriented
-tomography}. \index{star-oriented tomography}
+tomography}. \index{star-oriented tomography} The AO control problem is
+restated as:
+\begin{itemize}
+  \item Given is a set of thin phase screens (PS)
+  $\{ \phi^{t}_{PS}(\bm{x}) \}_{t=1}^{\#PS}$
+  located at a number of altitudes above the telescope and representing the
+  atmospheric
+  turbulence on the path from a light sources to the telescope aperture.
+
+  \item Likewise, given is a set of phase screens $\{ \phi^{m}_{DM}(\bm{x})
+  \}_{m=1}^{\#DM}$ representing the corrections by several DMs that are
+  conjugated to a number of altitudes above the telescope. Each DM phase
+  screen is a linear combination of the DM influence functions:
+	\begin{equation} \label{eq:mcao-dm-inf}
+		\phi^{m}_{DM}(\bm{x}) = \bm{f}_{m} (\bm{x}) \bm{c}_{m},
+	\end{equation}
+	where $\bm{f}_{m} (\bm{x})$ are the $m^{th}$ DM influence function set,
+	$\bm{c}_{m}$ is the $m^{th}$ DM control command vector.
+
+  \item There are $\#TAR$ scientific targets to be imaged. Associated with
+  each target and each PS or DM is a set
+  $( \{ \mathcal{T}^{PS}_{lt} \}_{l=1,t=1}^{\#TAR,\#PS},
+     \{ \mathcal{T}^{DM}_{lm} \}_{l=1,m=1}^{\#TAR,\#DM} )$
+  of the \emph{propagation operators}
+  \index{propagation operator} that map PS or DM phase distributions to the
+  wavefront phase distribution in the telescope entrance pupil. With
+  assumption that these operators are linear, which is justified for weak
+  turbulence, the phase from $l^{th}$ light source in the entrance pupil due to
+  all PS phase distortions and all DM phase corrections is
+  \begin{equation} \label{eq:mcao-pupil-phase}
+    \delta \phi^{l}_{0}(\bm{x}) =
+    \sum_{t=1}^{\#PS}
+    \mathcal{T}^{PS}_{lt}(\phi_{PS}^{t}(\bm{x})) -
+    \sum_{m=1}^{\#DM}
+    \mathcal{T}^{DM}_{lm}(\phi_{DM}^{m}(\bm{x})),
+    \,\, l = 1,...,\#TAR.
+	\end{equation}
+
+	\item Likewise, there are $\#REF$ reference sources feeding light to
+	wavefront sensors conjugated to the telescope entrance pupil. Associated
+	with the reference sources as well as the PSs and DMs are the propagation
+	operators
+	$( \{ \mathcal{R}^{PS}_{st} \}_{s=1,t=1}^{\#REF,\#PS},
+     \{ \mathcal{R}^{DM}_{sm} \}_{s=1,m=1}^{\#REF,\#DM} )$
+	mapping PS or DM phase distributions to the
+  wavefront phase distribution in the sensor conjugate exit pupils. The
+  closed-loop phase distribution on an $s^{th}$ sensor due to all PS phase
+  distortions and all DM phase corrections is
+  \begin{equation} \label{eq:mcao-sensor-phase}
+    \delta \phi^{s}(\bm{x}) =
+    \sum_{t=1}^{\#PS}
+    \mathcal{R}^{PS}_{st}(\phi_{PS}^{t}(\bm{x})) -
+    \sum_{m=1}^{\#DM}
+    \mathcal{R}^{DM}_{sm}(\phi_{DM}^{t}(\bm{x})),
+    \,\, s = 1,...,\#REF.
+	\end{equation}
+	Correspondingly, the $s^{th}$ sensor (closed-loop) readouts are
+	\begin{equation} \label{eq:mcao-sensor-read}
+		\delta \bm{s}_{s} = \mathcal{M}_{s} (\delta \phi^{s}(\bm{x})),
+	\end{equation}
+	where $\mathcal{M}_{s}$ is the measurement opertor associated with $s^{th}$
+	sensor.
+
+	\item The goal of the tomographic AO control is: given a set of sensor
+	measurements $\bm{s} = \{ \bm{s}_{s} \}_{s=1}^{\#REF}$ find the commands
+	on all the DMs such that to minimize
+	\begin{equation} \label{eq:mcao-cost}
+		\langle J \rangle_{\phi,n} =
+	  \sum_{l=1}^{\#TAR}
+	  w_{l} \langle || \delta \phi_{0}^{l} ||^{2} \,|\, \bm{s} \rangle_{\phi,n},
+	  \,\, \sum_{l=1}^{\#TAR} w_{l} = 1,
+	\end{equation}
+	where $\bm{w} = \{ w_{l} \}_{l=1}^{\#TAR}$ is the set of \emph{target
+	direction relative
+	weights} \index{target direction weights} and the conditional expectation
+	(estimator) is taken over the joint
+	statistics of the turbulence layers and the sensor noise.
+
+\end{itemize}
+
+For compactness of notation we introduce the following concatenations:
+\begin{itemize}
+	\item Propagation operator matrices
+	\begin{equation} \label{eq:ps-tar-matrix}
+		\mathcal{T}^{PS} = \{ \mathcal{T}^{PS}_{lt} \}_{l=1,t=1}^{\#TAR,\#PS};
+	\end{equation}
+	\begin{equation} \label{eq:dm-tar-matrix}
+		\mathcal{T}^{DM} = \{ \mathcal{T}^{DM}_{lm} \}_{l=1,m=1}^{\#TAR,\#DM};
+	\end{equation}
+	\begin{equation} \label{eq:ps-ref-matrix}
+		\mathcal{R}^{PS} = \{ \mathcal{R}^{PS}_{st} \}_{s=1,t=1}^{\#REF,\#PS};
+	\end{equation}
+	\begin{equation} \label{eq:dm-ref-matrix}
+		\mathcal{R}^{DM} = \{ \mathcal{R}^{DM}_{sm} \}_{s=1,m=1}^{\#REF,\#DM}.
+	\end{equation}
+
+	\item Phase vectors
+	\begin{equation} \label{eq:ps-vector}
+    \bm{\phi}_{PS} (\bm{x}) = \{ \phi_{PS}^{t} (\bm{x}) \}_{t=1}^{\#PS};
+	\end{equation}
+	\begin{equation} \label{eq:dm-vector}
+    \bm{\phi}_{DM} (\bm{x}) = \{ \phi_{DM}^{m} (\bm{x}) \}_{m=1}^{\#DM};
+	\end{equation}
+	\begin{equation} \label{eq:ps-dm-tar-vector}
+    \delta \bm{\phi}_{0} (\bm{x}) =
+    \{ \delta \phi_{0}^{l} (\bm{x}) \}_{l=1}^{\#TAR};
+	\end{equation}
+	\begin{equation} \label{eq:ps-dm-ref-vector}
+    \delta \bm{\phi} (\bm{x}) =
+    \{ \delta \phi^{s} (\bm{x}) \}_{s=1}^{\#REF}.
+	\end{equation}
+
+	\item Sensor measurement vector
+	\begin{equation} \label{eq:mcao-meas}
+		\delta \bm{s} =
+		\{  \mathcal{M}_{s} (\delta \phi^{s}(\bm{x})) \}_{s=1}^{\#REF}.
+	\end{equation}
+
+	\item DM influence matrix and control command vector
+	\begin{equation} \label{eq:mcao-inf}
+		\mathcal{F} (\bm{x}) = \texttt{diag} \{ \bm{f}_{m} (\bm{x}) \}_{m=1}^{\#DM};
+	\end{equation}
+	\begin{equation} \label{eq:mcao-command}
+		\bm{c} = \{ \bm{c}_{m} \}_{m=1}^{\#DM}.
+	\end{equation}
+
+	\item Target direction weighting matrix
+  \begin{equation} \label{eq:direction-weight}
+		\mathcal{W} = \texttt{diag} \{ w_{t} \mathcal{I}_{t} \}_{t=1}^{\#TAR},
+	\end{equation}
+	where $\mathcal{I}_{t}$ is a unit matrix of $\texttt{size}(\delta
+	\bm{\phi}_{0})$,
+	and the \emph{weighted norm} \index{weighted norm}
+	\begin{equation} \label{eq:weighted-norm}
+		|| \bm{\phi} ||^{2}_{\mathcal{W}} =
+		\sum_{i} w_{i} || \bm{\phi}_{i} ||^{2} =
+		\bm{\phi}^{T} \mathcal{W} \bm{\phi}.
+	\end{equation}
+
+\end{itemize}
+In this notation the minimization problem for the cost function given in Eq.
+(\ref{eq:mcao-cost}) can be written as
+\begin{equation} \label{eq:mcao-minimization}
+	\hat{\bm{c}} = \arg \min_{\forall \bm{c}}
+	\langle
+	||
+	\mathcal{T}^{PS} (\bm{\phi}_{PS}) -
+	[\mathcal{T}^{DM} (\mathcal{F})]^{T} \bm{c}
+	||^{2}_{\mathcal{W}} \,|\, \bm{s}
+	\rangle_{\phi,n},
+\end{equation}
+which is a tomographic analog of Eq. (\ref{eq:joint-minimization}).
 
 %We also use the assumption that the sensor noise is not correlated with the
 %atmospheric turbulence, i.e.
