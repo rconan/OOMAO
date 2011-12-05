@@ -110,7 +110,7 @@ fundamental inputs.
 	which is the accumulated phase distortion along the
   path from a light source to the telescope that includes atmospheric
   turbulence distortion. It is supposed that the
-  autocorrelation function $\langle \phi_{0}(x_{1},y_{1}) \phi_{0}(x_{2},y_{2})
+  autocorrelation function $\langle \phi_{0}(\bm{x}_{1}) \phi_{0}(\bm{x}_{2})
   \rangle_{\phi}$ is known.
   \item A set $\{ f_{i}(\bm{x}) \}_{i=1}^{\#ACT}$ ($\#ACT$ is the number of DM
   actuators) of the DM actuator influence
@@ -194,8 +194,8 @@ equivalent to
 \end{equation}
 which is a form of the \emph{orthogonality principle} stating that
 \begin{flushleft}
-	\texttt{the optimal fitting error is orthogonal to the subspace spanned by the
-	influence functions.}
+	\texttt{the optimal fitting error is orthogonal to the subspace spanned by
+	the influence functions.}
 \end{flushleft}
 Solving Eq. (\ref{eq:DM-fit-minimization}) or the equivalent Eq.
 (\ref{eq:deterministic-orthogonality-principle}) yields for the optimal
@@ -280,7 +280,7 @@ i.e., for our case
 Solving Eq. (\ref{eq:estimation-minimization}) or its equivalent
 (\ref{eq:statistical-orthogonality-principle}) yields
 \begin{equation} \label{eq:phase-estimate}
-	\tilde{\phi}_{0} = \langle \bm{s}^{T} \phi \rangle_{\phi,n}
+	\tilde{\phi}_{0} = \langle \phi_{0} \bm{s}^{T} \rangle_{\phi,n}
 	                   \langle \bm{s} \bm{s}^{T} \rangle_{\phi,n}^{-1} \bm{s}.
 \end{equation}
 The optimal estimation error is
@@ -295,7 +295,7 @@ $$
 $$
 $$
   = \langle [\phi_{0},\phi_{0}] \rangle_{\phi,n} -
-    \langle \bm{s}^{T} \phi_{0} \rangle_{\phi,n}
+    \langle \phi_{0} \bm{s}^{T} \rangle_{\phi,n}
 	  \langle \bm{ss}^{T} \rangle_{\phi,n}^{-1}
 	  \langle \bm{s} \phi_{0} \rangle_{\phi,n},
 $$
@@ -395,8 +395,8 @@ which is known as the \emph{separation principle of the quadratic control}.
 Eq. (\ref{eq:separated-cost}) shows that the overall error can be minimized
 in two independent steps:
 \begin{enumerate}
-	\item Find the observable part of the target phase $\tilde{\phi}_{0}$ from Eq.
-  (\ref{eq:phase-estimate}).
+	\item Find the observable part of the target phase $\tilde{\phi}_{0}$ from
+	Eq. (\ref{eq:phase-estimate}).
   \item Since $\tilde{\phi}_{0}$ is not a stochastic quantity, the $\langle
   \rangle_{\phi,n}$ brackets can be dropped for the second term reducing its
   minimization to deterministic fitting of the actuator influence
@@ -423,7 +423,7 @@ $\phi_{0}$.
 
 \subsubsection{Estimator for projected wavefront}
 
-An modification of the phase estimation algorithm is needed for the situation
+A modification of the phase estimation algorithm is needed for the situation
 when it is necessary to find an estimate of the input phase part extractable
 from $\phi(\bm{x})$ by a projection operation
 \begin{equation} \label{eq:projection}
@@ -433,8 +433,8 @@ where $\mathcal{P}$ is a linear \emph{projection operator}. \index{projection
 operator} Examples of such an operator are the controllable/uncontrollable
 $\mathcal{F,(I-F)}$
 projectors discussed above, the high-pass and low-pass spatial filters that
-are an indispensable part of the GMT LTAO control strategy to be discussed later
-in this document.
+are an indispensable part of the GMT LTAO control strategy to be discussed
+later in this document.
 
 The optimal minimum least squares estimator for
 $\mathcal{P} (\phi_{0})$  wavefront
@@ -524,7 +524,7 @@ From the diagrams:
 	\mathcal{C}_{FB} \delta \bm{s}(z) )
 \end{equation}
 $$
-  = \bm{s}(z) - z^{-k} d(z) \mathcal{DR}_{FB} \delta \bm{s}(z),
+  = \bm{s}(z) - z^{-k} d(z) \mathcal{DC}_{FB} \delta \bm{s}(z),
 $$
 where $\mathcal{D} = \mathcal{M} (\bm{f}^{T})$ is the \emph{poke matrix}
 \index{poke matrix}
@@ -533,7 +533,7 @@ Substitution of Eq. (\ref{eq:sopen-to-sclose}) into Eq.
 (\ref{eq:open-to-close}) yields
 \begin{equation} \label{eq:fw-to-fb}
 	\mathcal{C}_{FB} = \mathcal{C}
-	( \mathcal{I} - z^{-1} d(z) \mathcal{RD} )^{-1}.
+	( \mathcal{I} - z^{-1} d(z) \mathcal{CD} )^{-1}.
 \end{equation}
 
 The transfers from input wavefront phase $\phi(n)$ to the AO system
@@ -742,15 +742,13 @@ For compactness of notation we introduce the following concatenations:
 
 	\item Target direction weighting matrix
   \begin{equation} \label{eq:direction-weight}
-		\mathcal{W} = \texttt{diag} \{ w_{t} \mathcal{I}_{t} \}_{t=1}^{\#TAR},
+		\mathcal{W} = \texttt{diag} \{ w_{l} \}_{l=1}^{\#TAR},
 	\end{equation}
-	where $\mathcal{I}_{t}$ is a unit matrix of $\texttt{size}(\delta
-	\bm{\phi}_{0})$,
 	and the \emph{weighted norm} \index{weighted norm}
 	\begin{equation} \label{eq:weighted-norm}
 		|| \bm{\phi} ||^{2}_{\mathcal{W}} =
 		\sum_{i} w_{i} || \bm{\phi}_{i} ||^{2} =
-		\bm{\phi}^{T} \mathcal{W} \bm{\phi}.
+		[ \bm{\phi}^{T}, \mathcal{W} \bm{\phi} ].
 	\end{equation}
 
 \end{itemize}
@@ -761,31 +759,91 @@ In this notation the minimization problem for the cost function given in Eq.
 	\langle
 	||
 	\mathcal{T}^{PS} (\bm{\phi}_{PS}) -
-	[\mathcal{T}^{DM} (\mathcal{F})]^{T} \bm{c}
+	\mathcal{T}^{DM} (\mathcal{F}^{T}) \bm{c}
 	||^{2}_{\mathcal{W}} \,|\, \bm{s}
 	\rangle_{\phi,n},
 \end{equation}
 which is a tomographic analog of Eq. (\ref{eq:joint-minimization}).
 
-%We also use the assumption that the sensor noise is not correlated with the
-%atmospheric turbulence, i.e.
-%\begin{equation} \label{eq:turb-cross-noise}
-	%\langle \bm{n} \bm{x}^{T} \rangle = 0,
-%\end{equation}
-%$$ \langle \bm{n} \bm{x}_{Sc}^{T} \rangle = 0. $$
+The tomographic analog to the deterministic DM fitting problem is then stated
+as: find the control commands $\hat{\bm{c}}$ for all DMs such that
+\begin{equation} \label{eq:tomo-dm-fitting}
+	\hat{\bm{c}} = \arg \min_{\forall \bm{c}}
+	||
+	\mathcal{T}^{PS} (\bm{\phi}_{PS}) -
+	\mathcal{T}^{DM} (\mathcal{F}^{T}) \bm{c}
+	||^{2}_{\mathcal{W}}.
+\end{equation}
+To derive solution to this problem we first consider the matrix analog to the
+orthogonality principle Eq. (\ref{eq:deterministic-orthogonality-principle}).
+Replace each influence function $f_{i}(\bm{x})$ with e.g. a finite vector of
+its values on the entrance pupil point grid:
+$$ f_{i}(\bm{x}) \rightarrow \bm{f}_{i} = \{ f_{i}(\bm{x}_{j}) \}_{j=1,\#PT},
+   \,\, i = 1,...,\#ACT. $$
+Then $ \bm{f}^{T}(\bm{x}) \bm{c} \rightarrow \mathcal{F}^{T} \bm{c} $, where
+$\mathcal{F}^{T} = [\bm{f}_{1} \,...\, \bm{f}_{\#ACT}]$ and the matrix form
+of Eq. (\ref{eq:deterministic-orthogonality-principle}) reads as
+\begin{equation} \label{eq:matrix-orthogonality-principle}
+	\mathcal{F} (\bm{x}_{0} - \mathcal{F}^{T} \bm{c}) = 0,
+	\,\, \bm{x}_{0} = \{ \phi_{0}(\bm{x}_{j}) \}_{j}^{\#PT}.
+\end{equation}
+Applying this to Eq. (\ref{eq:tomo-dm-fitting}) one derives by analogy
+\begin{equation} \label{eq:tomo-dm-fit}
+  [ ( \mathcal{T}^{DM} (\mathcal{F}^{T}) )^{T},
+	    \mathcal{T}^{PS} (\bm{\phi}_{PS}) -
+		  \mathcal{T}^{DM} (\mathcal{F}^{T}) \bm{c} ) ]_{\mathcal{W}} = 0
+\end{equation}
+and
+\begin{equation} \label{eq:tomo-dm-fit}
+  \hat{\bm{c}} =
+  [ (\mathcal{T}^{DM} (\mathcal{F}^{T}))^{T},
+		 \mathcal{T}^{DM} (\mathcal{F}^{T}) ]^{-1}_{\mathcal{W}}
+  [ (\mathcal{T}^{DM} (\mathcal{F}^{T}))^{T},
+		 \mathcal{T}^{PS} (\bm{\phi}_{PS}) ]_{\mathcal{W}},
+\end{equation}
+where the \emph{weighted Hilbert metric} is defined as
+\index{weighted Hilbert metric}
+\begin{equation} \label{eq:weighted-Hilbert-metric}
+	[\bm{a}(\bm{x}),\bm{b}(\bm{x})]_{\mathcal{W}} =
+	[ \bm{a}^{T}(\bm{x}), \mathcal{W} \bm{b}(\bm{x}) ],
+\end{equation}
+$[*,*]$ is the usual Hilbert space metric. Correspondingly, the controllable
+part of the phase in the entrance pupil for all the target directions is
+\begin{equation} \label{eq:tomo-controllable}
+	\hat{\bm{\phi}}_{0} = \mathcal{T}^{DM} (\mathcal{F}^{T}) \hat{\bm{c}}.
+\end{equation}
 
-%Fig. \ref{fig:POL} diagram and the equations thereafter make the main building
-%block for the dynamic AO control algorithms. We will call it the
-%\emph{standard AO control}. \index{standard AO control}
-%The five \emph{system matrices}: \index{system matrices}
-%$\langle \bm{x}_{Sc} \bm{x}^{T} \rangle$,
-%$\langle \bm{x}_{Sc} \bm{x}^{T} \rangle$, $\langle \bm{n}_{s} \bm{n}_{s}^{T}
-%\rangle$, $\mathcal{D}$, $\mathcal{F}$, describe interaction between the parts
-%of an AO system and the $z^{-k}$, $g(z)$, $d(z)$ \emph{system filters}
-%\index{system filters} describe the system dynamics
-%in first approximation. These data are the AO system model inputs.
-%In order to describe these inputs in more detail one has to elaborate into
-%the GMT LTAO system structure.
+The tomographic phase estimation problem is stated as: find the estimate of
+phase $\tilde{\bm{\phi}}_{0}$ in entrance pupil for all the target
+directions such that
+\begin{equation} \label{eq:tomo-phase-estimation}
+	\tilde{\bm{\phi}}_{0} = \arg \min_{\forall \mathcal{E}}
+	\langle
+	||
+	\mathcal{T}^{PS} (\bm{\phi}_{PS}) -\mathcal{E} \bm{s}
+	||^{2}_{\mathcal{W}}
+	\rangle_{\phi,n}
+\end{equation}
+with the solution written by analogy with Eq. (\ref{eq:phase-estimate})
+\begin{equation} \label{eq:tomo-phase-estimate}
+  \tilde{\bm{\phi}}_{0} =
+  \langle
+  \mathcal{T}^{PS} (\bm{\phi}_{PS}) \bm{s}^{T}
+  \rangle_{\phi,n}
+  \langle
+  \bm{s} \bm{s}^{T}
+  \rangle_{\phi,n}^{-1} \bm{s}.
+\end{equation}
+Finally, according to the separation principle, the tomographic
+reconstructor generates the estimate $\hat{\tilde{\bm{\phi}}}_{0}$ optimal in
+the sense of Eq. (\ref{eq:mcao-minimization}) by substitution of Eq.
+(\ref{eq:tomo-phase-estimate}) into Eq. (\ref{eq:tomo-dm-fit}) and then into
+Eq. (\ref{eq:tomo-controllable}). This completes the description of a general
+tomographic star-oriented AO system.
+
+The GMT LTAO system can be described as a group of inter-connected tomographic
+AO subsystems. The detailed mapping of the AO control theory developed in the
+previous sections onto the GMT LTAO is given in the next section.
 
 \subsection{GMT LTAO sub-systems}
 \label{subsec:ltao-sub-systems}

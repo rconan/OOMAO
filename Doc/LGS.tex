@@ -173,10 +173,10 @@ Three coordinate systems are involved:
 	assume that there are two differently oriented virtual LLTs at the location
 	of one real LLT.
 
-	The LGS is modeled as a combination of the point sources (PS) distributed
+	The LGS is modeled as a combination of the point sources (PSR) distributed
 	within the \texttt{Na} layer. Coordinates
 	$\bm{r}_{li}^{l}, \,\, l =
-	1,...,\#LLT, \,\, i=1,...,\#PS$ of the sources are given in the $l$-system.
+	1,...,\#LLT, \,\, i=1,...,\#PSR$ of the sources are given in the $l$-system.
 \end{enumerate}
 
 Given orientation pair $(\bm{o},\mathcal{R})_{b}^{a}$ defining $b$-system
@@ -247,7 +247,7 @@ The electric field $E$ from the LGS on the telescope entrance pupil is the
 superposition of spherical waves emitted from each point source (PS) that
 makes the elongated laser guide star spot in the \texttt{Na} layer:
 \begin{equation} \label{eq:spherical-superposition}
-	E_{lp} = \sum_{i=1}^{\#PS} w_{li} \frac{\exp(i k r_{lip})}{r_{lip}},
+	E_{lp} = \sum_{i=1}^{\#PSR} w_{li} \frac{\exp(i k r_{lip})}{r_{lip}},
 \end{equation}
 where $w_{li}$ is the weight describing relative intensity of the $i^{th}$ PS
 of the $l^{th}$ LGS, $r_{lip}$ is the distance from the $i^{th}$ PS
@@ -275,16 +275,16 @@ assumed. The model is based on the following postulates:
 	to change direction of rays, they only add a path difference
 	$\delta r_{lip,j}$:
 	\begin{equation} \label{eq:path-diff}
-		\delta r_{lip,j} = \phi_{lip,j}/k, \,\, j = 1,...,\#TL,
+		\delta r_{lip,j} = \phi_{lip,j}/k, \,\, j = 1,...,\#PS,
 	\end{equation}
-	$$ r_{lip}^{turb} = r_{lip}^{free} + \sum_{j=1}^{\#TL} \delta r_{lip,j}. $$
+	$$ r_{lip}^{turb} = r_{lip}^{free} + \sum_{j=1}^{\#PS} \delta r_{lip,j}. $$
 	where $\phi_{lip,j}$ is the phase on the $j^{th}$ turbulent layer
 	intersected by a ray emitting from $i^{th}$ point source of $l^{th}$ LGS
 	towards $p^{th}$ point in the entrance pupil. So, the electric field
 	on the entrance pupil will be
 	\begin{equation} \label{eq:spherical-superposition-turb}
 		E^{turb}_{lp} =
-		\sum_{i=1}^{\#PS} w_{li}
+		\sum_{i=1}^{\#PSR} w_{li}
 		\frac{\exp(i k r_{lip}^{turb})}{r_{lip}^{free}}.
 	\end{equation}
 \end{itemize}
@@ -411,14 +411,14 @@ flow for defining the LGS distribution is the following:
 	\item For each mesh cell for which a point source is assigned multiply the
 	cell flux by \texttt{Na} density at the cell center taken from the
 	\texttt{Na} vertical profile. Find relative distribution of the return flux,
-	which is the source weights $\{ w_{li} \}_{i=1}^{\#PS}$:
+	which is the source weights $\{ w_{li} \}_{i=1}^{\#PSR}$:
 	\begin{equation} \label{eq:source-weights}
 		w_{li} = \frac{ \Phi_{li} C^{\texttt{Na}}_{li} }
-		               { \sum_{i=1}^{\#PS} \Phi_{li} C^{\texttt{Na}}_{li} },
-		           \,\, i = 1, ... , \#PS
+		               { \sum_{i=1}^{\#PSR} \Phi_{li} C^{\texttt{Na}}_{li} },
+		           \,\, i = 1, ... , \#PSR
 	\end{equation}
-	where $\{ \Phi_{li} \}_{i=1}^{\#PS}$ are the cell fluxes,
-	$\{ C^{\texttt{Na}}_{li} \}_{i=1}^{\#PS}$ are the \texttt{Na} abundances at
+	where $\{ \Phi_{li} \}_{i=1}^{\#PSR}$ are the cell fluxes,
+	$\{ C^{\texttt{Na}}_{li} \}_{i=1}^{\#PSR}$ are the \texttt{Na} abundances at
 	the cell locations.
 \end{enumerate}
 
