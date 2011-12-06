@@ -404,10 +404,10 @@ in two independent steps:
 \end{enumerate}
 Following this path, i.e. substituting Eq. (\ref{eq:phase-estimate}) into Eq.
 (\ref{eq:fitting-commands}), we get for the optimal reconstructor matrix
-\begin{equation} \label{eq:reconstructor}
-	\mathcal{C} = [\bm{f},\bm{f}^{T}]^{\dagger}
-	              [\bm{f}, \langle \bm{s}^{T} \phi_{0} \rangle_{\phi,n} ]
-	              \langle \bm{s} \bm{s}^{T} \rangle_{\phi,n}^{-1}.
+\begin{equation} \label{eq:optimal-reconstructor}
+	\hat{\mathcal{C}} = [\bm{f},\bm{f}^{T}]^{\dagger}
+	                    [\bm{f}, \langle \phi_{0} \bm{s}^{T} \rangle_{\phi,n} ]
+	                    \langle \bm{s} \bm{s}^{T} \rangle_{\phi,n}^{-1}.
 \end{equation}
 The error for this reconstructor is
 \begin{equation} \label{eq:reconstruction-error}
@@ -420,6 +420,21 @@ where the first term is the phase estimation error given by Eq.
 observable phase to the influence functions and is given by Eq.
 (\ref{eq:fitting-error}) after substituting $\tilde{\phi}_{0}$ instead of
 $\phi_{0}$.
+
+Another important result derived in Ref. \cite{WibergMaxGavel2} concerns with
+the estimate of the reconstruction error due to non-optimal reconstruction
+matrix:
+\begin{equation} \label{eq:non-optimal-reconstruction-error}
+	\langle J \rangle_{\phi,n} - \langle \hat{J} \rangle_{\phi,n} =
+	\texttt{Tr} \left\{
+	[\bm{f},\bm{f}^{T}]
+	( \mathcal{C} - \hat{\mathcal{C}} )
+	\langle \bm{s} \bm{s}^{T} \rangle_{\phi,n}
+	( \mathcal{C} - \hat{\mathcal{C}} )^{T} \right\},
+\end{equation}
+where $\mathcal{C}$ is the arbitrary control matrix that is not computed
+according to prescription (\ref{eq:optimal-reconstructor}) and
+$\langle J \rangle_{\phi,n}$ is the corresponding reconstruction error.
 
 \subsubsection{Estimator for projected wavefront}
 
@@ -456,11 +471,62 @@ which, due to linearity of $\mathcal{P}$, trivially yealds
 where $\mathcal{E}$ is given by Eq. (\ref{eq:phase-estimate}). Interesting,
 if Eq. (\ref{eq:projected-estimator}) is used to find an optimal estimate
 of the controllable part $\hat{\phi}_{0}$ of the input phase, Eq.
-(\ref{eq:reconstructor}) for the optimal joint reconstructor results.
+(\ref{eq:optimal-reconstructor}) for the optimal joint reconstructor results.
 
 \subsubsection{Information deficiency in the WFS model. Aliasing error.}
 
-TBD
+\mbox{}
+
+Practical MMSE controllers prove to be sub-optimal due to
+information deficiency in the underlying system models. The MMSE approach
+is model-based, i.e. it relies on the internal mathematical representation of
+the real system. It is the ultimate goal of the system modeling for the
+MMSE-based AO control to build the internal model only on physically measurable
+(calibratable) data. There are, however, multiple causes for the necessary
+data to be un-measurable. A fundamental model deficiency is that only
+finite-dimensional approximation of the sensor measurement operator
+$\mathcal{M}$ is possible based on the measurable data because this operator
+maps the infinite-dimensional space $\mathbb{H}$ of the wavefront phases
+$\phi(\bm{x})$ onto finite-dimensional space $\mathbb{S}$ of the sensor
+readouts. Assume there are orthogonal bases in both $\mathbb{H}$ and
+$\mathbb{S}$. Since the dimensionality of the $\mathbb{H}$-basis is higher
+than that of $\mathbb{S}$ there is no way to find such a pair of bases that
+each $\mathbb{S}$ basis function maps onto exactly one $\mathbb{H}$ basis
+function, i.e. generally all components of $\phi(\bm{x})$, low and high order,
+act on (``alias with'') each WFS measurement $s_{i}$. The aliasing is not a
+problem as long as the $\mathcal{M}$ operator is known exactly because in this
+case the $\langle \phi_{0} \bm{s}^{T} \rangle$ and $\langle \bm{s} \bm{s}^{T}
+\rangle$ catch the correct ``aliasing pattern''. One can, however, practically
+measure only $\mathcal{M}(\mathcal{P}\phi)$, where $\mathcal{P}$ is the
+projector on a finite-dimensional subspace of $\mathbb{H}$. The resulting
+finite-dimensional measurement operator $\mathcal{MP}$, if substituted into
+Eq. (\ref{eq:measurement-equation}) and then into Eq.
+(\ref{eq:optimal-reconstructor}) will result in not quite correct aliasing
+pattern prediction and thus in a suboptimal reconstructor. The corresponding
+additional
+\emph{aliasing error} \index{aliasing error} can be estimated through
+Eq. (\ref{eq:non-optimal-reconstruction-error}) once exact or at least more
+elaborated model for the true measurement operator $\mathcal{M}$ is known.
+
+A natural choice for the finite dimensional measurement operator approximation
+$\mathcal{MP}$ is when $\mathcal{P} = \mathcal{F}$, the projection on the
+controllable subspace (see Eq. (\ref{eq:controllable-projection})). In this
+case $\mathcal{MP} = \mathcal{M}\bm{f}^{T} = \mathcal{D}$, where $\mathcal{D}$
+is the DM \emph{poke matrix} \index{poke matrix} that is measurable by
+recording sensor readouts
+due to action of a DM actuator controlled (``poked'') one at a time. Since,
+generally, the controllable part of the wavefront reliably represents low
+spacial frequency content of the wavefront aberrations, it is wise to apply
+low-pass spatial filter to the reference wavefront $\phi$ falling on the
+sensor in order to reduce the discrepancy between the true action
+$\mathcal{M} (\mathcal{P}_{LP} \phi)$ of the low-pass filtered wavefront and
+its prediction $\mathcal{MP} (\mathcal{P}_{LP} \phi)$ and thus the aliasing
+error \cite{Poyneer1}. Note that the optimal reconstructor equation
+(\ref{eq:optimal-reconstructor}) has to be modified by replacing $\bm{s} =
+\mathcal{M} \phi$ with $\bm{s}_{LP} = \mathcal{M} ( \mathcal{P}_{LP} \phi )$,
+which, in general, will increase the optimal reconstruction error. This
+increase is, however, expected to be compensated with the much more
+significant decrease of the aliasing error contribution.
 
 \subsubsection{Dynamic and closed-loop control}
 
@@ -973,6 +1039,13 @@ correction but the errors in these systems become the additional error inputs
 for the main AO controllers thus upsetting indirectly the AO system
 performance.
 
+In the following subsections details of the subsystem control algorithms are
+discussed. We concentrate there on the non-dynamic algorithm versions to
+highlight the basic operation flow and the data structures involved. The
+algorithm modifications to account for the dynamic effects are postponed to
+the later sections. Note, however, that the information about the non-dynamic
+algorithms is higly reusable in the dynamic versions.
+
 %!!!!!!
 %Let the low order wavefront part to be removed from the wavefront $\bm{x}_{Sc}$
 %by the $\mathcal{P}_{HO}$-matrix or extracted from $\bm{x}_{Sc}$ by the
@@ -994,6 +1067,9 @@ performance.
 %!!!!!! \\
 
 \subsubsection{ASM HO LGS controller algorithm}
+
+
+
 \subsubsection{ASM LO NGS controller algorithm}
 \subsubsection{ASM TT NGS controller algorithm}
 \subsubsection{OI DM HO LGS controller algorithm}
