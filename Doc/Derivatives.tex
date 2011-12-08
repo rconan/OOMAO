@@ -6,23 +6,38 @@
 \section{Appendix: \\ Matrix derivatives}
 \label{sec:MDerivative}
 
-Derivative of linear matrix functional $$p^T F z$$ with respect to matrix $F$
+Derivative of linear matrix functional $$\bm{p}^T \mathcal{F} \bm{z}$$
+with respect to matrix $\mathcal{F}$
 is computed as follows:
 \begin{enumerate}
  \item Write the functional in element-wise form:
-   $$ f = p^T F z = \sum_i \sum_j p_i F_{ij} z_j. $$
- \item Differentiate with respect to $F_{ij}$:
-    $$ \frac{\partial f}{\partial F_{ij}} = p_i z_j. $$
- \item Thus $$ \frac{\partial}{\partial F} (p^T F z) = p z^T. $$
+   $$ f = \bm{p}^T \mathcal{F} \bm{z} =
+      \sum_i \sum_j p_i \mathcal{F}_{ij} z_j. $$
+ \item Differentiate with respect to $\mathcal{F}_{ij}$:
+    $$ \frac{\partial f}{\partial \mathcal{F}_{ij}} = p_i z_j. $$
+ \item Thus $$ \frac{\partial}{\partial \mathcal{F}}
+ (\bm{p}^T \mathcal{F} \bm{z}) = \bm{p} \bm{z}^T. $$
 \end{enumerate}
 
-Derivative of quadratic matrix functional $$z^T F^T A F z,$$ where $A$ is
-symmetric real valued matrix, with respect to matrix $F$ is computed as follows:
+Derivative of quadratic matrix functional
+$$\bm{z}^T \mathcal{F}^T \mathcal{A} \mathcal{F} \bm{z},$$
+where $\mathcal{A}$ is
+symmetric real valued matrix, with respect to matrix $\mathcal{F}$ is computed
+as follows:
 \begin{enumerate}
  \item Write the functional in element-wise form:
-    $$ f = z^T F^T A F z = \sum_{i=1}^m \sum_{l=1}^n \sum_{j=1}^m \sum_{k=1}^n
-    F_{il} F_{jk} A_{ij} z_l z_k $$
+		$$ f = \bm{z}^T \mathcal{F}^T \mathcal{AF} \bm{z} =
+		\sum_{i=1}^m \sum_{l=1}^n \sum_{j=1}^m \sum_{k=1}^n
+		\mathcal{F}_{il} \mathcal{F}_{jk} \mathcal{A}_{ij} z_l z_k. $$
  \item Most conveniently, by writing down the above equation for a case of
  small matrix size, say, 2x2, find by inspection that
-    $$ \frac{\partial}{\partial F} (z^T F^T A F z) = 2 A F zz^T. $$
+		$$ \frac{\partial}{\partial \mathcal{F}}
+		(\bm{z}^T \mathcal{F}^T \mathcal{AF} \bm{z}) = 2 \mathcal{AF} \bm{zz}^T. $$
 \end{enumerate}
+
+Analogously, the derivatives with respect to vector are:
+$$ \frac{\partial}{\partial \bm{z}} ( \mathcal{F} \bm{z} ) = \mathcal{F}, $$
+$$
+	\frac{\partial}{\partial \bm{z}} \bm{z}^{T} \mathcal{F} \bm{z} =
+	2 \bm{z}^{T} \mathcal{F}.
+$$
