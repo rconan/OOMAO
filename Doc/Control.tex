@@ -1174,8 +1174,6 @@ of the system that need to be modeled together with their interaction are:
 		target through OI DM to the entrance pupil.
 		\item $\mathcal{T}_{ST}^{ASM}$ -- propagates light from the scientific
 		target through ASM to the entrance pupil.
-		\item $\mathcal{R}_{LGS}^{DM}$ -- propagates light from the 6 LGSs
-		through OI DM to the entrance pupil.
 		\item $\mathcal{R}_{LGS}^{ASM}$ -- propagates light from the 6 LGSs
 		through ASM to the entrance pupil.
 		\item $\mathcal{R}_{NGS}^{DM}$ -- propagates light from the NGS
@@ -1188,10 +1186,10 @@ of the system that need to be modeled together with their interaction are:
 	\item There are three (3) wavefront sensors:
 	\begin{itemize}
 		\item LGS HO WFS consisting of 6 sensor blocks. It is described by poke
-		matrix $\mathcal{D}_{LGS}^{ASM}$ describing interaction between LGS HO WFS
+		matrix $\mathcal{D}_{LGS}^{ASM}$ for interaction between LGS HO WFS
 		and ASM, sensor noise covariance matrix
 		$\langle \bm{n}_{LGS}^{} \bm{n}_{LGS}^{T} \rangle$, anti-aliasing filter
-		operator $\mathcal{P}_{LGS}$ describing action of the LGS HO WFS field
+		operator $\mathcal{P}_{LGS}$ for action of the LGS HO WFS field
 		stops on the input wavefront phase.
 		\item NGS TT WFS described by matrix $\mathcal{D}_{TT}^{ASM}$ describing
 		interaction between NGS TT WFS
@@ -1200,7 +1198,7 @@ of the system that need to be modeled together with their interaction are:
 		$\langle \bm{n}_{TT}^{} \bm{n}_{TT}^{T} \rangle$, anti-aliasing filter
 		operator $\mathcal{P}_{TT}$ describing action of the NGS TT WFS field
 		stop on the input wavefront phase.
-		\item NGS LO WFS described by matrix $\mathcal{D}_{LO}^{ASM}$ describing
+		\item NGS LO WFS described by matrix $\mathcal{D}_{LO}^{ASM}$ for
 		interaction between NGS TT WFS
 		and ASM, poke matrix $\mathcal{D}_{LO}^{DM}$ for interaction between NGS
 		LO WFS and the OI DM, sensor noise covariance matrix
@@ -1215,33 +1213,53 @@ of the system that need to be modeled together with their interaction are:
 	\begin{itemize}
 		\item $\bm{\phi}_{PS}^{}(\bm{x})$ -- instantaneous phase distortions on the
 		atmospheric turbulence phase screens.
-		\item $\bm{\phi}_{PS}^{}(\bm{x})$ -- instantaneous phase corrections on the
-		deformable mirrors.
-		\item $\delta \bm{\phi}_{ST}^{} (\bm{x}) = \mathcal{T}^{PS}_{ST}
-		(\bm{\phi}_{PS}^{}) - \mathcal{T}^{DM}_{ST} (\bm{\phi}_{DM}^{})$
+		\item $\bm{\phi}_{ASM}^{}(\bm{x})$ -- instantaneous phase corrections on the
+		ASM.
+		\item $\bm{\phi}_{DM}^{}(\bm{x})$ -- instantaneous phase corrections on the
+		OI DM.
+		\item $\delta \bm{\phi}^{HO}_{ST} (\bm{x}) = \mathcal{T}^{PS}_{ST}
+		(\bm{\phi}_{PS}^{}) - \mathcal{T}^{ASM}_{ST} (\bm{\phi}_{ASM}^{})$
+		-- instantaneous phase distribution in the entrance pupil from
+		atmospheric turbulence and ASM corrections propagated from the Science
+		Target. This is the scientific target wavefront seen in the LGS HO WFS
+		channel and, up to
+		non-common path aberrations, in the scientific instrument channel.
+		\item $\delta \bm{\phi}^{OI}_{ST} (\bm{x}) = \mathcal{T}^{PS}_{ST}
+		(\bm{\phi}_{PS}^{}) - \mathcal{T}^{ASM}_{ST} (\bm{\phi}_{ASM}^{}) -
+		\mathcal{T}^{DM}_{ST} (\bm{\phi}_{DM}^{})$
+		-- instantaneous phase distribution in the entrance pupil from
+		atmospheric turbulence and both ASM and OI DM corrections propagated from
+		the Science Target. This is the scientific target wavefront seen in the OI
+		WFS channel.
+		\item $\delta \bm{\phi}_{LGS}^{HO} (\bm{x}) = \mathcal{R}^{PS}_{LGS}
+		(\bm{\phi}_{PS}^{}) - \mathcal{R}^{ASM}_{LGS} (\bm{\phi}_{ASM}^{})$
 		-- instantaneous phase distribution in the entrance pupil from both
-		atmospheric turbulence and DM corrections propagated from the Science
-		Target.
-		\item $\delta \bm{\phi}_{NGS}^{} (\bm{x}) = \mathcal{R}^{PS}_{NGS}
-		(\bm{\phi}_{PS}^{}) - \mathcal{R}^{DM}_{NGS} (\bm{\phi}_{DM}^{})$
-		-- instantaneous phase distribution in the entrance pupil from both
-		atmospheric turbulence and DM corrections propagated from the NGS.
-		\item $\delta \bm{\phi}_{LGS} (\bm{x}) = \mathcal{R}^{PS}_{LGS}
-		(\bm{\phi}_{PS}^{}) - \mathcal{R}^{DM}_{LGS} (\bm{\phi}_{DM}^{})$
-		-- instantaneous phase distribution in the entrance pupil from both
-		atmospheric turbulence and DM corrections propagated from the 6 LGSs.
+		atmospheric turbulence and DM corrections propagated from the 6 LGSs. This
+		is the reference source wavefront(s) seen in the LGS HO WFS channel.
+		\item $\delta \bm{\phi}^{HO}_{NGS} (\bm{x}) = \mathcal{R}^{PS}_{NGS}
+		(\bm{\phi}_{PS}^{}) - \mathcal{R}^{ASM}_{NGS} (\bm{\phi}_{ASM}^{})$
+		-- instantaneous phase distribution in the entrance pupil from
+		atmospheric turbulence and ASM corrections propagated from the Science
+		Target. This is the NGS wavefront seen in the LGS HO WFS
+		channel and used as a target for the OI DM control algorithm.
+		\item $\delta \bm{\phi}_{NGS}^{OI} (\bm{x}) = \mathcal{R}^{PS}_{NGS}
+		(\bm{\phi}_{PS}^{}) - \mathcal{R}^{ASM}_{NGS} (\bm{\phi}_{ASM}^{}) -
+		\mathcal{R}^{DM}_{NGS} (\bm{\phi}_{DM}^{})$
+		-- instantaneous phase distribution in the entrance pupil from
+		atmospheric turbulence and both ASM and DM corrections propagated from the
+		NGS. This is the reference source wavefront seen in the OI WFS channel.
 		\item $\delta \bm{s}_{LGS}^{} = \mathcal{M}^{LGS} \mathcal{P}_{LGS}
-		(\delta \bm{\phi}_{LGS}^{}) + \bm{n}_{LGS}^{}$
+		(\delta \bm{\phi}_{LGS}^{HO}) + \bm{n}_{LGS}^{}$
 		-- instantaneous LGS HO WFS readout, where $\mathcal{M}_{LGS}$ is exact
 		(infinite-dimensional) LGS HO WFS measurement operator, $\bm{n}_{LGS}^{}$ is
 		the instantaneous LGS HO WFS noise readout.
 		\item $\delta \bm{s}_{TT}^{} = \mathcal{M}^{TT} \mathcal{P}_{TT}
-		(\delta \bm{\phi}_{TT}^{}) + \bm{n}_{TT}^{}$
+		(\delta \bm{\phi}_{NGS}^{OI}) + \bm{n}_{TT}^{}$
 		-- instantaneous NGS TT WFS readout, where $\mathcal{M}_{TT}$ is exact
 		(infinite-dimensional) NGS TT WFS measurement operator, $\bm{n}_{TT}^{}$ is
 		the instantaneous NGS TT WFS noise readout.
 		\item $\delta \bm{s}_{LO}^{} = \mathcal{M}^{LO} \mathcal{P}_{LO}
-		(\delta \bm{\phi}_{LO}^{}) + \bm{n}_{LO}^{}$
+		(\delta \bm{\phi}_{NGS}^{OI}) + \bm{n}_{LO}^{}$
 		-- instantaneous NGS LO WFS readout, where $\mathcal{M}_{LO}$ is exact
 		(infinite-dimensional) NGS LO WFS measurement operator, $\bm{n}_{LO}^{}$ is
 		the instantaneous NGS LO WFS noise readout.
@@ -1249,18 +1267,32 @@ of the system that need to be modeled together with their interaction are:
 		\bm{c}^{HO}_{ASM}$ -- instantaneous ASM control command vector consisting
 		of tip/tilt (TT), low order (LO) and high order (HO) corrections.
 		\item $\bm{c}_{DM}^{} = \bm{c}^{LO}_{DM} + \bm{c}^{HO}_{DM}$ --
-		instantaneous
-		ASM control command vector consisting of low and high order corrections.
+		instantaneous OI DM
+		control command vector consisting of low and high order corrections.
 		\item $\bm{c}_{LGS}^{}$ -- instantaneous LGS control command vector
 		consisting of LGS WFS platform focus and rotation commands and the 6 LLT
 		tip/tilt corrections.
 	\end{itemize}
+	\item The following projection operators are used for channel splitting:
+	\begin{itemize}
+		\item $\mathcal{P}_{ST}^{HO}$ -- spatial high-pass projection operator
+		acting on the $\delta \bm{\phi}_{ST}^{HO}$ wavefront.
+		\item $\mathcal{P}_{ST}^{LO}$ -- spatial low-pass projection operator
+		acting on the $\delta \bm{\phi}_{ST}^{HO}$ wavefront.
+		\item $\mathcal{P}_{NGS}^{HO}$ -- spatial high-pass projection operator
+		acting on the $\delta \bm{\phi}_{NGS}^{HO}$ wavefront.
+		\item $\mathcal{P}_{NGS}^{LO}$ -- spatial low-pass projection operator
+		acting on the $\delta \bm{\phi}_{NGS}^{OI}$ wavefront.
+		\item $\mathcal{P}_{NGS}^{TT}$ -- spatial low-pass projection operator
+		extracting tip/tilt from the $\delta \bm{\phi}_{NGS}^{OI}$ wavefront.
+	\end{itemize}
+
 \end{enumerate}
-The mathematical objects listed above, vectors, matrices, operators, are the
+The vectors, matrices and operators listed above are the
 building blocks for the LTAO system control algorithms ans simulations. Below
 we elaborate on the internal structure of these objects.
 
-\subsubsection{Phase screens, propagation and filter operators}
+\subsubsection{Phase screens and propagation operators}
 \label{subsubsec:phase-and-propagation}
 
 As it was described in Sec. \ref{subsec:MMSE-tomo}, the phase
@@ -1273,63 +1305,83 @@ throughout this document. The phase distribution vector
 $\bm{\phi} (\bm{x})$ in the entrance pupil, where $\bm{x}$ are the
 pupil $(x,y)^{t}$-coordinates, is a concatenation of phase distributions
 corresponding to propagation from the several target or reference sources.
-Correspondingly, propagation operator matrix $\mathcal{T}$ or $\mathcal{R}$ is
-a block $\#SRC\times\#PS$ matrix, where $\#SRC$ is the number of sources and
-$\#PS$is the number of phase screens. Each block $ij$ of the propagation matrix
+Because of the assumed linearity of the propagation operators, propagation
+operator matrices $\mathcal{T}$ or $\mathcal{R}$ are
+block $\#SRC\times\#PS$ matrix, where $\#SRC$ is the number of sources and
+$\#PS$ is the number of phase screens. Each block $ij$ of the propagation matrix
 is a scalar propagation operator mapping phase distribution on the $j^{th}$
 phase screen to the entrance pupil propagated from $i^{th}$ source. Thus, the
+operators involved in the GMT LTAO model are
+\begin{itemize}
+	\item $\mathcal{T}_{ST}^{PS}$ is a $1 \times \#PS$-matrix;
+	\item $\mathcal{R}_{LGS}^{PS}$ is a $6 \times \#PS$-matrix;
+	\item $\mathcal{R}_{NGS}^{PS}$ is a $1 \times \#PS$-matrix;
+	\item $\mathcal{T}_{ST}^{ASM}$ and $\mathcal{T}_{ST}^{DM}$ are $1 \times
+	1$-matrices and, to simplify equation for $\delta \bm{\phi}_{ST}^{OI}$, these
+	two matrices can be concatenated into one $1 \times 2$-matrix
+	$\mathcal{T}_{ST}^{OI}$;
+	\item $\mathcal{R}_{NGS}^{ASM}$ and $\mathcal{R}_{NGS}^{DM}$ are $1 \times
+	1$-matrices and, to simplify equation for $\delta \bm{\phi}_{NGS}^{OI}$, these
+	two matrices can be concatenated into one $1 \times 2$-matrix
+	$\mathcal{R}_{NGS}^{OI}$.
+\end{itemize}
 
-In the following sections details of the subsystem control algorithms are
-discussed. We concentrate there on the non-dynamic algorithm versions to
-highlight the basic operation flow and the data structures involved. The
-algorithm modifications to account for the dynamic effects are postponed to
-the later sections. Note, however, that the information about the non-dynamic
-algorithms is higly reusable in the dynamic versions.
+The $\mathcal{T}$ and $\mathcal{R}$ propagation operators have especially
+simple form in case of the geometrical optics propagation (see Section
+\ref{sec:lgs}):
+\begin{equation} \label{eq:shift-propagator}
+	\mathcal{H}(\bm{\phi}(\bm{x})) = \bm{\phi}(a\bm{x}+\bm{b}),
+\end{equation}
+where $\mathcal{H}$ stands either for $\mathcal{T}$ or $\mathcal{R}$ and
+$(a,\bm{b})$ are computed from Eq. (\ref{eq:pupil-to-layer}) for finite
+altitude point source (LGS) or Eq. (\ref{eq:pupil-to-layer-inf}) for infinite
+altitude point source (TS or NGS).
+
+\subsubsection{Projection operators}
+\label{subsubsec:projection-operators}
+
+For the ideal channel split the following relations hold:
+\begin{equation} \label{eq:HO-split}
+	\mathcal{I} = \mathcal{P}_{ST}^{HO} + \mathcal{P}_{ST}^{LO},
+\end{equation}
+\begin{equation} \label{eq:HO-LO-TT-split}
+	\mathcal{I} = \mathcal{P}_{NGS}^{HO} + \mathcal{P}_{NGS}^{LO} +
+	              \mathcal{P}_{NGS}^{TT}.
+\end{equation}
+Thus, only three projection operators out of five need to be computed. Since
+all the splitting projection operators act on the wavefront phase from a single
+light source (ST or NGS) $\mathcal{P}$ are $1 \times 1$-matrices or just
+scalar operators.
+
+Let an
+orthonormal basis $\bm{q}(\bm{x}) = \{ q_{i}(\bm{x}) \}_{i=1}^{\infty} $ be
+defined on the entrance pupil domain $A$ with the basis functions
+$q_{i}(\bm{x})$.
+Then an orthogonal projector on a subset $ \{ q_{i}(\bm{x}) \}_{i \in S} $ is
+\begin{equation} \label{eq:orthogonal-projector-def}
+	\mathcal{P}^{S} ( \phi(\bm{x}) ) = \bm{q}^{T}_{S} [\bm{q}_{S}^{},\phi],
+\end{equation}
+where $\bm{q}_{S}^{} (\bm{x}) = \{ q_{i} (\bm{x}) \}_{i \in S}$, $[*,*]$ is the
+Hilbert space metric defined in Eq. (\ref{eq:Hilbert-metric}). If the basis
+functions are sorted in ascending order with respect to the abundance of high
+order details, then the $\mathcal{P}^{TT}$-operators are made of
+$\{ q_{1},q_{2} \}$ (and, hopefully, $q_{1}(\bm{x})$ and $q_{2}(\bm{x})$ are
+indeed are very similar to tip and tilt, which is not guaranteed for a
+segmented aperture), the $\mathcal{P}^{TT}$-operators are made of
+$\{ q_{3}, ..., q_{LO}^{} \}$, etc.
+
+%In the following sections details of the subsystem control algorithms are
+%discussed. We concentrate there on the non-dynamic algorithm versions to
+%highlight the basic operation flow and the data structures involved. The
+%algorithm modifications to account for the dynamic effects are postponed to
+%the later sections. Note, however, that the information about the non-dynamic
+%algorithms is higly reusable in the dynamic versions.
 
 \subsection{ASM HO LGS controller algorithm}
 \subsection{ASM LO NGS controller algorithm}
 \subsection{ASM TT NGS controller algorithm}
 \subsection{OI DM HO LGS controller algorithm}
 \subsection{OI DM LO NGS controller algorithm}
-
-%The OI DM HO LGS controller is a modification of the standard AO algorithm
-%with the following changes:
-%\begin{enumerate}
-	%\item The OI DM HO LGS estimator matrix $\mathcal{E}_{HO,OIDM}$ is computed
-	%by Eq. (\ref{eq:estimator}), where the wavefront $\bm{x}_{Sc}$ from a science
-	%target is replaced with wavefront $\bm{x}_{NGS}$ from the NGS:
-	%\begin{equation} \label{eq:OI-DM-H)-LGS-estimator}
-	  %^{ngs}\mathcal{E}_{ho}^{lgs} = ^{NGS}\mathcal{P}_{HO}
-	%\end{equation}
-	%\item The POL measurement equation (\ref{eq:POL-meas}) is replaced with
-	%\begin{equation} \label{eq:POL-OIDM}
-		%\bm{s}(n) = \delta \bm{s}(n) + \hat{\bm{s}}_{ASM}(n),
-	%\end{equation}
-	%where $\delta \bm{s}(n)$ is the LGS WFS closed-loop measurement, same as
-	%that for HO ADM LGS controller input,
-	%$\hat{\bm{s}}_{ASM}(n)$ is an estimate of LGS WFS measurement due to
-	%commands sent to ASM by the HO ASM LGS, LO ASM NGS and TT ASM NGS
-	%controllers.
-	%\item There is no integrator in the HO OI DM control loop because the LGS
-	%WFSs are not behind OI DM. Thus
-	%\begin{equation} \label{eq:H)-OIDM-commands}
-		%\hat{\bm{c}}_{HO,OIDM} (n) = \mathcal{E}_{HO,OIDM} \bm{s}(n)
-	%\end{equation}
-	%is the HO open-loop OI DM control command.
-	%\item Since OI DM is behind the ASM, the differential command $\delta
-	%\hat{\bm{c}}_{OIDM}$ to be sent to OI DM should take into account the ASM
-	%correction:
-	%\begin{equation} \label{eq:OIDM-balance}
-		%\delta \hat{\bm{c}}_{OIDM} = \hat{\bm{c}}_{OIDM} -
-		%\hat{\bm{c}}^{ASM}_{OIDM},
-	%\end{equation}
-	%where $\hat{\bm{c}}^{ASM}_{OIDM}$ is the best fit of the ASM correction
-	%wavefront by the OIDM:
-	%\begin{equation} \label{eq:ASM-to-OIDM-fit}
-		%\hat{\bm{c}}^{ASM}_{OIDM} = \arg \min_{\forall \bm{c}}
-		%|\mathcal{F} \hat{\bm{c}}_{ASM} - \mathcal{F}|^{2}
-	%\end{equation}
-%\end{enumerate}
 
 \subsection{GMT LTAO system fusion}
 \label{subsec:ltao-system-fusion}

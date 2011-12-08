@@ -306,14 +306,7 @@ Simple geometrical analysis gives for the
 relationship between the pupil and turbulence layer coordinates:
 \begin{equation} \label{eq:pupil-to-layer}
   \bm{r}^{t}_{lip,j} =
-  \frac{h_{j}}{z^{t}_{li}}
-  \left[
-  \begin{array}{c}
-	  x^{t}_{p} \\
-	  y^{t}_{p} \\
-	  0
-	\end{array}
-  \right] +
+  \frac{h_{j}}{z^{t}_{li}} \bm{r}_{p}^{t} +
   (1-\frac{h_{j}}{z^{t}_{li}})
   \left[
   \begin{array}{c}
@@ -321,9 +314,7 @@ relationship between the pupil and turbulence layer coordinates:
 	  y^{t}_{li} \\
 	  0
 	\end{array}
-  \right],
-\end{equation}
-$$
+  \right], \,\,
   \bm{r}^{t}_{li} =
   \left[
   \begin{array}{c}
@@ -331,23 +322,30 @@ $$
 	  y^{t}_{li} \\
 	  z^{t}_{li}
 	\end{array}
-  \right], \,\,
-  \bm{r}^{t}_{p} =
-  \left[
-  \begin{array}{c}
-	  x^{t}_{p} \\
-	  y^{t}_{p} \\
-	  z^{t}_{p}
-	\end{array}
   \right],
-$$
+\end{equation}
 where $h_{j}$ is distance between the telescope and $j^{th}$ phase screen
 along the telescope optical axis,
 $\bm{r}^{t}_{lip,j}$ are xyz-coordinates in $t$-system of an
 intersection point on phase screen $j$ for a ray emitting from $i^{th}$ point
 source of $l^{th}$ LGS with $t$-coordinates $\bm{r}^{t}_{li}$ and
 passing through $p^{th}$ point in telescope entrance pupil with $t$-coordinates
-$\bm{r}^{t}_{p}$.
+$\bm{r}^{t}_{p}$. For the source at infinity (a natural guide star or a
+scientific target) Eq. (\ref{eq:pupil-to-layer}) simplifies to
+\begin{equation} \label{eq:pupil-to-layer-inf}
+	\bm{r}^{t}_{lip,j} =
+	\left[
+	\begin{array}{c}
+		\cos \alpha^{t}_{li} \\
+		\sin \alpha^{t}_{li} \\
+		0 \\
+	\end{array}
+	\right] h_{j} \tan \beta^{t}_{li} + \bm{r}^{t}_{p},
+\end{equation}
+where $(\alpha,\beta)^{t}_{li}$ are the angular coordinates (first and second
+Euler angles) of the light source. Note that in both cases the position of the
+ray intersection with a layer can be written as $ (a \bm{r}_{p}^{t} +
+\bm{b}^{t}_{li}) $.
 
 \subsubsection{Turbulence layers are parallel to the ground.}
 
