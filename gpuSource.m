@@ -106,11 +106,14 @@ classdef gpuSource < source
             xL               = gdouble( xL );
             yL               = gdouble( yL );
             lensletIndex     = glogical( lensletIndex );
+            nHeight = size(obj,3);
+            if size(fr,3)==1
+                fr = repmat( fr , [1 ,1 ,nHeight] );
+            end
             fr = gsingle(fr);
             waveNumber = obj(1).waveNumber;
             objectiveFocalLength = obj(1).objectiveFocalLength;
             srcHeight  = gdouble( [obj(1,1,:).height]/cos(tel.elevation) );
-            nHeight = size(obj,3);
             kLenslet_ = 1:nLenslets;
             validLenslet = repmat( wfs.validLenslet(:)' , 1 , nArray );
             kLenslet_( ~validLenslet ) = [];
@@ -122,68 +125,70 @@ classdef gpuSource < source
 %             t = tic;
             for kHeight = 1:nHeight;
                 
-                height         = srcHeight(kHeight);
+                height          = srcHeight(kHeight);
                 naProfileHeight = naProfile(kHeight);
+                fr_             = fr(:,:,kHeight);
                 
                 try
                     
-                gfor kValidLenslet = 1:nValidLenslets
-                
-                kLenslet = kLenslet_(kValidLenslet);
-                n = fix((kLenslet-1)/nLenslet2);
-                k = kLenslet - n*nLenslet2;
-                
-                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                    height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
-                
-                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                buf2         = conv2( buf2 , fr ,'same');
-                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                    buf2(:)*naProfileHeight;
-                
-                gend
-%                 geval(lensletIntensity)
-%                 gsync
-
+                    gfor kValidLenslet = 1:nValidLenslets
+                    
+                    kLenslet = kLenslet_(kValidLenslet);
+                    n = fix((kLenslet-1)/nLenslet2);
+                    k = kLenslet - n*nLenslet2;
+                    
+                    lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                        height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
+                    
+                    buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                    buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                    buf2         = conv2( buf2 , fr_ ,'same');
+                    lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                        buf2(:)*naProfileHeight;
+                    
+                    gend
+                    %                 geval(lensletIntensity)
+                    %                 gsync
+                    
                 catch err
                     
                     if ~strcmp(err.identifier,'jacket:runtime')
                         rethrow(err)
                     end
+                    warning([err.identifier,': ',err.message])
                     
-                gfor kValidLenslet = 1:nValidLenslets/2
-                
-                kLenslet = kLenslet_(kValidLenslet);
-                n = fix((kLenslet-1)/nLenslet2);
-                k = kLenslet - n*nLenslet2;
-                
-                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                    height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
-                
-                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                buf2         = conv2( buf2 , fr ,'same');
-                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                    buf2(:)*naProfileHeight;
-                
-                gend
-                gfor kValidLenslet = 1+nValidLenslets/2:nValidLenslets
-                
-                kLenslet = kLenslet_(kValidLenslet);
-                n = fix((kLenslet-1)/nLenslet2);
-                k = kLenslet - n*nLenslet2;
-                
-                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                    height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
-                
-                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                buf2         = conv2( buf2 , fr ,'same');
-                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                    buf2(:)*naProfileHeight;
-                
-                gend                    
+                    gfor kValidLenslet = 1:nValidLenslets/2
+                    
+                    kLenslet = kLenslet_(kValidLenslet);
+                    n = fix((kLenslet-1)/nLenslet2);
+                    k = kLenslet - n*nLenslet2;
+                    
+                    lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                        height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
+                    
+                    buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                    buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                    buf2         = conv2( buf2 , fr_ ,'same');
+                    lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                        buf2(:)*naProfileHeight;
+                    
+                    gend
+                    gfor kValidLenslet = 1+nValidLenslets/2:nValidLenslets
+                    
+                    kLenslet = kLenslet_(kValidLenslet);
+                    n = fix((kLenslet-1)/nLenslet2);
+                    k = kLenslet - n*nLenslet2;
+                    
+                    lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                        height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
+                    
+                    buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                    buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                    buf2         = conv2( buf2 , fr_ ,'same');
+                    lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+                        buf2(:)*naProfileHeight;
+                    
+                    gend
                     
                 end
                 
