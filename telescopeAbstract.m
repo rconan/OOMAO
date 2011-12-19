@@ -712,16 +712,17 @@ classdef telescopeAbstract < handle
             add(obj.log,obj,'Initializing phase screens making parameters:')
             obj.log.verbose = false;
             do = obj.D/(obj.resolution-1);
+
             for kLayer=1:obj.atm.nLayer
                 if isempty(obj.atm.layer(kLayer).phase)
                     D_m = obj.D + 2*obj.atm.layer(kLayer).altitude.*tan(0.5*obj.fieldOfView);
                     nPixel = 1 + round(D_m./do);
-%                     while do*(nPixel-1)<D_m
-%                         nPixel = nPixel + 1;
-%                     end
-%                     D_m = do*(nPixel-1);
+                    %                     while do*(nPixel-1)<D_m
+                    %                         nPixel = nPixel + 1;
+                    %                     end
+                    %                     D_m = do*(nPixel-1);
                     obj.atm.layer(kLayer).D = D_m;
-%                     nPixel = round(1 + (obj.resolution-1)*D./Do);
+                    %                     nPixel = round(1 + (obj.resolution-1)*D./Do);
                     obj.atm.layer(kLayer).nPixel = nPixel;
                     obj.layerSampling{kLayer}  = D_m*0.5*linspace(-1,1,nPixel);
                     % ---------
@@ -730,56 +731,57 @@ classdef telescopeAbstract < handle
                     m_atm = slab(obj.atm,kLayer);
                     obj.atm.layer(kLayer).phase = fourierPhaseScreen(m_atm,D_m,nPixel);
                     fprintf('  Done \n')
-                    % ---------
-                    obj.outerMask{kLayer} = ...
-                        ~utilities.piston(nPixel,nPixel+2,...
-                        'shape','square','type','logical');
-                    obj.innerMask{kLayer} =  ...
-                        ~( obj.outerMask{kLayer} | ...
-                        utilities.piston(nPixel-2*nInner,nPixel+2,...
-                        'shape','square','type','logical') );
-                    fprintf('            -> # of elements for the outer maks: %d and for the inner mask %d\n',...
-                        sum(obj.outerMask{kLayer}(:)),sum(obj.innerMask{kLayer}(:)));
-                    fprintf('            -> Computing matrix A and B for layer %d: ',kLayer)
-                    [u,v] = meshgrid( (0:nPixel+1).*D_m/(nPixel-1) );
-                    % ---------
-                    innerZ = complex(u(obj.innerMask{kLayer}),v(obj.innerMask{kLayer}));
-                    fprintf('ZZt ...')
-                    ZZt = phaseStats.covarianceMatrix(innerZ,m_atm);
-                    % ---------
-                    outerZ = complex(u(obj.outerMask{kLayer}),v(obj.outerMask{kLayer}));
-                    fprintf('\b\b\b, ZXt ...')
-                    ZXt = phaseStats.covarianceMatrix(innerZ,outerZ,m_atm);
-                    clear innerZ
-                    % ---------
-                    obj.A{kLayer}   = ZXt'/ZZt;
-                    % ---------
-                    clear ZZt
-                    fprintf('\b\b\b, XXt ...')
-                    XXt = phaseStats.covarianceMatrix(outerZ,m_atm);
-                    clear outerZ
-                    % ---------
-                    BBt = XXt - obj.A{kLayer}*ZXt;
-                    clear XXt ZXt
-                    obj.B{kLayer} = chol(BBt,'lower');
-                    fprintf('  Done \n')
-                    % ---------
-                    obj.windVx(kLayer) = m_atm.layer.windSpeed.*cos(m_atm.layer.windDirection);
-                    obj.windVy(kLayer) = m_atm.layer.windSpeed.*sin(m_atm.layer.windDirection);
-                    obj.count(kLayer) = 0;
-                    obj.mapShift{kLayer} = zeros(nPixel+2);
-                    pixelStep = [obj.windVx obj.windVy].*obj.samplingTime*(nPixel-1)/D_m;
-                    obj.nShift(kLayer) = max(floor(min(1./pixelStep)),1);
-                    u = (0:nPixel+1).*D_m./(nPixel-1);
-                    %                 [u,v] = meshgrid(u);
-                    obj.x{kLayer} = u;
-                    obj.y{kLayer} = u;%v;
-                    
-                    Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
-                    X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
-                    obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
-                    obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
-
+                    if isfinite(obj.samplingTime)
+                        % ---------
+                        obj.outerMask{kLayer} = ...
+                            ~utilities.piston(nPixel,nPixel+2,...
+                            'shape','square','type','logical');
+                        obj.innerMask{kLayer} =  ...
+                            ~( obj.outerMask{kLayer} | ...
+                            utilities.piston(nPixel-2*nInner,nPixel+2,...
+                            'shape','square','type','logical') );
+                        fprintf('            -> # of elements for the outer maks: %d and for the inner mask %d\n',...
+                            sum(obj.outerMask{kLayer}(:)),sum(obj.innerMask{kLayer}(:)));
+                        fprintf('            -> Computing matrix A and B for layer %d: ',kLayer)
+                        [u,v] = meshgrid( (0:nPixel+1).*D_m/(nPixel-1) );
+                        % ---------
+                        innerZ = complex(u(obj.innerMask{kLayer}),v(obj.innerMask{kLayer}));
+                        fprintf('ZZt ...')
+                        ZZt = phaseStats.covarianceMatrix(innerZ,m_atm);
+                        % ---------
+                        outerZ = complex(u(obj.outerMask{kLayer}),v(obj.outerMask{kLayer}));
+                        fprintf('\b\b\b, ZXt ...')
+                        ZXt = phaseStats.covarianceMatrix(innerZ,outerZ,m_atm);
+                        clear innerZ
+                        % ---------
+                        obj.A{kLayer}   = ZXt'/ZZt;
+                        % ---------
+                        clear ZZt
+                        fprintf('\b\b\b, XXt ...')
+                        XXt = phaseStats.covarianceMatrix(outerZ,m_atm);
+                        clear outerZ
+                        % ---------
+                        BBt = XXt - obj.A{kLayer}*ZXt;
+                        clear XXt ZXt
+                        obj.B{kLayer} = chol(BBt,'lower');
+                        fprintf('  Done \n')
+                        % ---------
+                        obj.windVx(kLayer) = m_atm.layer.windSpeed.*cos(m_atm.layer.windDirection);
+                        obj.windVy(kLayer) = m_atm.layer.windSpeed.*sin(m_atm.layer.windDirection);
+                        obj.count(kLayer) = 0;
+                        obj.mapShift{kLayer} = zeros(nPixel+2);
+                        pixelStep = [obj.windVx obj.windVy].*obj.samplingTime*(nPixel-1)/D_m;
+                        obj.nShift(kLayer) = max(floor(min(1./pixelStep)),1);
+                        u = (0:nPixel+1).*D_m./(nPixel-1);
+                        %                 [u,v] = meshgrid(u);
+                        obj.x{kLayer} = u;
+                        obj.y{kLayer} = u;%v;
+                        
+                        Z = obj.atm.layer(kLayer).phase(obj.innerMask{kLayer}(2:end-1,2:end-1));
+                        X = obj.A{kLayer}*Z + obj.B{kLayer}*randn(obj.atm.rngStream,size(obj.B{kLayer},2),1);
+                        obj.mapShift{kLayer}(obj.outerMask{kLayer})  = X;
+                        obj.mapShift{kLayer}(~obj.outerMask{kLayer}) = obj.atm.layer(kLayer).phase(:);
+                    end
                 end
             end
             obj.phaseScreenWavelength = obj.atm.wavelength;

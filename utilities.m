@@ -643,6 +643,16 @@ classdef utilities
 %             fplot( bjd, [0,ceil(s(end))])
 %             grid
 %             line( s, zeros(size(s)), 'color','r','marker','.','linestyle','none')
+
+        end
+
+        function rc = fitFwhm(profile)
+            C = contourc(profile/max(profile(:)),[0.5,0.5]);
+            rr = hypot(C(1,2:end),C(2,2:end));
+            xc = sum(rr.*C(1,2:end))./sum(rr);
+            yc = sum(rr.*C(2,2:end))./sum(rr);
+%             line(xc,yc,'color','r','marker','x')
+            rc = mean(sqrt((C(1,2:end)-xc).^2 + (C(2,2:end)-yc).^2));
         end
         
     end

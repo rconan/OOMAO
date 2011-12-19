@@ -583,6 +583,25 @@ classdef shackHartmann < hgsetget
             
         end
         
+        function out = framelets(obj,lensletI,lensletJ,lensletArrayK)
+            %% FRAMELETS Per lenslet detector frame 
+            %
+            % out = framelets(obj,lensletI,lensletJ,lensletArrayK) returns
+            % the detector frame restricted to lenslet (I,J) of array # K
+            
+            nLenslet  = obj.lenslets.nLenslet;
+            cameraRes = obj.camera.resolution;
+            nArray    = obj.lenslets.nArray;
+            if nargin<4
+                lensletArrayK = 1;
+            end
+            nPxLenslet = cameraRes/nLenslet;
+            nPxLenslet(2) = nPxLenslet(2)/nArray;
+            u = (1:nPxLenslet(1)) + (lensletI-1)*nPxLenslet(1);
+            v = (1:nPxLenslet(2)) + (lensletJ-1)*nPxLenslet(2) + (lensletArrayK-1)*cameraRes(1);
+            out = obj.camera.frame(u,v);
+        end
+        
         function varargout = slopesDisplay(obj,varargin)
             %% SLOPESDISPLAY WFS slopes display
             %
@@ -1176,6 +1195,8 @@ classdef shackHartmann < hgsetget
                 
 %                 noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph + ...
 %                     (ron/nph).^2.*NS.^2/12;
+                thetaNa
+                seeingNa
                 NS = 2*ceil(2*thetaNa/seeingNa);
                 fprintf('NS max-min: [%d,%d]\n',max(NS),min(NS))
                 sigma2X = (1/(8*log(2)))*(2*atm.r0.*fwhm(1)).^2/nph + ...
