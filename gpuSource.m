@@ -59,7 +59,7 @@ classdef gpuSource < source
                 xL(kObj) = obj(1,kObj,1).viewPoint(1);
                 yL(kObj) = obj(1,kObj,1).viewPoint(2);
             end
-            fr = obj(1).extent;
+            fr = cat(3,obj.extent);
             for kDevice = 1:nDevice
                 deviceClass = class(obj(1).opticalPath{kDevice});
                 switch deviceClass
@@ -88,6 +88,9 @@ classdef gpuSource < source
             phasor = phasor.'*phasor;
             %%
             index    = tools.rearrange( [n1,n1]  , [nLensletWavePx,nLensletWavePx] );
+            if isinf(tel.samplingTime)
+                error('oomao:gpuSource:gpuRun','Telescope sampling time must be finite!')
+            end
             telPupil = tel.pupil.*sqrt(tel.samplingTime*tel.area/tel.pixelArea)/nOutWavePx;
             telPupil = reshape( telPupil(index) , nPixelLenslet,nPixelLenslet,nLenslet2);
             [xPup,yPup] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
@@ -121,43 +124,24 @@ classdef gpuSource < source
             naProfile = [obj(1,1,:).nPhoton];
             %%
             lensletIntensity = gzeros(nPixelLenslet*nPixelLenslet,nValidLenslets,'single');
-%             gsync
-%             t = tic;
-            for kHeight = 1:nHeight;
+            nGpu = ceil(wfs.nValidLenslet*160*160*6*1e-6/135);
+            validLensletMaxStep = floor(nValidLenslets/nGpu);
+            validLensletRange   = 1:validLensletMaxStep;
+            
+            for kGpu=1:nGpu
                 
-                height          = srcHeight(kHeight);
-                naProfileHeight = naProfile(kHeight);
-                fr_             = fr(:,:,kHeight);
+                kValidLenslet_ = validLensletRange + (kGpu-1)*validLensletMaxStep;
+                kValidLenslet_(end) = min(kValidLenslet_(end),nValidLenslets);
+            %             gsync
+            %             t = tic;
                 
-                try
+                gfor kValidLenslet = kValidLenslet_
+                
+                for kHeight = 1:nHeight;
                     
-                    gfor kValidLenslet = 1:nValidLenslets
-                    
-                    kLenslet = kLenslet_(kValidLenslet);
-                    n = fix((kLenslet-1)/nLenslet2);
-                    k = kLenslet - n*nLenslet2;
-                    
-                    lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                        height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
-                    
-                    buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                    buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                    buf2         = conv2( buf2 , fr_ ,'same');
-                    lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                        buf2(:)*naProfileHeight;
-                    
-                    gend
-                    %                 geval(lensletIntensity)
-                    %                 gsync
-                    
-                catch err
-                    
-                    if ~strcmp(err.identifier,'jacket:runtime')
-                        rethrow(err)
-                    end
-                    warning([err.identifier,': ',err.message])
-                    
-                    gfor kValidLenslet = 1:nValidLenslets/2
+                    height          = srcHeight(kHeight);
+                    naProfileHeight = naProfile(kHeight);
+                    fr_             = fr(:,:,kHeight);
                     
                     kLenslet = kLenslet_(kValidLenslet);
                     n = fix((kLenslet-1)/nLenslet2);
@@ -171,29 +155,15 @@ classdef gpuSource < source
                     buf2         = conv2( buf2 , fr_ ,'same');
                     lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
                         buf2(:)*naProfileHeight;
-                    
-                    gend
-                    gfor kValidLenslet = 1+nValidLenslets/2:nValidLenslets
-                    
-                    kLenslet = kLenslet_(kValidLenslet);
-                    n = fix((kLenslet-1)/nLenslet2);
-                    k = kLenslet - n*nLenslet2;
-                    
-                    lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                        height,objectiveFocalLength,waveNumber,telPupil(:,:,k));
-                    
-                    buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                    buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                    buf2         = conv2( buf2 , fr_ ,'same');
-                    lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                        buf2(:)*naProfileHeight;
-                    
-                    gend
                     
                 end
                 
+                gend
+                
             end
-%             toc(t)
+                %                 geval(lensletIntensity)
+                %                 gsync
+                
             %%
             imagelets  = zeros(n1,n2);
             index = tools.rearrange( [n1,n2] , [nLensletWavePx,nLensletWavePx] );
