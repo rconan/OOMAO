@@ -1,0 +1,109 @@
+% To be compiled with pdflatex
+% This file is to be included into master file via \input command
+% Note that there is no \begin{document} \end{document} brackets!
+
+\newpage
+\section{Appendix: \\ Theory of Generalized Fresnel Transform}
+\label{app:Fresnel}
+
+\mbox{}
+
+Generalized Fresnel Transform (GFT) is a Fresnel diffraction integral
+generalized to propagation through a paraxial optic system defined through
+the \emph{wave}- or \emph{ABCD}-matrix \index{wave matrix} \index{ABCD-matrix}
+\cite{SchmidtProp,PalmaBagini}
+\begin{equation} \label{eq:ABCD-matrix}
+  W =
+  \left[
+  \begin{array}{cc}
+    A & B \\
+    C & D \\
+  \end{array}
+  \right], \,\, |W| = AD-BC = 1.
+\end{equation}
+The GFT is defined as
+\begin{equation} \label{eq:GFT-definition}
+  U(\bm{y}) = \mathbb{F}[A,B,D] \{ U(\bm{x}) \} (\bm{y}) =
+\end{equation}
+$$
+  \frac{e^{ikz}}{i \lambda B} \int_{-\infty}^{\infty} U(\bm{x})
+  \exp \left[
+  i \frac{k}{2B} (A|\bm{x}|^{2} - 2 \bm{x}^{T}\bm{y} + D |\bm{y}|^{2})
+  \right] d\bm{x}, \,\, k = \frac{2 \pi}{\lambda},
+$$
+where $\bm{x,y}$ are the xy-coordinates in the source and observation planes,
+respectively, $z$ is the distance between the planes, $U$ is a complex
+amplitude of the scalar field at the planes. Obviously, when
+considering free-space propagation, i.e. when
+\begin{equation} \label{eq:free-space-ABCD}
+  W =
+  \left[
+  \begin{array}{cc}
+    1 & z \\
+    0 & 1 \\
+  \end{array}
+  \right],
+\end{equation}
+Eq. (\ref{eq:GFT-definition}) turns into classical Fresnel diffraction
+integral. Ref. \cite{PalmaBagini} develops theory of the GFT in the form of
+several theorems. We give here a subset of the most useful GFT theorems
+translated from 1D to 2D case.
+\\ \\
+\textbf{Cast-to-convolution theorem.} \\
+At first glance Eq. (\ref{eq:GFT-definition}) does not look like a convolution
+but it is possible to reduce it to convolution after change of variables:
+\begin{equation} \label{eq:convolution-cast}
+  U(A\bm{y}) = \frac{e^{ikz}}{i \lambda B}
+  \exp \left( i\frac{k}{2}AC|\bm{y}|^{2} \right)
+  \int_{-\infty}^{\infty}
+  U(\bm{x}) \exp \left( i \frac{kA}{2B} |\bm{y}-\bm{x}|^{2} \right) d\bm{x}.
+\end{equation}
+This theorem allows to use Fast Fourier Transform for computing GFTs.
+The convolution kernel in Eq. (\ref{eq:convolution-cast}), the \emph{GFT chirp},
+\index{GFT-chirp} has analytical Fourier Transform:
+\begin{equation} \label{eq:GFT-chirp-FT}
+  \mathcal{F}
+  \{
+  \exp \left( i \frac{kA}{2B} |\bm{x}|^{2} \right)
+  \} (\bm{f}) =
+  \frac{i}{\alpha} \exp \left[ -i \frac{\pi}{\alpha} |\bm{f}|^{2} \right],
+  \,\, \alpha = \frac{A}{\lambda B}.
+\end{equation}
+\\
+\textbf{Shift theorem.}
+\begin{equation} \label{eq:shift-theorem}
+  \mathbb{F}[A,B,D] \{ U(\bm{x}-\bm{x}_{0}) \} (\bm{y}) =
+  \exp \left[
+  i \frac{k}{2} C \bm{x}_{0}^{T} (2\bm{y}-A\bm{x}_{0})
+  \right]
+  \mathbb{F}[A,B,D] \{ U(\bm{x}) \} (\bm{y}-A\bm{x}_{0}).
+\end{equation}
+This theorem gives the \emph{exact} interpolation formula to relate shifted
+and unshifted values of the propagated field.
+\\ \\
+\textbf{Tilt theorem.}
+\begin{equation} \label{eq:tilt-theorem}
+  \mathbb{F}[A,B,D] \{ U(\bm{x}) \exp [ik\bm{x}_{0}^{T}\bm{x}] \} (\bm{y}) =
+  \exp \left[
+  ik D \bm{x}_{0}^{T} (\bm{y}-\frac{B}{2}\bm{x}_{0})
+  \right]
+  \mathbb{F}[A,B,D] \{ U(\bm{x}) \} (\bm{y}-B\bm{x}_{0}).
+\end{equation}
+This theorem allows to factor a highly oscillating term from the integral.
+\\ \\
+\textbf{Focus theorem.}
+\begin{equation} \label{eq:focus-theorem}
+  \mathbb{F}[A,B,D] \{ U(\bm{x})
+  \exp \left[ i \frac{k}{2f} |\bm{x}|^{2} \right] \}
+  (\bm{y}) =
+  \mathbb{F}[A+\frac{B}{f},B,D] \{ U(\bm{x}) \} (\bm{y}).
+\end{equation}
+Note that, to keep the wave matrix unimodular after $A^{\prime} = A +
+\frac{B}{f}$ transformation, the $C$-coeffficient has to be transformed into
+\begin{equation} \label{eq:c-correction}
+  C^{\prime} = C + \frac{D}{f}.
+\end{equation}
+Same as the tilt theorem, focus theorem allows to factor the highly
+oscillating focus term from the integral. To see this, Eq.
+(\ref{eq:focus-theorem}) needs to be substituted into Eq.
+(\ref{eq:convolution-cast}).

@@ -7,6 +7,7 @@ Sim.pdf: Sim.tex \
          Control.tex \
          Derivatives.tex \
          DF.tex \
+         Fresnel.tex \
          Biblio.tex
 	pdflatex --file-line-error-style Sim.tex
 	makeindex Sim.idx
