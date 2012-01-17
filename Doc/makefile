@@ -8,10 +8,11 @@ Sim.pdf: Sim.tex \
          Derivatives.tex \
          DF.tex \
          Fresnel.tex \
+         Propagation.tex \
          Biblio.tex
 	pdflatex --file-line-error-style Sim.tex
 	makeindex Sim.idx
 	pdflatex --file-line-error-style Sim.tex
 
 clean:
-	rm -f *.aux *.out *.log *.ilg *.idx *.ind *.toc
+	rm -f *.aux *.out *.log *.ilg *.idx *.ind *.toc *.lot *.lof

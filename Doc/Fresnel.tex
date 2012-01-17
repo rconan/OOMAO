@@ -53,10 +53,10 @@ translated from 1D to 2D case.
 At first glance Eq. (\ref{eq:GFT-definition}) does not look like a convolution
 but it is possible to reduce it to convolution after change of variables:
 \begin{equation} \label{eq:convolution-cast}
-  U(A\bm{y}) = \frac{e^{ikz}}{i \lambda B}
-  \exp \left( i\frac{k}{2}AC|\bm{y}|^{2} \right)
-  \int_{-\infty}^{\infty}
-  U(\bm{x}) \exp \left( i \frac{kA}{2B} |\bm{y}-\bm{x}|^{2} \right) d\bm{x}.
+  U(\bm{y}) = \frac{e^{ikz}}{i \lambda B}
+  \exp \left( i\frac{kC}{2A}|\bm{y}|^{2} \right)
+  \int_{-\infty}^{\infty} U(\bm{x})
+  \exp \left( i \frac{kA}{2B} |\frac{\bm{y}}{A}-\bm{x}|^{2} \right) d\bm{x}.
 \end{equation}
 This theorem allows to use Fast Fourier Transform for computing GFTs.
 The convolution kernel in Eq. (\ref{eq:convolution-cast}), the \emph{GFT chirp},
@@ -69,7 +69,19 @@ The convolution kernel in Eq. (\ref{eq:convolution-cast}), the \emph{GFT chirp},
   \frac{i}{\alpha} \exp \left[ -i \frac{\pi}{\alpha} |\bm{f}|^{2} \right],
   \,\, \alpha = \frac{A}{\lambda B}.
 \end{equation}
-\\
+
+Eq. (\ref{eq:convolution-cast}) has simple interpretation: propagation through
+optical system described by an ABCD-matrix consists of 3 steps
+\begin{enumerate}
+  \item Free space propagation by distance $B/A$ (convolution term in Eq.
+  (\ref{eq:convolution-cast})).
+  \item Scaling the propagation result by magnification $A$. If, for instance,
+  the first step is done through FFT on a discrete grid with spacing $dx$ in
+  the source plane, then in the observation plane the grid spacing is equal to
+  $Adx$.
+  \item Multiplication by a phase mask corresponding to negative thin lens with
+  focal distance $f = -A/C$. \\
+\end{enumerate}
 \textbf{Shift theorem.}
 \begin{equation} \label{eq:shift-theorem}
   \mathbb{F}[A,B,D] \{ U(\bm{x}-\bm{x}_{0}) \} (\bm{y}) =
@@ -78,8 +90,6 @@ The convolution kernel in Eq. (\ref{eq:convolution-cast}), the \emph{GFT chirp},
   \right]
   \mathbb{F}[A,B,D] \{ U(\bm{x}) \} (\bm{y}-A\bm{x}_{0}).
 \end{equation}
-This theorem gives the \emph{exact} interpolation formula to relate shifted
-and unshifted values of the propagated field.
 \\ \\
 \textbf{Tilt theorem.}
 \begin{equation} \label{eq:tilt-theorem}
@@ -89,7 +99,6 @@ and unshifted values of the propagated field.
   \right]
   \mathbb{F}[A,B,D] \{ U(\bm{x}) \} (\bm{y}-B\bm{x}_{0}).
 \end{equation}
-This theorem allows to factor a highly oscillating term from the integral.
 \\ \\
 \textbf{Focus theorem.}
 \begin{equation} \label{eq:focus-theorem}
@@ -103,7 +112,7 @@ Note that, to keep the wave matrix unimodular after $A^{\prime} = A +
 \begin{equation} \label{eq:c-correction}
   C^{\prime} = C + \frac{D}{f}.
 \end{equation}
-Same as the tilt theorem, focus theorem allows to factor the highly
-oscillating focus term from the integral. To see this, Eq.
+Shift, tilt and focus theorems allow to factor possibly highly oscillating
+terms out of the integral. To see this for focus theorem, Eq.
 (\ref{eq:focus-theorem}) needs to be substituted into Eq.
 (\ref{eq:convolution-cast}).
