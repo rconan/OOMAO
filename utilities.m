@@ -609,6 +609,25 @@ classdef utilities
             rc = mean(sqrt((C(1,2:end)-xc).^2 + (C(2,2:end)-yc).^2));
         end
         
+        function F = bilinearInterpolation(arg1,arg2,arg3,arg4,arg5)
+            [nrows,ncols] = size(arg3);
+            %     mx = numel(arg1); my = numel(arg2);
+            s = 1 + (arg4-arg1(1))/(arg1(end)-arg1(1))*(ncols-1);
+            t = 1 + (arg5-arg2(1))/(arg2(end)-arg2(1))*(nrows-1);
+            
+            
+            % Matrix element indexing
+            ndx = floor(t)+floor(s-1)*nrows;
+            
+            s(:) = (s - floor(s));
+            t(:) = (t - floor(t));
+            
+            % Now interpolate.
+            onemt = 1-t;
+            F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
+                ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+        end
+        
     end
 
 end
