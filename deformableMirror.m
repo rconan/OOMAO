@@ -257,7 +257,7 @@ classdef deformableMirror < handle
                     end
                     close(h)
                 end
-                pokeMatrix = pokeMatrix./calibDmStroke;
+                pokeMatrix = src.wavelength*pokeMatrix./calibDmStroke;
                 calib = calibrationVault(pokeMatrix);
                 
             else 

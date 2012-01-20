@@ -88,6 +88,7 @@ classdef source < stochasticWave & hgsetget
         wavelengthInMicron;
         % optical path difference
         opd;
+        meanRmOpd;
     end
     
     properties (Access=private)
@@ -305,6 +306,11 @@ classdef source < stochasticWave & hgsetget
         %% Get the opd
         function out = get.opd(obj)
             out = obj.phase/obj.waveNumber;
+        end
+        
+        %% Get the opd
+        function out = get.meanRmOpd(obj)
+            out = obj.meanRmPhase/obj.waveNumber;
         end
         
         %% Get the opd vector

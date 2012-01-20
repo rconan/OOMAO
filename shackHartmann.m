@@ -591,12 +591,11 @@ classdef shackHartmann < hgsetget
             
             nLenslet  = obj.lenslets.nLenslet;
             cameraRes = obj.camera.resolution;
-            nArray    = obj.lenslets.nArray;
+%             nArray    = obj.lenslets.nArray;
             if nargin<4
                 lensletArrayK = 1;
             end
             nPxLenslet = cameraRes/nLenslet;
-            nPxLenslet(2) = nPxLenslet(2)/nArray;
             u = (1:nPxLenslet(1)) + (lensletI-1)*nPxLenslet(1);
             v = (1:nPxLenslet(2)) + (lensletJ-1)*nPxLenslet(2) + (lensletArrayK-1)*cameraRes(1);
             out = obj.camera.frame(u,v);
