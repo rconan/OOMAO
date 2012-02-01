@@ -175,6 +175,52 @@ screen; the scaling factor $\frac{f_{i}+z_{i}}{f_{i}}$ just shows how much the
 grid on $i$th screen expands when projected on $(i+1)$th screen along the rays
 emerging from the spherical wave center.
 
+Some extra comments on the sampling are in order. A typical sampling
+requirement for the Fresnel propagation \cite{SchmidtProp} is derived from the
+assumption that the range of propagation directions (and therefore the
+frequency range computed through the relationship $f_{max} =
+\alpha_{max}/\lambda$, where $\alpha_{max}$ is the maximum
+direction angle in the plane wave spectrum) is such that the entire phase
+screen is seen from any observation point. This results in
+\begin{equation} \label{eq:classical-Fresnel-sampling}
+  f_{max} \geq \frac{D}{\lambda z},
+\end{equation}
+where $D$ is the screen (aperture) diameter, $z$ is the propagation diestance.
+For a typical values for $D = 30$ m and $z = 2$ km, the $f_{max} \geq 3 \cdot
+10^{4}$ m$^{-1}$, which is way larger than the maximal resolved frequency of
+$\sim 10^{2}$ m$^{2}$ in the turbulence spectrum defined by the inverce of
+phase screen spacing, which is about 1 cm for the typical accumulated $r_{0} =
+20$ cm. Figure \ref{fig:uspec} is the illustration of the spectral extent for
+a typical turbulence phase screen, which suggests that the turbulence
+effectively works as a low-pass spatial filter with the bandwidth $< 100$
+m$^{-1}$. Thus it is this bandwidth that defines the necessary sampling. Figure
+\ref{fig:H} illustrates that the frequency domain Fresnel propagation
+kernel is can also be sampled adequately within the frequency range of $\sim
+100$ m$^{-1}$.
+
+\begin{figure}[htp]
+\begin{center}
+\begin{tabular}{c}
+  \includegraphics[ width=0.6\textwidth ]{Uspec.png}
+\end{tabular}
+\end{center}
+\caption{Typical spectrum amplitude of the ramdom phase screen with accumulated
+$r_{0} = 20$ cm. XY-axes are spatial frequency, m$^{-1}$.}
+\label{fig:uspec}
+\end{figure}
+
+\begin{figure}[htp]
+\begin{center}
+\begin{tabular}{c}
+  \includegraphics[ width=\textwidth ]{H.png}
+\end{tabular}
+\end{center}
+\caption{Maps for real and imaginary parts of the frequency domain Fresnel
+propagation kernel $H = \exp (-i \lambda z |f|^{2})$ for $z = 2000$ m,
+$\lambda = 0.5$ $\mu$m. XY-axes are spatial frequency, m$^{-1}$.}
+\label{fig:H}
+\end{figure}
+
 These observations allow to define a recursive algorithm for the diverging
 spherical wave diffraction by a sequence of turbulence phase screens. For more
 generality we assume that the propagation from turbulent phase screen $i$ to
@@ -360,3 +406,31 @@ assumed:
   spherical wavefront equivalent focal distance $f_{0}$ are the outputs of this
   algorithm.
 \end{enumerate}
+
+Figure \ref{fig:coherence} shows the cross section of the Monte-Carlo modeled
+coherence factor
+\begin{equation} \label{eq:coherence-factor}
+  \mu (r) = \frac{|\Gamma(r)|}{\Gamma(0)},
+\end{equation}
+where $\Gamma(r)$ is the propagated field auto-correlation function, compared
+to its theoretical value for the spherical wave
+\begin{equation} \label{eq:coherence-factor-theory}
+  \mu (r) = \exp ( -0.5 D(r) ),
+\end{equation}
+$$ D(r) = 2.91 k^{2} r^{5/3} \int_{0}^{h} (1-\frac{z}{h}) C_{n^{2}} (z) dz, $$
+where $h$ is the propagation distance from the spherical wave center to the
+ground.
+
+\begin{figure}[htp]
+\begin{center}
+\begin{tabular}{c}
+  \includegraphics[ width=0.6\textwidth ]{CrossCorrelation10m.png}
+\end{tabular}
+\end{center}
+\caption{Theoretical (solid line) vs. numerical (dotted line) coherence factor
+cross-section for 10 layer
+propagation through Hufnagel-Valley turbulence profile. Propagation distance is
+90 km, telescope diameter is 10 m, $\lambda = 0.5$ $\mu$m, 100 random trials
+averaged. X-axis units are meters of point separation.}
+\label{fig:coherence}
+\end{figure}
