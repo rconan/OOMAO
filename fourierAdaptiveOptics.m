@@ -176,6 +176,14 @@ classdef fourierAdaptiveOptics < handle
             end
         end
         
+        function out = varFitting(obj)
+            fc  = obj.fc;
+            a = phaseStats.variance(obj.atm);
+            b = dblquad( @(fx,fy) phaseStats.spectrum( hypot(fx,fy) , obj.atm ) , ...
+                -fc,fc,-fc,fc);
+            out = a - b;
+        end
+        
         function out = varServoLag(obj)
             fc  = obj.fc;
             out = quad2d( @(fx,fy) servoLagPSD(obj,fx,fy),-fc,fc,-fc,fc);

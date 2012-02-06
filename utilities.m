@@ -49,10 +49,10 @@ classdef utilities
                     out = double(r <= 1);
                 case 'square'
                     out = double( abs(x)<=1 & abs(y)<=1 );
-                case {'hex','hexagonal'}
+                case {'hex','hexagon'}
                     out = double( abs(x)<=sqrt(3)/2 & abs(y)<=x/sqrt(3)+1 & abs(y)<=-x/sqrt(3)+1 );
                 otherwise
-                    error('The piston shape is either a disc or a square')
+                    error('The piston shape is either a disc, a square or a hexagon')
             end
             
             switch param.type
@@ -543,7 +543,7 @@ classdef utilities
             out = 2*h*utilities.orbitalVelocity(h,zen)*sec(zen)/constants.c;
         end
         
-        function [vertex,center] = hexagonalArray(nCycle,pitch)
+        function [vertex,center,hp] = hexagonalArray(nCycle,pitch)
             %% HEXAGONALARRAY Array of hexagonals
             %
             % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
@@ -575,7 +575,7 @@ classdef utilities
             v = vertex(:);
             f = reshape(1:6*nSegment,6,nSegment);
             figure(nSegment)
-            patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
+            hp = patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
 %             line(real(center),imag(center),'color','r','marker','.')
             axis square
             set(gca,'ylim',get(gca,'xlim'))
