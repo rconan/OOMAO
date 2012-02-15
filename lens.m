@@ -289,7 +289,7 @@ classdef lens < handle
             src(kSrc).amplitude = abs(wavePrgted(:,:,kSrc));
             src(kSrc).phase     = angle(wavePrgted(:,:,kSrc));
             end
-            obj.imagelets = wavePrgted*conj(wavePrgted)*obj.throughput;
+            obj.imagelets = wavePrgted.*conj(wavePrgted)*obj.throughput;
         end
         
 %         function relay(obj,src)
