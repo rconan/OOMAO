@@ -182,7 +182,7 @@ classdef lensletArray < handle
                     for k2 = 1:n2
                         count = count + 1;
                         add(obj.log,obj,sprintf('Processing LGS #%d/%d',count,n12))
-                        tic; propagateThrough(obj,src_in(k1,k2,:)); toc
+                        propagateThrough(obj,src_in(k1,k2,:));
                         m_imagelets(:,:,count) = obj.imagelets;
                     end
                 end
