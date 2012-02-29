@@ -111,12 +111,16 @@ colorbar
 cam.exposureTime = 150;
 cam.clockRate = 1;
 science = science.*tel*dm*cam;
+dmCoefs = size(dm.coefs,2);
 pause(1)
 for k=1:150
     +tel
     +ngs
     +science
     dm.coefs = dm.coefs - gain*calibDm.M*wfs.slopes;
+%     dmCoefs(:,2) = dmCoefs(:,1) - gain*calibDm.M*wfs.slopes;
+%     dm.coefs = dmCoefs(:,1);
+%     dmCoefs(:,1) = dmCoefs(:,2);
     set(h,'Cdata',ngs.meanRmOpd*1e6)
     drawnow
 end
