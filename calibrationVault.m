@@ -1,9 +1,9 @@
 classdef calibrationVault < handle
     %% CALIBRATIONVAULT Create a calibrationVault object
     %
-    % calib = calibrationVault(dm,wfs,calibMatrix) create a
-    % calibrationVault object storing the calibration matrix between the dm
-    % and the wfs. The svd of calibMatrix is computed and used to compute
+    % calib = calibrationVault(calibMatrix) create a
+    % calibrationVault object storing the calibration matrix between a dm
+    % and a wfs. The svd of calibMatrix is computed and used to compute
     % the dm command matix
     
     properties

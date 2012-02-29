@@ -674,6 +674,39 @@ classdef utilities
                 ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
         end
         
+        function fr = gaussian(resolution,fwhm,n_f)
+            
+            u = (0:resolution-1)-(resolution)/2;
+            [x,y] = meshgrid(u);
+            r = hypot(x,y);
+            sig = fwhm./(2.*sqrt(2*log(2)));
+            f = exp(-r.^2/(2*sig.^2));
+            f = f/sum(f(:));
+            
+%             n_f = 20;
+            if nargin<3
+                n_f = resolution;
+            end
+            if n_f<resolution/2
+                fr = f;
+                fr(:,end-n_f+1:end) =[];
+                fr(end-n_f+1:end,:) =[];
+                fr(:,1:n_f) =[];
+                fr(1:n_f,:) =[];
+                %     figure(101)
+                %     subplot(1,2,1)
+                %     imagesc(f)
+                %     axis square
+                %     subplot(1,2,2)
+                %     imagesc(fr)
+                %     axis square
+            else
+                fr = f;
+            end
+            
+            
+        end
+        
     end
 
 end

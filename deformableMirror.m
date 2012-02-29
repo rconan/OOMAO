@@ -216,6 +216,11 @@ classdef deformableMirror < handle
             % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
             % the DM object with the sensor object using the calibration
             % source src and the actuator stroke calibDmStroke
+            %
+            % obj = calibration(obj,sensor,src,calibDmCommands,nSteps)
+            % calibrate the DM object with the sensor object using the
+            % calibration source src and the actuator stroke calibDmStroke;
+            % the calibration process is split in nSteps steps.
             
             obj.coefs = 0;
             if nargin<5
@@ -236,6 +241,7 @@ classdef deformableMirror < handle
                     calibDmStroke = 1;
                 end
                 
+                tId = tic;
                 if steps==1
                     obj.coefs = calibDmCommands;
                     +src;
@@ -257,7 +263,20 @@ classdef deformableMirror < handle
                     end
                     close(h)
                 end
-                pokeMatrix = src.wavelength*pokeMatrix./calibDmStroke;
+                elt = toc(tId);
+                
+%                 pokeMatrix = src.wavelength*pokeMatrix./calibDmStroke;
+                fprintf('__ Poke Matrix Stats ___\n')
+                fprintf(' . computing time: %5.2fs\n',elt)
+                fprintf(' . size: %dx%d\n',size(pokeMatrix))
+                nonZerosIndex = pokeMatrix(:)~=0;
+                nonZeros = sum(nonZerosIndex);
+                fprintf(' . non zeros values: %d i.e. %4.2f%%\n',nonZeros,100*nonZeros/numel(pokeMatrix))
+                pokeMatrixNZ = pokeMatrix(nonZerosIndex);
+                fprintf(' . min. and max. values: [%5.2f,%5.2f]\n',max(pokeMatrixNZ),min(pokeMatrixNZ))
+                fprintf(' . mean and median of absolute values: [%5.2f,%5.2f]\n',mean(abs(pokeMatrixNZ)),median(abs(pokeMatrixNZ)))
+                fprintf('________________________\n')
+                pokeMatrix = pokeMatrix./calibDmStroke;
                 calib = calibrationVault(pokeMatrix);
                 
             else 

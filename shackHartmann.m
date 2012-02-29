@@ -412,12 +412,20 @@ classdef shackHartmann < hgsetget
                     maxIntensity = max(buffer);
                     threshold    = maxIntensity*obj.framePixelThreshold(2);
                     threshold(threshold<obj.framePixelThreshold(1)) = obj.framePixelThreshold(1);
+                    v = obj.validLenslet(:);
+                    v = repmat(v,nLensletArray,1);
+%                     q = zeros(size(v));
+%                     q(v) = threshold;
+%                     figure,imagesc(reshape(q,obj.lenslets.nLenslet,[]));set(gca,'clim',[min(threshold),max(threshold)])
                     buffer       = bsxfun( @minus , buffer , threshold);
                 else
                     % usual thresholding
                     buffer           = buffer - obj.framePixelThreshold;
                 end
                 buffer(buffer<0) = 0;
+%                 q = zeros(size(obj.camera.frame));
+%                 q(obj.indexRasterLenslet) = buffer;
+%                 figure,imagesc(q);
             end
             % Centroiding
             if obj.quadCell
@@ -623,7 +631,7 @@ classdef shackHartmann < hgsetget
             else
                 obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
                 axis equal tight
-                colorbar('location','northOutside')
+                xlabel(colorbar('location','northOutside'),'Pixel')
             end
             
 %             if ishandle(obj.slopesDisplayHandle)
