@@ -276,36 +276,39 @@ classdef deformableMirror < handle
                 fprintf(' . min. and max. values: [%5.2f,%5.2f]\n',max(pokeMatrixNZ),min(pokeMatrixNZ))
                 fprintf(' . mean and median of absolute values: [%5.2f,%5.2f]\n',mean(abs(pokeMatrixNZ)),median(abs(pokeMatrixNZ)))
                 fprintf('________________________\n')
+
                 pokeMatrix = pokeMatrix./calibDmStroke;
-                calib = calibrationVault(pokeMatrix);
-                
+                if isnumeric(obj.modes)
+                    calib = calibrationVault(pokeMatrix,obj.modes,src.mask);
+                else
+                    calib = calibrationVault(pokeMatrix,obj.modes.modes,src.mask);
+                end
             else 
                 
                 %%% Tip-Tilt sensor calibration
                 
                 tel = src.opticalPath{1};
                 zern = zernike(tel,2:3);
-                zern.c = eye(2)*src.wavelength/4;
+                zern.c = eye(2)*calibDmStroke;%src.wavelength/4;
                 src = src.*zern;
-                buf = reshape(src.phase,tel.resolution,2*tel.resolution);
+%                 buf = reshape(src.phase,tel.resolution,2*tel.resolution);
                 
                 % zernike projection onto DM influence functions
                 obj = obj\src;
-                src = src.*tel*obj;
+%                 src = src.*tel*obj;
                 dmTtCoefs = obj.coefs;
+%                 
+%                 buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
+%                 figure
+%                 imagesc(buf)
+%                 axis square
+%                 colorbar
                 
-                buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
-                figure
-                imagesc(buf)
-                axis square
-                colorbar
-                
-                obj.coefs = dmTtCoefs*calibDmStroke;
+%                 obj.coefs = dmTtCoefs;
                 src = src.*tel*obj*sensor;
                 pokeTipTilt = sensor.slopes/calibDmStroke;
                 calib = calibrationVault(pokeTipTilt);
                 calib.spaceJump = dmTtCoefs;
-                calib.nThresholded = 0;
             end
             
             obj.coefs = 0;

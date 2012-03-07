@@ -78,7 +78,8 @@ classdef gpuSource < source
                         wfs = obj(1).opticalPath{kDevice};
                         nLenslet      = wfs.lenslets.nLenslet;
                         nValidLenslet = wfs.nValidLenslet;
-                        nPixelLenslet = wfs.lenslets.nLensletImagePx;
+                        nPixelLenslet = wfs.lenslets.nLensletWavePx;
+                        nLensletImagePx = wfs.lenslets.nLensletImagePx;
                         nArray         = max( size(obj,2) , size(dmPhase,3) );
                         wfs.lenslets.nArray = nArray;
                         nLenslet2      = nLenslet^2;
@@ -122,10 +123,14 @@ classdef gpuSource < source
                         [xPup,yPup] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
                         yPup     = reshape( yPup(index)     , nPixelLenslet,nPixelLenslet,nLenslet2);
                         xPup     = reshape( xPup(index)     , nPixelLenslet,nPixelLenslet,nLenslet2);
-                        buf2     = gzeros(nPixelLenslet,'single');
+                        buf2     = gzeros(nLensletImagePx,'single');
+                        buf3     = gzeros(nLensletImagePx,'single');
                         lensletIndex     = false(nOutWavePx);
-                        lensletIndex(1:nPixelLenslet,1:nPixelLenslet) = true;
-                        
+%                         lensletIndex(1:nPixelLenslet,1:nPixelLenslet) = false;
+                        t_n = nPixelLenslet/2-nLensletImagePx/2 + 1;
+                        field = t_n:(t_n+nLensletImagePx-1);
+                        lensletIndex(field,field) = true;
+
                         %%
                         phasor           = gdouble( phasor);
                         pupilWave         = gsingle( pupilWave );
@@ -153,7 +158,7 @@ classdef gpuSource < source
                         xLensletCoordinates = gsingle(xLensletCoordinates);
                         yLensletCoordinates = gsingle(yLensletCoordinates);
                         %%
-                        lensletIntensity = gzeros(nPixelLenslet*nPixelLenslet,nValidLenslets,'single');
+                        lensletIntensity = gzeros(nLensletImagePx^2,nValidLenslets,'single');
                         nGpu = ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
                         validLensletMaxStep = floor(nValidLenslets/nGpu);
                         validLensletRange   = 1:validLensletMaxStep;
@@ -163,7 +168,8 @@ classdef gpuSource < source
                         
                         %%% Setting the function point for the geometric
                         %%% propagator through the atmosphere
-                        [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel] = atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2);
+                        [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
+                            atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,obj(1).wavelength);
                         if isempty(tel.opticalAberration)
                             % no propagation!
                             pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_) ...
@@ -208,6 +214,8 @@ classdef gpuSource < source
                             
                             gfor kValidLenslet = kValidLenslet_
                             
+                            buf3(:)     = 0;
+
                             for kHeight = 1:nHeight % src height
                                 
                                 height          = srcHeight(kHeight);
@@ -219,18 +227,22 @@ classdef gpuSource < source
                                 k = kLenslet - n*nLenslet2;
                                 
                                 F = pupilPhase(nLayer,altitude_m,phase_m,xi(:,:,k),yi(:,:,k),srcDirectionVector(:,n+1),R_m,nPixel,nPixelLenslet,height);
-                                buf0 = pupilWave(:,:,k).*exp(1i*(F+dmPhase(:,:,k)));
+                                F = lambdaRatio*F + dmPhase(:,:,k);
+                                buf0 = pupilWave(:,:,k).*exp(1i*F);
                                 
                                 lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
                                     height,objectiveFocalLength,waveNumber,buf0);
                                 
                                 buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
                                 buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                buf2         = spotsConvolution( buf2 , fr_);
-                                lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                                    buf2(:)*naProfileHeight;
+                                buf3         = buf3 + buf2*naProfileHeight;
+%                                 buf2         = spotsConvolution( buf2 , fr_);
+%                                 lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+%                                     buf2(:)*naProfileHeight;
                                 
                             end
+                            buf3 = spotsConvolution( buf3 , fr_);
+                            lensletIntensity(:,kValidLenslet) = buf3(:);
                             
                             gend % gfor ends here!
                             
@@ -246,8 +258,11 @@ classdef gpuSource < source
                         
                         %%
 %                         lensletIntensity = bsxfun( @times , lensletIntensity , fieldStop);
+
+                        n1             = nLensletImagePx*nLenslet;
+                        n2             = n1*nArray;
                         imagelets  = zeros(n1,n2);
-                        index = tools.rearrange( [n1,n2] , [nLensletWavePx,nLensletWavePx] );
+                        index = tools.rearrange( [n1,n2] , [nLensletImagePx,nLensletImagePx] );
                         imagelets(index(:,validLenslet)) = wfs.lenslets.throughput*double(lensletIntensity(:));
                         wfs.lenslets.imagelets = imagelets;
                         
@@ -261,7 +276,8 @@ classdef gpuSource < source
     
 end
 
-function [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel] = atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2 )
+function [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
+    atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,srcWavelength )
 %% initialize atmosphere parameters
 atm_m           = tel.opticalAberration;
 if isempty(atm_m)
@@ -270,6 +286,7 @@ if isempty(atm_m)
     phase_m = [];
     R_m = [];
     nPixel = [];
+    lambdaRatio = 1;
 else
     nLayer          = atm_m.nLayer;
     layers          = atm_m.layer;
@@ -278,6 +295,7 @@ else
     altitude_m      = gsingle([layers.altitude]);
     R_m    = gsingle([layers.D]*0.5);
     nPixel = gsingle([layers.nPixel]);
+    lambdaRatio = gdouble(atm_m.wavelength/srcWavelength);
 end
 
 sampler_m       = gsingle(linspace(-1,1,tel.resolution));

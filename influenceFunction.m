@@ -260,7 +260,8 @@ classdef influenceFunction < handle
                 
                 xIF = linspace(-1,1,nIF)*(nIF-1)/2 - offset(1);
                 yIF = linspace(-1,1,nIF)*(nIF-1)/2 - offset(2);
-                obj.actuatorCoord = xIF + 1i*yIF;
+                [xIF2,yIF2] = ndgrid(xIF,yIF);
+                obj.actuatorCoord = xIF2 + 1i*yIF2;
                 
                 u0 = ratioTelDm.*linspace(-1,1,resolution)*(nIF-1)/2;
                 

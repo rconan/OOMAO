@@ -111,11 +111,11 @@ classdef utilities
             
             if isempty(v)
                 if numel(u)==1
-                    u = 2*( -(u-1)/2:(u-1)/2 )/u;%linspace(-1,1,u);
+                    u = linspace(-1,1,u);%2*( -(u-1)/2:(u-1)/2 )/u;
                 end
                 v=u;
             elseif (numel(u)==1) && (numel(v)==1)
-                u = 2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
+                u = linspace(-v,v,u);%2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
                 v = u;
             end
             

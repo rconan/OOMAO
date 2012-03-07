@@ -98,6 +98,7 @@ classdef shackHartmann < hgsetget
         quadCellX = [1 ;  1 ; -1 ; -1];
         quadCellY = [1 ; -1 ;  1 ; -1];
         meanProjection;
+        spotPath = zeros(2,5);
     end
     
     methods
@@ -445,7 +446,7 @@ classdef shackHartmann < hgsetget
                         sBuffer(index) = obj.slopes(index);
                     end
                 end
-                obj.slopes = sBuffer;
+%                 obj.slopes = sBuffer;
             elseif obj.centroiding
                 massLenslet         = sum(buffer);
                 %                 massLenslet(~index) = [];
@@ -620,18 +621,42 @@ classdef shackHartmann < hgsetget
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
             
-            nSlopes   = size(obj.slopes,2);
-            slopesMap = zeros(2*obj.lenslets.nLenslet^2,nSlopes);
-            p         = repmat(obj.validLenslet(:),2,nSlopes);
-            slopesMap(p) = obj.slopes;
-            slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
-            
-            if ishandle(obj.slopesDisplayHandle)
-                set(obj.slopesDisplayHandle,'CData',slopesMap)
+            if obj.lenslets.nLenslet>1
+                
+                nSlopes   = size(obj.slopes,2);
+                slopesMap = zeros(2*obj.lenslets.nLenslet^2,nSlopes);
+                p         = repmat(obj.validLenslet(:),2,nSlopes);
+                slopesMap(p) = obj.slopes;
+                slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
+                
+                if ishandle(obj.slopesDisplayHandle)
+                    set(obj.slopesDisplayHandle,'CData',slopesMap)
+                else
+                    obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
+                    axis equal tight
+                    xlabel(colorbar('location','northOutside'),'Pixel')
+                end
+                
             else
-                obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
-                axis equal tight
-                xlabel(colorbar('location','northOutside'),'Pixel')
+                
+                if ishandle(obj.slopesDisplayHandle)
+                    set(obj.slopesDisplayHandle(1),'XData',obj.slopes(1),'YData',obj.slopes(2))
+                    obj.spotPath = circshift(obj.spotPath,[0,-1]);
+                    obj.spotPath(:,end) = obj.slopes;
+                    set(obj.slopesDisplayHandle(2),'XData',obj.spotPath(1,:),'YData',obj.spotPath(2,:))
+                else
+                    obj.slopesDisplayHandle(1) = plot(obj.slopes(1),obj.slopes(2),'+',...
+                        'MarkerEdgeColor','k','MarkerFaceColor',[.49 1 .63],...
+                        'MarkerSize',10,'LineWidth',2);
+                    obj.spotPath = zeros(2,5);
+                    obj.spotPath(:,end) = obj.slopes;
+                    obj.slopesDisplayHandle(2) = ...
+                        line(obj.spotPath(1,:),obj.spotPath(2,:),'color','r');
+                    set(gca,'xlim',[-1,1],'ylim',[-1,1])
+                    grid on
+                    axis square
+                end                
+                
             end
             
 %             if ishandle(obj.slopesDisplayHandle)
