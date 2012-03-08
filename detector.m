@@ -205,8 +205,24 @@ classdef detector < handle
                     colormap(pink)
                     axis xy equal tight
                     colorbar('location','SouthOutside')
-                end
+                    hu = findobj('Type','uimenu','Label','OOMAO');
+                    if isempty(hu)
+                        hu = uimenu('Label','OOMAO');
+                    end
+                    hus  = uimenu(hu,'Label','Frame Listener Off','Callback',@oomaoMenu);
+                    if obj.frameListener.Enabled
+                        set(hus,'Label','Frame Listener On')
+                    end
+            end
             
+            end
+            function oomaoMenu(src,~)
+                obj.frameListener.Enabled = ~obj.frameListener.Enabled;
+                if obj.frameListener.Enabled
+                    set(src,'Label','Frame Listener On')
+                else
+                    set(src,'Label','Frame Listener Off')
+                end
             end
         end
         
