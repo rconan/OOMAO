@@ -98,7 +98,7 @@ classdef shackHartmann < hgsetget
         quadCellX = [1 ;  1 ; -1 ; -1];
         quadCellY = [1 ; -1 ;  1 ; -1];
         meanProjection;
-        spotPath = zeros(2,5);
+        spotTrail = zeros(2,10);
     end
     
     methods
@@ -641,17 +641,17 @@ classdef shackHartmann < hgsetget
                 
                 if ishandle(obj.slopesDisplayHandle)
                     set(obj.slopesDisplayHandle(1),'XData',obj.slopes(1),'YData',obj.slopes(2))
-                    obj.spotPath = circshift(obj.spotPath,[0,-1]);
-                    obj.spotPath(:,end) = obj.slopes;
-                    set(obj.slopesDisplayHandle(2),'XData',obj.spotPath(1,:),'YData',obj.spotPath(2,:))
+                    obj.spotTrail = circshift(obj.spotTrail,[0,-1]);
+                    obj.spotTrail(:,end) = obj.slopes;
+                    set(obj.slopesDisplayHandle(2),'XData',obj.spotTrail(1,:),'YData',obj.spotTrail(2,:))
                 else
                     obj.slopesDisplayHandle(1) = plot(obj.slopes(1),obj.slopes(2),'+',...
                         'MarkerEdgeColor','k','MarkerFaceColor',[.49 1 .63],...
                         'MarkerSize',10,'LineWidth',2);
-                    obj.spotPath = zeros(2,5);
-                    obj.spotPath(:,end) = obj.slopes;
+                    obj.spotTrail = zeros(2,10);
+                    obj.spotTrail(:,end) = obj.slopes;
                     obj.slopesDisplayHandle(2) = ...
-                        line(obj.spotPath(1,:),obj.spotPath(2,:),'color','r');
+                        line(obj.spotTrail(1,:),obj.spotTrail(2,:),'color','r');
                     set(gca,'xlim',[-1,1],'ylim',[-1,1])
                     grid on
                     axis square
