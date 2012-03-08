@@ -712,6 +712,11 @@ classdef telescopeAbstract < handle
                     obj.atm.layer(1).nPixel),...
                     'HorizontalAlignment','Center',...
                     'VerticalAlignment','Bottom')
+                v = obj.atm.layer(1).windSpeed*n1/obj.atm.layer(1).D;
+                quiver((n1+1)/2,(n1+1)/2,...
+                    v.*cos(obj.atm.layer(1).windDirection),...
+                    v.*sin(obj.atm.layer(1).windDirection),0,'k')
+                n = n1;
                 n = n1;
                 offset = 0;
                 for kLayer=2:obj.atm.nLayer
@@ -736,6 +741,10 @@ classdef telescopeAbstract < handle
                     else
                         plot(xP+m1+m/2,yP+(n1+1)/2,'k:')
                     end
+                    v = obj.atm.layer(kLayer).windSpeed*n/obj.atm.layer(kLayer).D;
+                    quiver(m1+m/2,(n1+1)/2,...
+                        v.*cos(obj.atm.layer(kLayer).windDirection),...
+                        v.*sin(obj.atm.layer(kLayer).windDirection),0,'k')
                     text(m1+m/2,(n1+1+m)/2,...
                         sprintf('%.1fkm: %.1f%%\n%.2fm - %dpx',...
                         obj.atm.layer(kLayer).altitude*1e-3,...
@@ -778,7 +787,7 @@ classdef telescopeAbstract < handle
         out = fullWidthHalfMax(obj)
     end
     
-    methods (Access=private)
+    methods (Access=protected)
         
         function obj = init(obj)
             %% INIT
