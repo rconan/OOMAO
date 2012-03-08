@@ -98,6 +98,7 @@ classdef shackHartmann < hgsetget
         quadCellX = [1 ;  1 ; -1 ; -1];
         quadCellY = [1 ; -1 ;  1 ; -1];
         meanProjection;
+        spotTrail = zeros(2,10);
     end
     
     methods
@@ -412,12 +413,20 @@ classdef shackHartmann < hgsetget
                     maxIntensity = max(buffer);
                     threshold    = maxIntensity*obj.framePixelThreshold(2);
                     threshold(threshold<obj.framePixelThreshold(1)) = obj.framePixelThreshold(1);
+                    v = obj.validLenslet(:);
+                    v = repmat(v,nLensletArray,1);
+%                     q = zeros(size(v));
+%                     q(v) = threshold;
+%                     figure,imagesc(reshape(q,obj.lenslets.nLenslet,[]));set(gca,'clim',[min(threshold),max(threshold)])
                     buffer       = bsxfun( @minus , buffer , threshold);
                 else
                     % usual thresholding
                     buffer           = buffer - obj.framePixelThreshold;
                 end
                 buffer(buffer<0) = 0;
+%                 q = zeros(size(obj.camera.frame));
+%                 q(obj.indexRasterLenslet) = buffer;
+%                 figure,imagesc(q);
             end
             % Centroiding
             if obj.quadCell
@@ -437,7 +446,7 @@ classdef shackHartmann < hgsetget
                         sBuffer(index) = obj.slopes(index);
                     end
                 end
-                obj.slopes = sBuffer;
+%                 obj.slopes = sBuffer;
             elseif obj.centroiding
                 massLenslet         = sum(buffer);
                 %                 massLenslet(~index) = [];
@@ -612,18 +621,42 @@ classdef shackHartmann < hgsetget
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
             
-            nSlopes   = size(obj.slopes,2);
-            slopesMap = zeros(2*obj.lenslets.nLenslet^2,nSlopes);
-            p         = repmat(obj.validLenslet(:),2,nSlopes);
-            slopesMap(p) = obj.slopes;
-            slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
-            
-            if ishandle(obj.slopesDisplayHandle)
-                set(obj.slopesDisplayHandle,'CData',slopesMap)
+            if obj.lenslets.nLenslet>1
+                
+                nSlopes   = size(obj.slopes,2);
+                slopesMap = zeros(2*obj.lenslets.nLenslet^2,nSlopes);
+                p         = repmat(obj.validLenslet(:),2,nSlopes);
+                slopesMap(p) = obj.slopes;
+                slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
+                
+                if ishandle(obj.slopesDisplayHandle)
+                    set(obj.slopesDisplayHandle,'CData',slopesMap)
+                else
+                    obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
+                    axis equal tight
+                    xlabel(colorbar('location','northOutside'),'Pixel')
+                end
+                
             else
-                obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
-                axis equal tight
-                colorbar('location','northOutside')
+                
+                if ishandle(obj.slopesDisplayHandle)
+                    set(obj.slopesDisplayHandle(1),'XData',obj.slopes(1),'YData',obj.slopes(2))
+                    obj.spotTrail = circshift(obj.spotTrail,[0,-1]);
+                    obj.spotTrail(:,end) = obj.slopes;
+                    set(obj.slopesDisplayHandle(2),'XData',obj.spotTrail(1,:),'YData',obj.spotTrail(2,:))
+                else
+                    obj.slopesDisplayHandle(1) = plot(obj.slopes(1),obj.slopes(2),'+',...
+                        'MarkerEdgeColor','k','MarkerFaceColor',[.49 1 .63],...
+                        'MarkerSize',10,'LineWidth',2);
+                    obj.spotTrail = zeros(2,10);
+                    obj.spotTrail(:,end) = obj.slopes;
+                    obj.slopesDisplayHandle(2) = ...
+                        line(obj.spotTrail(1,:),obj.spotTrail(2,:),'color','r');
+                    set(gca,'xlim',[-1,1],'ylim',[-1,1])
+                    grid on
+                    axis square
+                end                
+                
             end
             
 %             if ishandle(obj.slopesDisplayHandle)

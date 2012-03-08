@@ -68,7 +68,7 @@ classdef gpuSource < source
                 switch deviceClass
                     case {'telescope','giantMagellanTelescope'}
                         tel = obj(1).opticalPath{kDevice};
-%                         relayGpuSource(tel,obj)
+                        %                         relayGpuSource(tel,obj)
                         set(obj,'mask',tel.pupilLogical)
                     case 'deformableMirror'
                         dm = obj(1).opticalPath{kDevice};
@@ -78,7 +78,8 @@ classdef gpuSource < source
                         wfs = obj(1).opticalPath{kDevice};
                         nLenslet      = wfs.lenslets.nLenslet;
                         nValidLenslet = wfs.nValidLenslet;
-                        nPixelLenslet = wfs.lenslets.nLensletImagePx;
+                        nPixelLenslet = wfs.lenslets.nLensletWavePx;
+                        nLensletImagePx = wfs.lenslets.nLensletImagePx;
                         nArray         = max( size(obj,2) , size(dmPhase,3) );
                         wfs.lenslets.nArray = nArray;
                         nLenslet2      = nLenslet^2;
@@ -100,28 +101,36 @@ classdef gpuSource < source
                         end
                         pupilWave = tel.pupil.*sqrt(tel.samplingTime*tel.area/tel.pixelArea)/nOutWavePx;
                         pupilWave = reshape( pupilWave(index) , nPixelLenslet,nPixelLenslet,nLenslet2);
-                        if ~isempty(dmPhase)
-                            fprintf('Reshaping the DM phase ...')
+                        if isempty(dmPhase)
+                            dmPhase = gzeros(1,1,nLenslet2,'single');
+                        else
+                            fprintf('Reshaping the DM phase from %d.%d.%d to ...',...
+                                size(dmPhase,1),size(dmPhase,2),size(dmPhase,3))
                             tId = tic;
                             buf2 = [];
                             for kDmPhase=1:size(dmPhase,3)
                                 buf1 = dmPhase(:,:,kDmPhase);
                                 buf1 = reshape( buf1(index) , nPixelLenslet,nPixelLenslet,nLenslet2);
-                                buf1(:,:,~wfs.validLenslet) = [];
+                                %                                 buf1(:,:,~wfs.validLenslet) = [];
                                 buf2 = cat(3,buf2,buf1);
                             end
                             dmPhase = gsingle(buf2);
                             clear('buf1','buf2')
                             et = toc(tId);
-                            fprintf(' done in %4.2fs\n',et)
+                            fprintf('\b\b\b\b %d.%d.%d: done in %4.2fs\n',...
+                                size(dmPhase,1),size(dmPhase,2),size(dmPhase,3),et)
                         end
                         [xPup,yPup] = meshgrid(linspace(-1,1,tel.resolution)*tel.R);
                         yPup     = reshape( yPup(index)     , nPixelLenslet,nPixelLenslet,nLenslet2);
                         xPup     = reshape( xPup(index)     , nPixelLenslet,nPixelLenslet,nLenslet2);
-                        buf2     = gzeros(nPixelLenslet,'single');
+                        buf2     = gzeros(nLensletImagePx,'single');
+                        buf3     = gzeros(nLensletImagePx,'single');
                         lensletIndex     = false(nOutWavePx);
-                        lensletIndex(1:nPixelLenslet,1:nPixelLenslet) = true;
-                        
+%                         lensletIndex(1:nPixelLenslet,1:nPixelLenslet) = false;
+                        t_n = nPixelLenslet/2-nLensletImagePx/2 + 1;
+                        field = t_n:(t_n+nLensletImagePx-1);
+                        lensletIndex(field,field) = true;
+
                         %%
                         phasor           = gdouble( phasor);
                         pupilWave         = gsingle( pupilWave );
@@ -149,289 +158,211 @@ classdef gpuSource < source
                         xLensletCoordinates = gsingle(xLensletCoordinates);
                         yLensletCoordinates = gsingle(yLensletCoordinates);
                         %%
-                        lensletIntensity = gzeros(nPixelLenslet*nPixelLenslet,nValidLenslets,'single');
-                        nGpu = ceil(wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
+                        lensletIntensity = gzeros(nLensletImagePx^2,nValidLenslets,'single');
+                        nGpu = ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
                         validLensletMaxStep = floor(nValidLenslets/nGpu);
                         validLensletRange   = 1:validLensletMaxStep;
                         
-%                         F = gzeros(nPixelLenslet,nPixelLenslet,nValidLenslets);
-                       
+%                         fieldStop = tools.piston(90,96);
+%                         fieldStop = gsingle(fieldStop(:));
+                        
+                        %%% Setting the function point for the geometric
+                        %%% propagator through the atmosphere
+                        [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
+                            atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,obj(1).wavelength);
+                        if isempty(tel.opticalAberration)
+                            % no propagation!
+                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_) ...
+                                atmosphereGeometricPropagatorNull(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_);
+                        else
+                            % propagation!
+                            fprintf('(with atmosphere ')
+                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_) ...
+                                atmosphereGeometricPropagator(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_);
+                        end
+                        
+                        %%% Setting the spot convolution function pointer 
+                        if isempty(fr)
+                            % no convolution!
+                            fprintf('but without transverse LGS profile) ')
+                            spotsConvolution = @(buf2_ , fr__) spotsConvolveNull(buf2_ , fr__);
+                            fr_ = false(1,1,nHeight);
+                        else
+                            % convolution!
+                            spotsConvolution = @(buf2_ , fr__) spotsConvolve(buf2_ , fr__);
+                        end
+                        
+                        %%% Setting the function pointer for the spherical
+                        %%% wave propagation
+                        if all(isinf([obj.height]))
+                            % NGS!
+                            pupilProp = @(xPup_,yPup_,xL_,yL_,height_,objectiveFocalLength_,waveNumber_,buf0_) ...
+                                pupilPropNgs(xPup_,yPup_,xL_,yL_,height_,objectiveFocalLength_,waveNumber_,buf0_);
+                        else
+                            % LGS
+                            pupilProp = @(xPup_,yPup_,xL_,yL_,height_,objectiveFocalLength_,waveNumber_,buf0_) ...
+                                pupilPropLgs(xPup_,yPup_,xL_,yL_,height_,objectiveFocalLength_,waveNumber_,buf0_);
+                        end
+                        
+                        tId = tic;
                         for kGpu=1:nGpu
                             
                             kValidLenslet_ = validLensletRange + (kGpu-1)*validLensletMaxStep;
                             kValidLenslet_(end) = min(kValidLenslet_(end),nValidLenslets);
                             %             gsync
                             fprintf(' -> GPU loop %d/%d: ',kGpu,nGpu)
-                            tId = tic;
                             
-                            if isempty(tel.opticalAberration) % WITHOUT ATMOSPHERE
-                                
-                                if isempty(fr)
-                                    
-                                    fprintf('(no transverse LGS profile) ')
-                                    
-                                    if isinf(obj.height) && isinf(obj.objectiveFocalLength) % NGS CASE
-                                        
-                                        fprintf('\b\b and NGS) ')
-                                        
-                                        gfor kValidLenslet = kValidLenslet_
-                                        
-%                                         for kHeight = 1:nHeight;
-                                            
-%                                             height          = srcHeight(kHeight);
-%                                             naProfileHeight = naProfile(kHeight);
-%                                             fr_             = fr(:,:,kHeight);
-                                            
-                                            kLenslet = kLenslet_(kValidLenslet);
-                                            n = fix((kLenslet-1)/nLenslet2);
-                                            k = kLenslet - n*nLenslet2;
-                                            
-%                                             lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-%                                                 height,objectiveFocalLength,waveNumber,pupilWave(:,:,k));
-                                            lensletWave = pupilWave(:,:,k).*exp(1i*dmPhase(:,:,kValidLenslet));
-                                            
-                                            buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-%                                             buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                            lensletIntensity(:,kValidLenslet) = abs( buf1(lensletIndex) ).^2;%lensletIntensity(:,kValidLenslet) + ...
-                                                buf2(:);%*naProfileHeight;
-                                            
-%                                         end
-                                        
-                                        gend
-                                        
-                                    else
-                                        
-                                        gfor kValidLenslet = kValidLenslet_
-                                        
-                                        for kHeight = 1:nHeight;
-                                            
-                                            height          = srcHeight(kHeight);
-                                            naProfileHeight = naProfile(kHeight);
-                                            fr_             = fr(:,:,kHeight);
-                                            
-                                            kLenslet = kLenslet_(kValidLenslet);
-                                            n = fix((kLenslet-1)/nLenslet2);
-                                            k = kLenslet - n*nLenslet2;
-                                            
-                                            lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                                                height,objectiveFocalLength,waveNumber,pupilWave(:,:,k));
-                                            
-                                            buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                                            buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                            lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                                                buf2(:)*naProfileHeight;
-                                            
-                                        end
-                                        
-                                        gend
-                                        
-                                    end
-                                    
-                                else
-                                    
-                                    gfor kValidLenslet = kValidLenslet_
-                                    
-                                    for kHeight = 1:nHeight;
-                                        
-                                        height          = srcHeight(kHeight);
-                                        naProfileHeight = naProfile(kHeight);
-                                        fr_             = fr(:,:,kHeight);
-                                        
-                                        kLenslet = kLenslet_(kValidLenslet);
-                                        n = fix((kLenslet-1)/nLenslet2);
-                                        k = kLenslet - n*nLenslet2;
-                                        
-                                        lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                                            height,objectiveFocalLength,waveNumber,pupilWave(:,:,k));
-                                        
-                                        buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                                        buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                        buf2         = conv2( buf2 , fr_ ,'same');
-                                        lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                                            buf2(:)*naProfileHeight;
-                                        
-                                    end
-                                    
-                                    gend
-                                    
-                                end
-                                
-                            else % WITH ATMOSPHERE
-                                
-                                fprintf('(with atmosphere ')
-                                
-                                atm_m           = tel.opticalAberration;
-                                nLayer          = atm_m.nLayer;
-                                layers          = atm_m.layer;
-                                altitude_m      = gsingle([layers.altitude]);
-                                sampler_m       = gsingle(linspace(-1,1,nPixelLenslet));
-                                phase_m         = { layers.phase };
-                                phase_m         = cellfun( @(x) gsingle(x) , phase_m , 'UniformOutput', false);
-                                R_              = tel.R/nLenslet;
-                                [ui,uj] = ndgrid(sampler_m*R_);
-%                                 fprintf('R_=%4.2f) ',R_)
-%                                 srcDirectionVector1 = src.directionVector(1);
-%                                 srcDirectionVector2 = src.directionVector(2);
-                                srcDirectionVector  = gsingle([obj(1,:,1).directionVector]);
-%                                 srcHeight = src.height;
-                                R_m    = gsingle([layers.D]*0.5);
-                                nPixel = gsingle([layers.nPixel]);
-                                
-                                if isempty(fr)
-                                    
-                                    fprintf('but without transverse LGS profile) ')
-                                    
-                                    gfor kValidLenslet = kValidLenslet_
-                                    
-                                    for kHeight = 1:nHeight % src height
-                                        
-                                        height          = srcHeight(kHeight);
-                                        naProfileHeight = naProfile(kHeight);
-                                        fr_             = fr(:,:,kHeight);
-                                        
-                                        kLenslet = kLenslet_(kValidLenslet);
-                                        n = fix((kLenslet-1)/nLenslet2);
-                                        k = kLenslet - n*nLenslet2;
-                                        
-                                        xDvSrc = srcDirectionVector(1,n+1);
-                                        yDvSrc = srcDirectionVector(2,n+1);
-                                        yLC = yLensletCoordinates(k);
-                                        xLC = xLensletCoordinates(k);
-                                        
-                                        for kLayer = 1:nLayer
-                                            
-                                            [ys,xs] = ndgrid(R_m(kLayer)*linspace(-1,1,nPixel(kLayer)));
-                                            red = (1-altitude_m(kLayer)./height);
-                                            xc = altitude_m(kLayer).*xDvSrc;
-                                            yc = altitude_m(kLayer).*yDvSrc;
-                                            xc = xc + yLC*red;
-                                            yc = yc + xLC*red;
-                                            yi = ui*red + xc;
-                                            xi = uj*red + yc;
-                                            
-                                            arg3 = phase_m{kLayer};
-                                            [nrows,ncols] = size(arg3);
-                                            s = 1 + (xi-xs(1))/(xs(end)-xs(1))*(ncols-1);
-                                            t = 1 + (yi-ys(1))/(ys(end)-ys(1))*(nrows-1);
-                                            ndx = floor(t)+floor(s-1)*nrows;
-                                            s(:) = (s - floor(s));
-                                            t(:) = (t - floor(t));
-                                            onemt = 1-t;
-                                            F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
-                                                ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
-                                            buf0 = pupilWave(:,:,k).*exp(1i*F);
-                                            
-                                            lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                                                height,objectiveFocalLength,waveNumber,buf0);
-                                            
-                                            buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                                            buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                            lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                                                buf2(:)*naProfileHeight;
-                                            
-                                        end
-                                        
-                                    end
-                                    
-                                    gend % gfor ends here!
-                                    
-                                else
-                                    
-                                    fprintf('and with transverse LGS profile) ')
-                                    
-                                    F = gzeros(nPixelLenslet,'single');
+                            gfor kValidLenslet = kValidLenslet_
+                            
+                            buf3(:)     = 0;
 
-                                    gfor kValidLenslet = kValidLenslet_
-                                    
-                                    for kHeight = 1:nHeight % src height
-                                        
-                                        height          = srcHeight(kHeight);
-                                        naProfileHeight = naProfile(kHeight);
-                                        fr_             = fr(:,:,kHeight);
-                                        
-                                        kLenslet = kLenslet_(kValidLenslet);
-                                        n = fix((kLenslet-1)/nLenslet2);
-                                        k = kLenslet - n*nLenslet2;
-                                        
-                                        xDvSrc = srcDirectionVector(1,n+1);
-                                        yDvSrc = srcDirectionVector(2,n+1);
-                                        yLC = yLensletCoordinates(k);
-                                        xLC = xLensletCoordinates(k);
-                                        
-                                        F(:) = 0;
-                                        for kLayer = 1:nLayer
-                                            
-                                            [ys,xs] = ndgrid(R_m(kLayer)*linspace(-1,1,nPixel(kLayer)));
-                                            red = (1-altitude_m(kLayer)./height);
-                                            xc = altitude_m(kLayer).*xDvSrc;
-                                            yc = altitude_m(kLayer).*yDvSrc;
-                                            xc = xc + yLC*red;
-                                            yc = yc + xLC*red;
-                                            yi = ui*red + xc;
-                                            xi = uj*red + yc;
-                                            
-                                            arg3 = phase_m{kLayer};
-                                            [nrows,ncols] = size(arg3);
-                                            s = 1 + (xi-xs(1))/(xs(end)-xs(1))*(ncols-1);
-                                            t = 1 + (yi-ys(1))/(ys(end)-ys(1))*(nrows-1);
-                                            ndx = floor(t)+floor(s-1)*nrows;
-                                            s(:) = (s - floor(s));
-                                            t(:) = (t - floor(t));
-                                            onemt = 1-t;
-                                            F =  F + ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
-                                                ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
-                                            
-                                        end
-                                        
-                                        buf0 = pupilWave(:,:,k).*exp(1i*F);
-                                        lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
-                                            height,objectiveFocalLength,waveNumber,buf0);
-                                        
-                                        buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
-                                        buf2(:)      = abs( buf1(lensletIndex) ).^2;
-                                        buf2         = conv2( buf2 , fr_ ,'same');
-                                        lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
-                                            buf2(:)*naProfileHeight;
-                                        
-                                    end
-                                    
-                                    gend % gfor ends here!
-                                    
-                                end
+                            for kHeight = 1:nHeight % src height
+                                
+                                height          = srcHeight(kHeight);
+                                naProfileHeight = naProfile(kHeight);
+                                fr_             = fr(:,:,kHeight);
+                                
+                                kLenslet = kLenslet_(kValidLenslet);
+                                n = fix((kLenslet-1)/nLenslet2);
+                                k = kLenslet - n*nLenslet2;
+                                
+                                F = pupilPhase(nLayer,altitude_m,phase_m,xi(:,:,k),yi(:,:,k),srcDirectionVector(:,n+1),R_m,nPixel,nPixelLenslet,height);
+                                F = lambdaRatio*F + dmPhase(:,:,k);
+                                buf0 = pupilWave(:,:,k).*exp(1i*F);
+                                
+                                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                                    height,objectiveFocalLength,waveNumber,buf0);
+                                
+                                buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
+                                buf2(:)      = abs( buf1(lensletIndex) ).^2;
+                                buf3         = buf3 + buf2*naProfileHeight;
+%                                 buf2         = spotsConvolution( buf2 , fr_);
+%                                 lensletIntensity(:,kValidLenslet) = lensletIntensity(:,kValidLenslet) + ...
+%                                     buf2(:)*naProfileHeight;
+                                
                             end
+                            buf3 = spotsConvolution( buf3 , fr_);
+                            lensletIntensity(:,kValidLenslet) = buf3(:);
                             
-                            et = toc(tId);
-                            fprintf('elapsed time: %4.2f\n',et)
+                            gend % gfor ends here!
+                            
+                            
                         end
-%                         Fd = double(F);
-%                         save('interpPhase.mat','Fd')
+                        
+                        et = toc(tId);
+                        fprintf('elapsed time: %4.2f\n',et)
+                        %                         Fd = double(F);
+                        %                         save('interpPhase.mat','Fd')
                         %                 geval(lensletIntensity)
                         %                 gsync
                         
                         %%
+%                         lensletIntensity = bsxfun( @times , lensletIntensity , fieldStop);
+
+                        n1             = nLensletImagePx*nLenslet;
+                        n2             = n1*nArray;
                         imagelets  = zeros(n1,n2);
-                        index = tools.rearrange( [n1,n2] , [nLensletWavePx,nLensletWavePx] );
+                        index = tools.rearrange( [n1,n2] , [nLensletImagePx,nLensletImagePx] );
                         imagelets(index(:,validLenslet)) = wfs.lenslets.throughput*double(lensletIntensity(:));
                         wfs.lenslets.imagelets = imagelets;
                         
                         +wfs; %#ok<VUNUS>
-                        
                 end
+                
             end
-            
         end
         
     end
     
 end
 
-function lensletWave = pupilProp(xPup,yPup,xL,yL,...
-    height,objectiveFocalLength,waveNumber,telPupil)
+function [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
+    atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,srcWavelength )
+%% initialize atmosphere parameters
+atm_m           = tel.opticalAberration;
+if isempty(atm_m)
+    nLayer = [];
+    altitude_m = [];
+    phase_m = [];
+    R_m = [];
+    nPixel = [];
+    lambdaRatio = 1;
+else
+    nLayer          = atm_m.nLayer;
+    layers          = atm_m.layer;
+    phase_m         = { layers.phase };
+    phase_m         = cellfun( @(x) gsingle(x) , phase_m , 'UniformOutput', false);
+    altitude_m      = gsingle([layers.altitude]);
+    R_m    = gsingle([layers.D]*0.5);
+    nPixel = gsingle([layers.nPixel]);
+    lambdaRatio = gdouble(atm_m.wavelength/srcWavelength);
+end
 
+sampler_m       = gsingle(linspace(-1,1,tel.resolution));
+u = sampler_m*tel.R;
+[xi,yi] = meshgrid(u);
+xi = reshape( xi(index) , nPixelLenslet , nPixelLenslet , nLenslet2 );
+yi = reshape( yi(index) , nPixelLenslet , nPixelLenslet , nLenslet2 );
+srcDirectionVector  = gsingle([obj(1,:,1).directionVector]);
+end
+
+function lensletWave = pupilPropLgs(xPup,yPup,xL,yL,...
+    height,objectiveFocalLength,waveNumber,telPupil)
+%% lgs propagation (spherical wave)
 rho = hypot( xPup - xL , yPup - yL );
 s  = hypot(rho,height);
 s0 = hypot(rho,objectiveFocalLength);
 sphericalPhase = waveNumber*(s - s0);
 
 lensletWave  = telPupil.*exp(1i*sphericalPhase)./height;
+end
+
+function lensletWave = pupilPropNgs(~,~,~,~,~,~,~,telPupil)
+%% ngs propagation (plane wave)
+lensletWave  = telPupil;
+end
+
+function F = atmosphereGeometricPropagator(nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,nPixelLenslet,height)
+%% propagation through phase screens
+xDvSrc = srcDirectionVector(1);
+yDvSrc = srcDirectionVector(2);
+F = gzeros(nPixelLenslet,nPixelLenslet,'single');
+for kLayer = 1:nLayer
+    
+    [xs,ys] = meshgrid(R_m(kLayer)*linspace(-1,1,nPixel(kLayer)));
+    red = (1-altitude_m(kLayer)./height);
+    xc = altitude_m(kLayer).*xDvSrc;
+    yc = altitude_m(kLayer).*yDvSrc;
+    
+    yiLenslet = yi*red + yc;
+    xiLenslet = xi*red + xc;
+    
+    arg3 = phase_m{kLayer};
+    
+    [nrows,ncols] = size(arg3);
+    s = 1 + (xiLenslet-xs(1))/(xs(end)-xs(1))*(ncols-1);
+    t = 1 + (yiLenslet-ys(1))/(ys(end)-ys(1))*(nrows-1);
+    ndx = floor(t)+floor(s-1)*nrows;
+    s(:) = (s - floor(s));
+    t(:) = (t - floor(t));
+    onemt = 1-t;
+    F =  F + ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
+        ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+    
+end
+
+end
+
+function F = atmosphereGeometricPropagatorNull(~,~,~,~,~,~,~,~,nPixelLenslet,~)
+%% no propagation through phase screens
+F = gzeros(nPixelLenslet,nPixelLenslet,'single');
+end
+
+function buf2 = spotsConvolve(buf2 , fr_ )
+%% spots convolution
+buf2         = conv2( buf2 , fr_ ,'same');
+end
+function out = spotsConvolveNull(buf2 , ~ )
+%% no spots convolution
+out         = buf2;
 end
