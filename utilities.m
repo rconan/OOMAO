@@ -49,10 +49,10 @@ classdef utilities
                     out = double(r <= 1);
                 case 'square'
                     out = double( abs(x)<=1 & abs(y)<=1 );
-                case {'hex','hexagonal'}
+                case {'hex','hexagon'}
                     out = double( abs(x)<=sqrt(3)/2 & abs(y)<=x/sqrt(3)+1 & abs(y)<=-x/sqrt(3)+1 );
                 otherwise
-                    error('The piston shape is either a disc or a square')
+                    error('The piston shape is either a disc, a square or a hexagon')
             end
             
             switch param.type
@@ -543,7 +543,7 @@ classdef utilities
             out = 2*h*utilities.orbitalVelocity(h,zen)*sec(zen)/constants.c;
         end
         
-        function [vertex,center] = hexagonalArray(nCycle,pitch)
+        function [vertex,center,hp] = hexagonalArray(nCycle,pitch)
             %% HEXAGONALARRAY Array of hexagonals
             %
             % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
@@ -575,7 +575,7 @@ classdef utilities
             v = vertex(:);
             f = reshape(1:6*nSegment,6,nSegment);
             figure(nSegment)
-            patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
+            hp = patch('Faces',f','Vertices',[real(v(:)),imag(v(:))],'FaceColor',[1,1,1]*0.8);
 %             line(real(center),imag(center),'color','r','marker','.')
             axis square
             set(gca,'ylim',get(gca,'xlim'))
@@ -598,6 +598,80 @@ classdef utilities
                 V(:,j) = v/norm(v);
             end
             
+        end
+        
+        function out = besselJDerivative(nu,x)
+            %% BESSELJDERIVATIVE Derivative of Bessel function of the first kind 
+            %
+            % out = besselJDerivative(nu,x) computes the derivative of the
+            % Bessel function of the first kind of order n at x
+            
+            out = 0.5*( besselj(nu-1,x) - besselj(nu+1,x) );
+            
+        end
+        
+        function s = besselJDerivativeRoots(nu,ns)
+           %% BESSELJDERIVATIVEROOUTS Roots of the drivative of Bessel function of the first kind 
+           %
+           % s = besselJDerivativeRoots(nu,ns) computes the ns first roots
+           % of the derivative of the Bessel function of the first kind of
+           % order n
+            
+            bjd = @(x) tools.besselJDerivative(nu,abs(x));
+            s = zeros(1,ns);
+            if nu==0
+                s(1) = fzero( bjd , nu+3);
+            else
+                s(1) = fzero( bjd , nu);
+            end
+            for ks=2:ns
+                x0 = ceil( s(ks-1) );
+                bjd_x0 = bjd( x0 );
+                x1 = x0 + pi; % the intervalle between 2 succesive roots tends towards pi but may larger for the first roots
+                count = 0;
+                while bjd_x0*bjd(x1)>0 && count<3
+                    x1 = x1 + pi;
+                    count = count + 1;
+                end
+                if count>2
+                    error('Failed finding two points around roots where the signs of Bessel derivative differ!')
+                end
+                s(ks) = fzero( bjd , [x0,x1]);
+            end
+            
+%             figure(103)
+%             fplot( bjd, [0,ceil(s(end))])
+%             grid
+%             line( s, zeros(size(s)), 'color','r','marker','.','linestyle','none')
+
+        end
+
+        function rc = fitFwhm(profile)
+            C = contourc(profile/max(profile(:)),[0.5,0.5]);
+            rr = hypot(C(1,2:end),C(2,2:end));
+            xc = sum(rr.*C(1,2:end))./sum(rr);
+            yc = sum(rr.*C(2,2:end))./sum(rr);
+%             line(xc,yc,'color','r','marker','x')
+            rc = mean(sqrt((C(1,2:end)-xc).^2 + (C(2,2:end)-yc).^2));
+        end
+        
+        function F = bilinearInterpolation(arg1,arg2,arg3,arg4,arg5)
+            [nrows,ncols] = size(arg3);
+            %     mx = numel(arg1); my = numel(arg2);
+            s = 1 + (arg4-arg1(1))/(arg1(end)-arg1(1))*(ncols-1);
+            t = 1 + (arg5-arg2(1))/(arg2(end)-arg2(1))*(nrows-1);
+            
+            
+            % Matrix element indexing
+            ndx = floor(t)+floor(s-1)*nrows;
+            
+            s(:) = (s - floor(s));
+            t(:) = (t - floor(t));
+            
+            % Now interpolate.
+            onemt = 1-t;
+            F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
+                ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
         end
         
     end

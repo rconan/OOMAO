@@ -272,7 +272,7 @@ classdef detector < handle
             %             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
             [n,m,~] = size(image);
             if any(n>obj.resolution(1))
-                %                 disp('Binning')
+                disp('Binning')
                 image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
             obj.frameCount = obj.frameCount + 1;

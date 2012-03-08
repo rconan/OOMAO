@@ -254,16 +254,21 @@ classdef phaseStats
             [nRho,mRho] = size(rho);
             blockSize = 5000;
             if max(nRho,mRho)>blockSize % Memory gentle
-                fprintf(' @(phaseStats.covarianceMatrix)> Memory gentle!\n')
                 l  = floor(nRho/blockSize);
                 le = nRho - l*blockSize;
                 p  = floor(mRho/blockSize);
                 pe = mRho - p*blockSize;
+                fprintf(' @(phaseStats.covarianceMatrix)> Memory gentle! (%dX%d blocks)\n',l+1,p+1)
                 rho = mat2cell( rho, ...
                     [ones(1,l)*blockSize, le],...
                     [ones(1,p)*blockSize, pe]);
-                out = cell2mat( ...
-                    cellfun(@(x) phaseStats.covariance(x,atm), rho, 'UniformOutput', false) );
+%                 out = cell2mat( ...
+%                     cellfun(@(x) phaseStats.covariance(x,atm), rho, 'UniformOutput', false) );
+                out = cell(size(rho));
+                parfor ii=1:numel(rho)
+                    out{ii} = phaseStats.covariance(rho{ii},atm);
+                end
+                out = cell2mat(out);
             else % Memory intensive
                 L0r0ratio= (atm.L0./atm.r0).^(5./3);
                 cst      = (24.*gamma(6./5)./5).^(5./6).*...
