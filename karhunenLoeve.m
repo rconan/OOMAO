@@ -23,8 +23,10 @@ classdef karhunenLoeve < hgsetget
         radialFun;
         % radius vector
         radius2;
-        % variance of Karhunen-Loeve coefficients
+        % variance of Karhunen-Loeve coefficients (compact vector)
         varCoef;
+        % variance of Karhunen-Loeve coefficients (expanded vector)
+        sigma2;
         % telescope diameter
         D;
         % telescope central obstruction ratio
@@ -49,6 +51,7 @@ classdef karhunenLoeve < hgsetget
             obj.D  = h5read('GMT_Karhunen-Loeve_Basis.hdf5','/tel/D');
             obj.ri = h5read('GMT_Karhunen-Loeve_Basis.hdf5','/tel/ri');
             obj.m = zeros(1,obj.nf);
+            obj.sigma2 = zeros(1,obj.nf);
             obj.radialFunIndex = zeros(1,obj.nf);
             j = 0;
             for k=1:obj.nv
@@ -56,9 +59,13 @@ classdef karhunenLoeve < hgsetget
                 obj.radialFunIndex(j) = k;
                 if obj.azimOrder(k)~=0
                     obj.m(j) = obj.azimOrder(k);
+                    obj.sigma2(j) = obj.varCoef(k);
                     j = j + 1;
                     obj.radialFunIndex(j) = k;
                     obj.m(j) = obj.azimOrder(k);
+                    obj.sigma2(j) = obj.varCoef(k);
+                else
+                    obj.sigma2(j) = obj.varCoef(k);
                 end
             end
             obj.nf = length(obj.m);

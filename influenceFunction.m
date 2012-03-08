@@ -260,7 +260,8 @@ classdef influenceFunction < handle
                 
                 xIF = linspace(-1,1,nIF)*(nIF-1)/2 - offset(1);
                 yIF = linspace(-1,1,nIF)*(nIF-1)/2 - offset(2);
-                obj.actuatorCoord = xIF + 1i*yIF;
+                [xIF2,yIF2] = ndgrid(xIF,yIF);
+                obj.actuatorCoord = xIF2 + 1i*yIF2;
                 
                 u0 = ratioTelDm.*linspace(-1,1,resolution)*(nIF-1)/2;
                 
@@ -269,15 +270,15 @@ classdef influenceFunction < handle
                 
                 u = bsxfun( @minus , u0' , xIF );
                 wu = zeros(resolution,nIF);
-                index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
-                nu = sum(index(:));
-                wu(index) = ppval(obj.splineP,u(index));
+                index_v = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
+                nu = sum(index_v(:));
+                wu(index_v) = ppval(obj.splineP,u(index_v));
                 
                 v = bsxfun( @minus , u0' , yIF);
                 wv = zeros(resolution,nIF);
-                index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
-                nv = sum(index(:));
-                wv(index) = ppval(obj.splineP,v(index));
+                index_v = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+                nv = sum(index_v(:));
+                wv(index_v) = ppval(obj.splineP,v(index_v));
                 
                 m_modes = spalloc(resolution^2,nValid,nu*nv);
                 
@@ -322,24 +323,41 @@ classdef influenceFunction < handle
                 
                 u = bsxfun( @minus , u0' , xIF );
                 wu = zeros(resolution,nIF);
-                index = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
-                nu = sum(index(:));
-                wu(index) = ppval(obj.splineP,u(index));
+                index_u = u >= -obj.bezier(end,1) & u <= obj.bezier(end,1);
+%                 nu = sum(index_u(:));
+                wu(index_u) = ppval(obj.splineP,u(index_u));
                 
                 v = bsxfun( @minus , u0' , yIF);
                 wv = zeros(resolution,nIF);
-                index = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
-                nv = sum(index(:));
-                wv(index) = ppval(obj.splineP,v(index));
-                m_modes = spalloc(resolution^2,nValid,resolution^2*nValid);
+                index_v = v >= -obj.bezier(end,1) & v <= obj.bezier(end,1);
+%                 nv = sum(index_v(:));
+                wv(index_v) = ppval(obj.splineP,v(index_v));
+                expectedNnz = max(sum(index_u))*max(sum(index_v))*nIF;
+                add(obj.log,obj,sprintf('Expected non-zeros: %d',expectedNnz))
+                add(obj.log,obj,sprintf('Computing the %d 2D DM zonal modes...',nValid))
+%                 m_modes = spalloc(resolution^2,nValid,expectedNnz);
                 fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d,    ',nValid)
+                s_i = zeros(expectedNnz,1);
+                s_j = zeros(expectedNnz,1);
+                s_s = zeros(expectedNnz,1);
+                index = 0;
                 for kIF = 1:nIF
                     fprintf('\b\b\b\b%4d',kIF)
                     buffer = wv(:,kIF)*wu(:,kIF)';
-                    m_modes(:,kIF) = buffer(:);
+                    [i_,~,s_] = find(buffer(:));
+                    n = length(i_);
+                    index = (1:n) + index(end);
+                    s_i(index) = i_;
+                    s_s(index) = s_;
+                    s_j(index) = ones(n,1)*kIF;
+%                     m_modes(:,kIF) = buffer(:);
                 end
                 fprintf('\n')
-                obj.modes = m_modes;
+%                 add(obj.log,obj,sprintf('Actual non-zeros: %d',nnz(m_modes)))
+%                 obj.modes = m_modes;
+                index = 1:index(end);
+                obj.modes = sparse(s_i(index),s_j(index),s_s(index),resolution^2,nValid);
+                add(obj.log,obj,sprintf('Actual non-zeros: %d',nnz(obj.modes)))
            end
         end
     end

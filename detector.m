@@ -168,8 +168,10 @@ classdef detector < handle
                 
                 if isempty(obj.frame)
                     m_frame = obj.frameBuffer;
+                    titleColor = 'r';
                 else
                     m_frame = obj.frame;
+                    titleColor = 'k';
                 end
                 
                 if all(ishandle(obj.frameHandle)) && ~isempty(obj.frameHandle)
@@ -179,7 +181,8 @@ classdef detector < handle
                     %                 set( get(obj.frameHandle,'parent') , ...
                     %                     'xlim',xAxisLim,'ylim',yAxisLim);
                     set(obj.frameHandle(2),'String',...
-                        sprintf('Frame #%d',obj.frameCount))
+                        sprintf('Frame #%d',obj.frameCount),...
+                        'color',titleColor)
                     [n,m] = size(m_frame);
                     set(get(obj.frameHandle(1),'parent'),'xlim',0.5+[0 m],'ylim',0.5+[0 n])
                 else
@@ -197,7 +200,8 @@ classdef detector < handle
                             'CDataMApping','Scaled',...
                             varargin{:});
                     end
-                    obj.frameHandle(2) = title(sprintf('Frame #%d',obj.frameCount));
+                    obj.frameHandle(2) = title(sprintf('Frame #%d',obj.frameCount),...
+                        'color',titleColor);
                     colormap(pink)
                     axis xy equal tight
                     colorbar('location','SouthOutside')
@@ -288,7 +292,7 @@ classdef detector < handle
             %             image = image;%This is now done in telescope.relay (.*obj.exposureTime;) % flux integration
             [n,m,~] = size(image);
             if any(n>obj.resolution(1))
-                disp('Binning')
+%                 disp('Binning')
                 image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
             obj.frameCount = obj.frameCount + 1;

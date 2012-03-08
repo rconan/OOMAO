@@ -111,11 +111,11 @@ classdef utilities
             
             if isempty(v)
                 if numel(u)==1
-                    u = 2*( -(u-1)/2:(u-1)/2 )/u;%linspace(-1,1,u);
+                    u = linspace(-1,1,u);%2*( -(u-1)/2:(u-1)/2 )/u;
                 end
                 v=u;
             elseif (numel(u)==1) && (numel(v)==1)
-                u = 2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
+                u = linspace(-v,v,u);%2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
                 v = u;
             end
             
@@ -672,6 +672,39 @@ classdef utilities
             onemt = 1-t;
             F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
                 ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+        end
+        
+        function fr = gaussian(resolution,fwhm,n_f)
+            
+            u = (0:resolution-1)-(resolution)/2;
+            [x,y] = meshgrid(u);
+            r = hypot(x,y);
+            sig = fwhm./(2.*sqrt(2*log(2)));
+            f = exp(-r.^2/(2*sig.^2));
+            f = f/sum(f(:));
+            
+%             n_f = 20;
+            if nargin<3
+                n_f = resolution;
+            end
+            if n_f<resolution/2
+                fr = f;
+                fr(:,end-n_f+1:end) =[];
+                fr(end-n_f+1:end,:) =[];
+                fr(:,1:n_f) =[];
+                fr(1:n_f,:) =[];
+                %     figure(101)
+                %     subplot(1,2,1)
+                %     imagesc(f)
+                %     axis square
+                %     subplot(1,2,2)
+                %     imagesc(fr)
+                %     axis square
+            else
+                fr = f;
+            end
+            
+            
         end
         
     end
