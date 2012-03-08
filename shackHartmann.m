@@ -624,6 +624,23 @@ classdef shackHartmann < hgsetget
                 obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
                 axis equal tight
                 colorbar('location','northOutside')
+                hu = findobj('Type','uimenu','Label','OOMAO');
+                if isempty(hu)
+                    hu = uimenu('Label','OOMAO');
+                end
+                hus  = uimenu(hu,'Label','Slopes Listener Off','Callback',@oomaoMenu);
+                if obj.slopesListener.Enabled
+                    set(hus,'Label','Slopes Listener On')
+                end
+            end
+            
+            function oomaoMenu(src,~)
+                obj.slopesListener.Enabled = ~obj.slopesListener.Enabled;
+                if obj.slopesListener.Enabled
+                    set(src,'Label','Slopes Listener On')
+                else
+                    set(src,'Label','Slopes Listener Off')
+                end
             end
             
 %             if ishandle(obj.slopesDisplayHandle)
