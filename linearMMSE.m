@@ -172,7 +172,7 @@ classdef linearMMSE < handle
                             matlabpool('open')
                             poolWasAlreadyOpen = false;
                         catch ME
-                            ME
+                            ME;
                         end
                     end
                     
@@ -561,7 +561,6 @@ classdef linearMMSE < handle
             map = zeros(obj.sampling,obj.sampling*obj.nmmseStar);
             mask = repmat( obj.pupil, 1 , obj.nmmseStar);
             map(mask) = out;
-                
         end
        
         function out = get.var(obj)
@@ -603,6 +602,15 @@ classdef linearMMSE < handle
             end
         end        
 
+        function wfe(obj)
+            m_rmsMap = obj.rmsMap;
+            imagesc(m_rmsMap)
+            axis equal tight
+            idx = m_rmsMap>0;
+            set(gca,'clim',[min(m_rmsMap(idx)),max(m_rmsMap(idx))])
+            ylabel(colorbar,sprintf('WFE [10^-%dm]',obj.unit))
+            title(sprintf('(WFE: %4.2f) ',obj.rms))
+        end
     end
        
     

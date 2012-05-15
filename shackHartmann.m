@@ -636,7 +636,7 @@ classdef shackHartmann < hgsetget
                     axis equal tight
                     xlabel(colorbar('location','northOutside'),'Pixel')
                     
-                    hu = findobj('Type','uimenu','Label','OOMAO');
+                    hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
                         hu = uimenu('Label','OOMAO');
                     end
@@ -666,7 +666,7 @@ classdef shackHartmann < hgsetget
                     grid on
                     axis square
                     
-                    hu = findobj('Type','uimenu','Label','OOMAO');
+                    hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
                         hu = uimenu('Label','OOMAO');
                     end

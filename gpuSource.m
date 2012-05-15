@@ -72,8 +72,9 @@ classdef gpuSource < source
                         set(obj,'mask',tel.pupilLogical)
                     case 'deformableMirror'
                         dm = obj(1).opticalPath{kDevice};
-                        relay(dm,obj)
-                        dmPhase = obj.phase;
+%                         relay(dm,obj)
+%                         dmPhase = obj.phase;
+                        dmPhase    = -2*dm.surface*obj(1).waveNumber;
                     case 'shackHartmann'
                         wfs = obj(1).opticalPath{kDevice};
                         nLenslet      = wfs.lenslets.nLenslet;
@@ -162,23 +163,29 @@ classdef gpuSource < source
                         nGpu = ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
                         validLensletMaxStep = floor(nValidLenslets/nGpu);
                         validLensletRange   = 1:validLensletMaxStep;
+                        time = tel.time;
                         
 %                         fieldStop = tools.piston(90,96);
 %                         fieldStop = gsingle(fieldStop(:));
                         
                         %%% Setting the function point for the geometric
                         %%% propagator through the atmosphere
-                        [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
+                        [nLayer,altitude_m,phase_m,xi,yi,...
+                            srcDirectionVector,R_m,lambdaRatio,vx,vy] = ...
                             atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,obj(1).wavelength);
                         if isempty(tel.opticalAberration)
                             % no propagation!
-                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_) ...
-                                atmosphereGeometricPropagatorNull(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_);
+                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,...
+                                srcDirectionVector_,R_m_,nPixelLenslet_,height_,time_,vx_,vy_) ...
+                                atmosphereGeometricPropagatorNull(nLayer_,altitude_m_,phase_m_,xi_,yi_,...
+                                srcDirectionVector_,R_m_,nPixelLenslet_,height_,time_,vx_,vy_);
                         else
                             % propagation!
                             fprintf('(with atmosphere ')
-                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_) ...
-                                atmosphereGeometricPropagator(nLayer_,altitude_m_,phase_m_,xi_,yi_,srcDirectionVector_,R_m_,nPixel_,nPixelLenslet_,height_);
+                            pupilPhase = @(nLayer_,altitude_m_,phase_m_,xi_,yi_,...
+                                srcDirectionVector_,R_m_,nPixelLenslet_,height_,time_,vx_,vy_) ...
+                                atmosphereGeometricPropagator(nLayer_,altitude_m_,phase_m_,xi_,yi_,...
+                                srcDirectionVector_,R_m_,nPixelLenslet_,height_,time_,vx_,vy_);
                         end
                         
                         %%% Setting the spot convolution function pointer 
@@ -204,6 +211,8 @@ classdef gpuSource < source
                                 pupilPropLgs(xPup_,yPup_,xL_,yL_,height_,objectiveFocalLength_,waveNumber_,buf0_);
                         end
                         
+%                         height0 = obj(1).objectiveFocalLength;
+                        
                         tId = tic;
                         for kGpu=1:nGpu
                             
@@ -214,23 +223,34 @@ classdef gpuSource < source
                             
                             gfor kValidLenslet = kValidLenslet_
                             
+                            kLenslet = kLenslet_(kValidLenslet);
+                            n = fix((kLenslet-1)/nLenslet2);
+                            k = kLenslet - n*nLenslet2;
+                            
+                            xi_  = xi(:,:,k);
+                            yi_  = yi(:,:,k);
+                            srcDirectionVector_ = srcDirectionVector(:,n+1);
+                            dmPhase_            = dmPhase(:,:,k);
+                            pupilWave_          = pupilWave(:,:,k);
+                            xPup_ = xPup(:,:,k);
+                            yPup_ = yPup(:,:,k);
+                            xL_ = xL(n+1);
+                            yL_ = yL(n+1);
+                            
+                            F = pupilPhase(nLayer,altitude_m,phase_m,xi_,yi_,...
+                                srcDirectionVector_,R_m,nPixelLenslet,objectiveFocalLength,time,vx,vy);
+                            F = lambdaRatio*F + dmPhase_;
+                            buf0 = pupilWave_.*exp(1i*F);
+                            
                             buf3(:)     = 0;
-
+                            
                             for kHeight = 1:nHeight % src height
                                 
                                 height          = srcHeight(kHeight);
                                 naProfileHeight = naProfile(kHeight);
                                 fr_             = fr(:,:,kHeight);
                                 
-                                kLenslet = kLenslet_(kValidLenslet);
-                                n = fix((kLenslet-1)/nLenslet2);
-                                k = kLenslet - n*nLenslet2;
-                                
-                                F = pupilPhase(nLayer,altitude_m,phase_m,xi(:,:,k),yi(:,:,k),srcDirectionVector(:,n+1),R_m,nPixel,nPixelLenslet,height);
-                                F = lambdaRatio*F + dmPhase(:,:,k);
-                                buf0 = pupilWave(:,:,k).*exp(1i*F);
-                                
-                                lensletWave = pupilProp(xPup(:,:,k),yPup(:,:,k),xL(n+1),yL(n+1),...
+                                lensletWave = pupilProp(xPup_,yPup_,xL_,yL_,...
                                     height,objectiveFocalLength,waveNumber,buf0);
                                 
                                 buf1         = fft2( lensletWave , nOutWavePx , nOutWavePx );
@@ -276,8 +296,8 @@ classdef gpuSource < source
     
 end
 
-function [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,lambdaRatio] = ...
-    atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,srcWavelength )
+function [nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,lambdaRatio,vx,vy] = ...
+    atmosphereInit(obj,tel,index,nPixelLenslet,nLenslet2,srcWavelength)
 %% initialize atmosphere parameters
 atm_m           = tel.opticalAberration;
 if isempty(atm_m)
@@ -285,17 +305,21 @@ if isempty(atm_m)
     altitude_m = [];
     phase_m = [];
     R_m = [];
-    nPixel = [];
     lambdaRatio = 1;
+    vx = [];
+    vy = [];
 else
     nLayer          = atm_m.nLayer;
     layers          = atm_m.layer;
     phase_m         = { layers.phase };
-    phase_m         = cellfun( @(x) gsingle(x) , phase_m , 'UniformOutput', false);
-    altitude_m      = gsingle([layers.altitude]);
-    R_m    = gsingle([layers.D]*0.5);
-    nPixel = gsingle([layers.nPixel]);
+%     phase_m         = cellfun( @(x) gsingle(x) , phase_m , 'UniformOutput', false);
+    altitude_m      = [layers.altitude];
+    R_m    = [layers.D]*0.5;
     lambdaRatio = gdouble(atm_m.wavelength/srcWavelength);
+    windVel = [layers.windSpeed];
+    windDir = [layers.windDirection];
+    vx = windVel.*cos(windDir);
+    vy = windVel.*sin(windDir);
 end
 
 sampler_m       = gsingle(linspace(-1,1,tel.resolution));
@@ -322,26 +346,41 @@ function lensletWave = pupilPropNgs(~,~,~,~,~,~,~,telPupil)
 lensletWave  = telPupil;
 end
 
-function F = atmosphereGeometricPropagator(nLayer,altitude_m,phase_m,xi,yi,srcDirectionVector,R_m,nPixel,nPixelLenslet,height)
+function F = atmosphereGeometricPropagator(nLayer,altitude_m,phase_m,xi,yi,...
+    srcDirectionVector,R_m,nPixelLenslet,height,time_m,vx,vy)
 %% propagation through phase screens
 xDvSrc = srcDirectionVector(1);
 yDvSrc = srcDirectionVector(2);
+
+    R = R_m;
+    D = 2*R;
+    red = (1-altitude_m./height)./D;
+    xc = altitude_m.*xDvSrc;
+    yc = altitude_m.*yDvSrc;
+    xc = xc - time_m*vx + R;
+    yc = yc - time_m*vy + R;
+    xc = xc./D;
+    yc = yc./D;
+
 F = gzeros(nPixelLenslet,nPixelLenslet,'single');
 for kLayer = 1:nLayer
     
-    [xs,ys] = meshgrid(R_m(kLayer)*linspace(-1,1,nPixel(kLayer)));
-    red = (1-altitude_m(kLayer)./height);
-    xc = altitude_m(kLayer).*xDvSrc;
-    yc = altitude_m(kLayer).*yDvSrc;
+%     R = R_m(kLayer);
+%     D = 2*R;
+%     red = (1-altitude_m(kLayer)./height);
+%     xc = altitude_m(kLayer).*xDvSrc;
+%     yc = altitude_m(kLayer).*yDvSrc;
+%     xc = xc - time_m*vx(kLayer);
+%     yc = yc - time_m*vy(kLayer);
     
-    yiLenslet = yi*red + yc;
-    xiLenslet = xi*red + xc;
+    yiLenslet = yi*red(kLayer) + yc(kLayer);
+    xiLenslet = xi*red(kLayer) + xc(kLayer);
     
     arg3 = phase_m{kLayer};
     
     [nrows,ncols] = size(arg3);
-    s = 1 + (xiLenslet-xs(1))/(xs(end)-xs(1))*(ncols-1);
-    t = 1 + (yiLenslet-ys(1))/(ys(end)-ys(1))*(nrows-1);
+    s = 1 + xiLenslet*(ncols-1);
+    t = 1 + yiLenslet*(nrows-1);
     ndx = floor(t)+floor(s-1)*nrows;
     s(:) = (s - floor(s));
     t(:) = (t - floor(t));
@@ -353,7 +392,7 @@ end
 
 end
 
-function F = atmosphereGeometricPropagatorNull(~,~,~,~,~,~,~,~,nPixelLenslet,~)
+function F = atmosphereGeometricPropagatorNull(~,~,~,~,~,~,~,nPixelLenslet,~,~,~,~)
 %% no propagation through phase screens
 F = gzeros(nPixelLenslet,nPixelLenslet,'single');
 end

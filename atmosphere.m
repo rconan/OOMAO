@@ -67,6 +67,7 @@ classdef atmosphere < hgsetget
         % state at initialization of the atmosphere random number generator stream
         initState;
         wavelengthScale;
+        gpu = false;
     end
     
     properties (Dependent, SetObservable=true)
@@ -511,6 +512,16 @@ classdef atmosphere < hgsetget
                 map = choleskyFact*randn(atm.rngStream,nPixel^2,nMap);
                 map = reshape(map,nPixel,nPixel,nMap);
             end
+        end
+        
+        function host2gpu(obj)
+            host2gpu(obj.layer)
+            obj.gpu = true;
+        end
+        
+        function gpu2host(obj)
+            gpu2host(obj.layer)
+            obj.gpu = false;
         end
         
     end
