@@ -23,6 +23,8 @@ classdef calibrationVault < handle
         tag = 'CALIBRATION VAULT';
         % DM influence function
         modes;
+        % updateShow
+        updateShow = false;
     end
     
     properties (Dependent)
@@ -118,7 +120,7 @@ classdef calibrationVault < handle
                 colorbar
             end
             
-            drawnow
+%             drawnow
 
         end
         
@@ -129,6 +131,7 @@ classdef calibrationVault < handle
         function updateCommandMatrix(obj)
             %% UPDATECOMMANDMATRIX Update the command matrix
             
+            if obj.updateShow
             figure(get(obj.eigAxis,'parent'))
 %             if isempty(obj.eigLine)
 %                 obj.eigLine = line(get(obj.eigAxis,'xlim'),ones(1,2)*obj.p_threshold,'color','r','parent',obj.eigAxis);
@@ -138,8 +141,9 @@ classdef calibrationVault < handle
                     set(obj.eigImage,'Cdata',tools.toggleFrame(obj.modes*obj.V(:,end-obj.p_nThresholded)))
                 end
 %             end
-            drawnow
-
+%             drawnow
+            end
+            
             add(obj.log,obj,'Updating the command matrix!')
     
             nEigenValues = length(obj.eigenValues) - obj.nThresholded;

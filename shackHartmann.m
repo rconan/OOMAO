@@ -53,6 +53,8 @@ classdef shackHartmann < hgsetget
         rmMeanSlopes = false;
         % mean slopes
         meanSlopes;
+        % handle to the function processing the lenslet intensity
+        intensityFunction = @sum;
     end
     
     properties (SetObservable=true)
@@ -325,7 +327,7 @@ classdef shackHartmann < hgsetget
                     obj.indexRasterLenslet(:,v) = [];
                     buffer     = obj.camera.frame(obj.indexRasterLenslet);
                 end
-                lensletIntensity = sum(buffer);
+                lensletIntensity = obj.intensityFunction(buffer);
             end
         end
         
@@ -715,9 +717,9 @@ classdef shackHartmann < hgsetget
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
                 axis equal tight xy
-                set(gca,'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
                 colorbar
             end
+            set(gca,'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
             if nargout>0
                 varargout{1} = obj.intensityDisplayHandle;
             end
@@ -1174,8 +1176,8 @@ classdef shackHartmann < hgsetget
                 
 %                 noiseVar = (1/(8*log(2)))*(2*atm.r0.*fwhm).^2/nph + ...
 %                     (ron/nph).^2.*NS.^2/12;
-                thetaNa
-                seeingNa
+%                 thetaNa
+%                 seeingNa
                 NS = 2*ceil(2*thetaNa/seeingNa);
                 fprintf('NS max-min: [%d,%d]\n',max(NS),min(NS))
                 sigma2X = (1/(8*log(2)))*(2*atm.r0.*fwhm(1)).^2/nph + ...
@@ -1183,12 +1185,12 @@ classdef shackHartmann < hgsetget
                 sigma2Y = (1/(8*log(2)))*(2*atm.r0.*fwhm(2:end)).^2/nph + ...
                     (ron/nph).^2.*NS.^2/12;
                 
-                figure
-                map = zeros(nLenslet);
-%                 size(map(obj.validLenslet))
-%                 size(sigma2Y)
-                map(obj.validLenslet) = sigma2Y + sigma2X;
-                imagesc(map)
+%                 figure
+%                 map = zeros(nLenslet);
+% %                 size(map(obj.validLenslet))
+% %                 size(sigma2Y)
+%                 map(obj.validLenslet) = sigma2Y + sigma2X;
+%                 imagesc(map)
                 
                 B = zeros(obj.nSlope*nGs,3);
                 noiseCovarDiag = [ ...

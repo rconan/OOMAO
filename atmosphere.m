@@ -398,7 +398,7 @@ classdef atmosphere < hgsetget
             
         end
         
-        function out = fourierSubHarmonicPhaseScreen(atm,D,nPixel)
+        function out = fourierSubHarmonicPhaseScreen(atm,D,nPixel,nMap)
             %% FOURIERPHASESCREEN Phase screen computation
             %
             % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
@@ -415,6 +415,12 @@ classdef atmosphere < hgsetget
             %             warning('oomao:atmosphere:fourierPhaseScreen',...
             %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
             
+            if nargin>3
+                out = zeros(nPixel,nPixel,nMap);
+                for kMap=1:nMap
+                    out(:,:,kMap) = fourierSubHarmonicPhaseScreen(atm,D,nPixel);
+                end
+            else
             if nargin<2
                 D = atm.layer.D;
                 nPixel = atm.layer.nPixel;
@@ -461,7 +467,7 @@ classdef atmosphere < hgsetget
             end
             phz_lo = real(phz_lo) - mean(real(phz_lo(:)));
             out = phz_hi + phz_lo;
-            
+            end
         end
         
         function map = choleskyPhaseScreen(atm,D,nPixel,nMap)
