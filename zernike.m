@@ -267,7 +267,7 @@ classdef zernike < telescopeAbstract
                     phaseMap = utilities.toggleFrame(val.phase,2)/val.waveNumber;
                     p = obj.pupilLogical & val.mask;                    
                 else
-                    phaseMap = utilities.toggleFrame(val,2);
+                    phaseMap = tools.toggleFrame(tools.toggleFrame(val,3),2);
                     p = obj.pupilLogical;
                 end
 %                 if size(obj.p_p,1)==size(phaseMap,1)

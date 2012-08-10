@@ -20,13 +20,13 @@ classdef zernikeStats
         end
          
         function out = temporalSpectrum(nu,atm,zern)
-            %% SPECTRUM Phase power spectrum density
+            %% TEMPORALSPECTRUM Phase temporal power spectrum density
             %
-            % out = phaseStats.spectrum(f,atm) computes the phase power
-            % spectrum density from the spatial frequency f and an
-            % atmosphere object
+            % out = phaseStats.temporalSpectrum(nu,atm,zern) computes the
+            % phase temporal power spectrum density from the temporal
+            % frequency nu, an atmosphere object and a zernike object
             %
-            % See also atmosphere
+            % See also atmosphere and zernike
             
             out = zeros(size(nu));
             for kLayer = 1:atm.nLayer
@@ -71,7 +71,12 @@ classdef zernikeStats
             
             figure
             nu = logspace(-2,log10(2/T),101);
+            subplot(1,2,1)
             loglog(nu,abs(E(nu)).^2)
+            xlabel('Hz')
+            subplot(1,2,2)
+            loglog(nu,zernikeStats.temporalSpectrum(nu,atm,zern),...
+                nu,zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2)
             xlabel('Hz')
             drawnow
             
@@ -263,6 +268,8 @@ classdef zernikeStats
         
         function out = closedLoopRmsArcsec(zern,atm,T,tau,gain)
             %% CLOSEDLOOPRMSARCSEC
+            %
+            % out = closedLoopRmsArcsec(zern,atm,T,tau,gain)
             
             out = constants.radian2arcsec*...
                 (0.5*atm.wavelength/pi)*...
@@ -981,7 +988,7 @@ classdef zernikeStats
             
         end
         
-        function out = anisokinetism(zern,atm,src,unit)
+        function varargout = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
             %
             % out = anisokinetism(zern,atm,src,unit)
@@ -1006,7 +1013,7 @@ classdef zernikeStats
                 Cxx = Coo;
                 Cox = zernikeStats.angularCovarianceAlt(zern,atm,onAxisNgs,src);
                 
-                out = trace(Coo+Cxx-2*Cox);
+                out = diag(Coo+Cxx-2*Cox);
                 
                 
                 
@@ -1031,6 +1038,9 @@ classdef zernikeStats
                 
             end
             
+            if nargout==1
+                out = mean(out);
+            end
             if nargin>3
                 if isnumeric(unit)
                 out = 10^-unit*...
@@ -1042,7 +1052,12 @@ classdef zernikeStats
                     end
                 end
             end
-            
+            if nargout>1
+                varargout{1} = out(1);
+                varargout{2} = out(2);
+            else
+                varargout{1} = out;
+            end
 %             logBook.RESUME;
             
         end
