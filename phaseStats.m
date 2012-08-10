@@ -186,6 +186,71 @@ classdef phaseStats
             layers = atm.layer;
             out = sum([layers.fractionnalR0]).*out;
         end
+            
+        function out = temporalSpectrum(nu,atm)
+            %% TEMPORALSPECTRUM Phase temporal power spectrum density
+            %
+            % out = phaseStats.temporalSpectrum(nu,atm,zern) computes the
+            % phase temporal power spectrum density from the temporal
+            % frequency nu, an atmosphere object and a zernike object
+            %
+            % See also atmosphere and zernike
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = phaseStats.spectrum( hypot(fx,fy) , atmSlab )/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = phaseStats.spectrum( hypot(fx,fy) , atmSlab )/vy;
+            end
+        end    
+        
+        function out = closedLoopVariance(atm,T,tau,gain)
+            %% SPECTRUM Phase power spectrum density
+            %
+            % out = phaseStats.spectrum(f,atm) computes the phase power
+            % spectrum density from the spatial frequency f and an
+            % atmosphere object
+            %
+            % See also atmosphere
+            
+            s = @(x) 2*1i*pi*x;
+            z = @(x) exp(s(x)*T);
+            
+            G = @(x) ((1-exp(-s(x)*T))./(s(x)*T)).^2.*...
+                exp(-tau*s(x)).*...
+                gain./(1-exp(-s(x)*T));
+            E = @(x) abs(1./(1+G(x)));
+            
+            figure
+            nu = logspace(-2,log10(2/T),101);
+            subplot(1,2,1)
+            loglog(nu,abs(E(nu)).^2)
+            xlabel('Hz')
+            subplot(1,2,2)
+            loglog(nu,phaseStats.temporalSpectrum(nu,atm),...
+                nu,phaseStats.temporalSpectrum(nu,atm).*abs(E(nu)).^2)
+            xlabel('Hz')
+            drawnow
+            
+            out = 2*quadgk( @(nu) phaseStats.temporalSpectrum(nu,atm).*abs(E(nu)).^2 , 0 , Inf);
+
+        end        
         
         function out = symSpectrum(symf)
             syms r0 L0

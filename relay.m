@@ -8,10 +8,17 @@ function relay(wave,src)
 nSrc = numel(src);
 for kSrc = 1:nSrc
     if iscell(wave)
-        src(kSrc).mask      = wave{1}>0;
-        src(kSrc).amplitude = wave{1};
-        src(kSrc).phase     = wave{2};        
-    else
+        nWave = size(wave{2},3);
+        if nWave==1 || nWave~=nSrc
+            src(kSrc).mask      = wave{1}>0;
+            src(kSrc).amplitude = wave{1};
+            src(kSrc).phase     = wave{2};
+        else
+            src(kSrc).mask      = wave{1}(:,:,kSrc)>0;
+            src(kSrc).amplitude = wave{1}(:,:,kSrc);
+            src(kSrc).phase     = wave{2}(:,:,kSrc);
+        end
+    else        
         src(kSrc).mask      = abs(wave)>0;
         src(kSrc).amplitude = abs(wave);
         src(kSrc).phase     = angle(wave);

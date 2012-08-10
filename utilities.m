@@ -544,7 +544,7 @@ classdef utilities
         end
         
         function [vertex,center,hp] = hexagonalArray(nCycle,pitch)
-            %% HEXAGONALARRAY Array of hexagonals
+            %% HEXAGONALARRAY Array of hexagons
             %
             % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
             % vertex and center coordinates of hexagons with the given
@@ -707,6 +707,30 @@ classdef utilities
             
         end
         
+        function out1 = pupAutoCorr(D,r)
+            
+            f_index       = r <= D;
+            red         = r(f_index)./D;
+            out1        = zeros(size(r));
+            out1(f_index) = D.*D.*(acos(red)-red.*sqrt((1-red.*red)))./2;
+            
+        end
+        
+        function out2 = pupCrossCorr(R1,R2,r)
+            
+            out2 = zeros(size(r));
+            f_index       = r <= abs(R1-R2);
+            out2(f_index) = pi*min([R1,R2]).^2;
+            
+            f_index       = (r > abs(R1-R2)) & (r < (R1+R2));
+            rho         = r(f_index);
+            red         = (R1*R1-R2*R2+rho.*rho)./(2.*rho)/(R1);
+            out2(f_index) = out2(f_index) + R1.*R1.*(acos(red)-red.*sqrt((1-red.*red)));
+            red         = (R2*R2-R1*R1+rho.*rho)./(2.*rho)/(R2);
+            out2(f_index) = out2(f_index) + R2.*R2.*(acos(red)-red.*sqrt((1-red.*red)));
+            
+        end
+
     end
 
 end

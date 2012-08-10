@@ -48,8 +48,8 @@ classdef karhunenLoeve < hgsetget
                 set(obj,info.Datasets(k).Name,...
                     h5read(hdfFile,['/',info.Datasets(k).Name]));
             end
-            obj.D  = h5read('GMT_Karhunen-Loeve_Basis.hdf5','/tel/D');
-            obj.ri = h5read('GMT_Karhunen-Loeve_Basis.hdf5','/tel/ri');
+            obj.D  = h5read(hdfFile,'/tel/D');
+            obj.ri = h5read(hdfFile,'/tel/ri');
             obj.m = zeros(1,obj.nf);
             obj.sigma2 = zeros(1,obj.nf);
             obj.radialFunIndex = zeros(1,obj.nf);
@@ -68,6 +68,7 @@ classdef karhunenLoeve < hgsetget
                     obj.sigma2(j) = obj.varCoef(k);
                 end
             end
+            obj.m(j) = obj.azimOrder(k);
             obj.nf = length(obj.m);
         end
         
