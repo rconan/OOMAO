@@ -730,7 +730,39 @@ classdef utilities
             out2(f_index) = out2(f_index) + R2.*R2.*(acos(red)-red.*sqrt((1-red.*red)));
             
         end
-
+        
+        function out = temporalSpectrum(nu,atm,spectrum)
+            %% TEMPORALSPECTRUM Temporal power spectrum density
+            %
+            % out = phaseStats.temporalSpectrum(nu,spectrum) computes the
+            % phase temporal power spectrum density from the spatial power
+            % spectrum for a frozen flow atmosphere temporal model atm;
+            % spectrum is a handle of an anonymous function fun(fr,fo,atm)
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab)/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab)/vy;
+            end
+        end
+        
     end
 
 end

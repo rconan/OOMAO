@@ -69,16 +69,16 @@ classdef zernikeStats
                 gain./(1-exp(-s(x)*T));
             E = @(x) abs(1./(1+G(x)));
             
-            figure
             nu = logspace(-2,log10(2/T),101);
-            subplot(1,2,1)
-            loglog(nu,abs(E(nu)).^2)
-            xlabel('Hz')
-            subplot(1,2,2)
-            loglog(nu,zernikeStats.temporalSpectrum(nu,atm,zern),...
-                nu,zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2)
-            xlabel('Hz')
-            drawnow
+%             figure
+%             subplot(1,2,1)
+%             loglog(nu,abs(E(nu)).^2)
+%             xlabel('Hz')
+%             subplot(1,2,2)
+%             loglog(nu,zernikeStats.temporalSpectrum(nu,atm,zern),...
+%                 nu,zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2)
+%             xlabel('Hz')
+%             drawnow
             
             out = 2*quadgk( @(nu) zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2 , 0 , Inf);
 
@@ -250,7 +250,7 @@ classdef zernikeStats
             end
         end
         
-        function out = rmsArcsec(zern,atm)
+        function out = rmsArcsec(zern,atm,T,tau,gain)
             %% RMSARCSEC Zernike coefficients rms in arcsecond
             %
             % out = zernikeStats.rmsArcsec(zernike,atmosphere) computes the
@@ -259,10 +259,15 @@ classdef zernikeStats
             %
             % See also zernikeStats.variance
 
-            
-            out = constants.radian2arcsec*...
-                (0.5*atm.wavelength/pi)*...
-                sqrt(zernikeStats.variance(zern,atm)).*4/zern.D;
+            if nargin>2
+                out = constants.radian2arcsec*...
+                    (0.5*atm.wavelength/pi)*...
+                    sqrt(zernikeStats.closedLoopVariance(zern,atm,T,tau,gain)).*4/zern.D;
+            else
+                out = constants.radian2arcsec*...
+                    (0.5*atm.wavelength/pi)*...
+                    sqrt(zernikeStats.variance(zern,atm)).*4/zern.D;
+            end
             
         end
         
