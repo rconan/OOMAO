@@ -498,10 +498,10 @@ classdef linearMMSE < handle
               fx = pixelScale*fx*resolution/2;
               fy = pixelScale*fy*resolution/2;
             
-              fc = 1;
-              psd = fourierAdaptiveOptics.fittingPSD(fx,fy,fc,obj.atmModel);
-              sf  = fft2(fftshift(psd))*pixelScale^2;
-              sf  = 2*fftshift( sf(1) - sf );
+%               fc = 1;
+%               psd = fourierAdaptiveOptics.fittingPSD(fx,fy,fc,obj.atmModel);
+%               sf  = fft2(fftshift(psd))*pixelScale^2;
+%               sf  = 2*fftshift( sf(1) - sf );
             
               [rhoX,rhoY] = freqspace(resolution,'meshgrid');
               rhoX = 0.5*rhoX/pixelScale;
@@ -511,9 +511,12 @@ classdef linearMMSE < handle
               [u,v] = freqspace(resolution,'meshgrid');
               fftPhasor = exp(1i.*pi.*(u+v)*0.5);
 
-              thisOtf = otf(obj,rhoX+1i.*rhoY).*exp(-0.5*sf);
+              thisOtf = otf(obj,rhoX+1i.*rhoY);%.*exp(-0.5*sf);
 %               figure
 %               mesh(rhoX,rhoY,thisOtf)
+size(rhoX)
+size(fftPhasor)
+size(thisOtf)
               out = real(ifftshift(ifft2(ifftshift(fftPhasor.*thisOtf))))/pixelScale^2;
               out = out./obj.tel.area;
 %               out = out.*obj.strehlRatio./max(out(:));

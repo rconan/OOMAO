@@ -4,13 +4,14 @@ classdef zernikeStats
     methods (Static)
          
         function out = spectrum(f,o,atm,zern_i)
-            %% SPECTRUM Phase power spectrum density
+            %% SPECTRUM Zernike power spectrum density
             %
-            % out = phaseStats.spectrum(f,atm) computes the phase power
-            % spectrum density from the spatial frequency f and an
-            % atmosphere object
+            % out = phaseStats.spectrum(f,o,atm,zern) computes the power
+            % spectrum density of the zernike coefficients from the spatial
+            % frequency polar vector (f,o), an atmosphere object and a
+            % Zernike object
             %
-            % See also atmosphere
+            % See also atmosphere and zernike
             
 %             if nargin<5
 %                 zern_i = zern_j;
@@ -20,11 +21,12 @@ classdef zernikeStats
         end
          
         function out = temporalSpectrum(nu,atm,zern)
-            %% TEMPORALSPECTRUM Phase temporal power spectrum density
+            %% TEMPORALSPECTRUM Zernike temporal power spectrum density
             %
             % out = phaseStats.temporalSpectrum(nu,atm,zern) computes the
-            % phase temporal power spectrum density from the temporal
-            % frequency nu, an atmosphere object and a zernike object
+            % temporal power spectrum density of the Zernike coefficients
+            % from the temporal frequency nu, an atmosphere object and a
+            % zernike object
             %
             % See also atmosphere and zernike
             
@@ -49,6 +51,60 @@ classdef zernikeStats
             function int = integrandFx(fx)
                 fy = (nu(k) -fx*vx)/vy;
                 int = zernikeStats.spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern)/vy;
+            end
+        end
+         
+        function out = anisoplanatismSpectrum(f,o,atm,zern,src)
+            %% ANISOPLANATISMSPECTRUM Zernike anisoplanatism power spectrum density
+            %
+            % out = phaseStats.anisoplanatismSpectrum(f,atm,zern) computes
+            % the anisoplanatism power spectrum density of the Zernike
+            % coefficients from the spatial frequency polar vector (f,o),
+            % an atmosphere object, a Zernike object object and a source
+            % object
+            %
+            % See also atmosphere and zernike
+            
+            theta = src.zenith;
+            out = zeros(size(f));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + zernikeStats.spectrum(f,o,atmSlab,zern).*...
+                    (1 - besselj(0,2*pi.*f.*theta.*atmSlab.layer.altitude));
+            end
+        end
+        
+        function out = anisoplanatismTemporalSpectrum(nu,atm,zern,src)
+            %% NISOPLANATISMTEMPORALSPECTRUM Zernike anisoplanatism temporal power spectrum density
+            %
+            % out = phaseStats.anisoplanatismTemporalSpectrum(nu,atm,zern,src)
+            % computes the anisoplanatism temporal power spectrum density
+            % of the Zernike coefficients from the temporal frequency nu,
+            % an atmosphere object and a zernike object
+            %
+            % See also atmosphere and zernike
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = zernikeStats.anisoplanatismSpectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern, src)/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = zernikeStats.anisoplanatismSpectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern, src)/vy;
             end
         end
         
@@ -248,6 +304,24 @@ classdef zernikeStats
                 end
                 
             end
+        end
+        
+        function out = rms(zern,atm,unit)
+            %% RMS Zernike coefficients rms
+            %
+            % out = zernikeStats.rms(zernike,atmosphere) computes the
+            % rms of Zernike coefficients from the Zernike
+            % polynomials object and the atmosphere object
+            %
+            % out = zernikeStats.rms(zernike,atmosphere,unit) computes the
+            % rms of Zernike coefficients from the Zernike
+            % polynomials object and the atmosphere object. The rms is
+            % given in nm(unit=-9), microm(unit=-6), ...
+            %
+            % See also zernikeStats.variance
+            
+            out = (0.5*atm.wavelength/pi)*sqrt(zernikeStats.variance(zern,atm)).*10^-unit;
+
         end
         
         function out = rmsArcsec(zern,atm,T,tau,gain)

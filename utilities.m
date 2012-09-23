@@ -763,6 +763,32 @@ classdef utilities
             end
         end
         
+        function [out,cvgce] = gerchbergSaxton(pupilPlaneImage,focalPlaneImage)
+            
+            source = sqrt(pupilPlaneImage);
+            target = sqrt(focalPlaneImage);
+            A = fftshift( ifft2( fftshift( target ) ) );
+            figure,imagesc(abs(A))
+            nIteration = 100;
+            kIteration = 0;
+            cvgce = zeros(1,nIteration);
+            
+            while kIteration<nIteration
+                
+                kIteration = kIteration + 1;
+                
+                B = source.*exp(1i*angle(A));
+                C = fftshift( fft2( fftshift( B ) ) );
+                D = target.*exp(1i*angle(C));
+                A = fftshift( ifft2( fftshift( D ) ) );
+                
+                cvgce(kIteration) = norm(abs(D).^2-focalPlaneImage,'fro');
+                
+            end
+            
+            out = angle(A);
+        end
+        
     end
 
 end

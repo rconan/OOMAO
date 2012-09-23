@@ -9,6 +9,17 @@ classdef deformableMirror < handle
     % deformableMirror object from the number of actuator across the mirror
     % diameter and from the influence function matrix
     %
+    % dm = deformableMirror(nActuator,'modes',IF,'resolution',nPixel) creates a
+    % deformableMirror object from the number of actuator across the mirror
+    % diameter, from the influence function matrix and from the influence
+    % function resolution
+    %
+    % dm = deformableMirror(nActuator,'modes',IF,'resolution',nPixel,'validActuator',validActuator)
+    % creates a deformableMirror object from the number of actuator across
+    % the mirror diameter, from the influence function matrix, from the
+    % influence function resolution and from the map of valid influence
+    % function
+    %
     % See also influenceFunction
    
     properties
