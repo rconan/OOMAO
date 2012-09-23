@@ -130,9 +130,9 @@ classdef lensletArray < handle
         function set.nyquistSampling(obj,val)
             obj.p_nyquistSampling = val;
             obj.fftPad = ceil(obj.p_nyquistSampling*2);
-            if ~isempty(obj.nLensletWavePx) % refreshing phasor
-                setPhasor(obj);
-            end
+%             if ~isempty(obj.nLensletWavePx) % refreshing phasor
+%                 setPhasor(obj);
+%             end
         end
         
         %% Field stop
@@ -141,9 +141,9 @@ classdef lensletArray < handle
         end
         function set.fieldStopSize(obj,val)
             obj.p_fieldStopSize = val;
-            if ~isempty(obj.nLensletWavePx) % refreshing phasor
-                setPhasor(obj);
-            end
+%             if ~isempty(obj.nLensletWavePx) % refreshing phasor
+%                 setPhasor(obj);
+%             end
         end
 
         %% Number of wave pixel per lenslet
@@ -152,8 +152,11 @@ classdef lensletArray < handle
         end
         function set.nLensletWavePx(obj,val)
             obj.p_nLensletWavePx = val;
+            if isempty(obj.p_fieldStopSize)
                 fprintf(' @(lensletArray)> Setting the lenslet field stop size!\n')
                 obj.fieldStopSize  = obj.p_nLensletWavePx/obj.p_nyquistSampling/2;
+            end
+            setPhasor(obj);
 %             % set the wave reshaping index (2D to 3D)
 %             logBook.add(obj,'Set the wave reshaping index (2D to 3D)')
         end  
@@ -245,7 +248,7 @@ classdef lensletArray < handle
             nLensletsImagePx = obj.nLensletsImagePx;
             %%% ODD # OF PIXELS PER LENSLET
             if isempty(obj.fftPhasor)
-%                 disp('Phasor empty!')
+%                 fprintf('ODD # OF PIXELS PER LENSLET (%d) Phasor empty!\n',obj.nLensletImagePx)
                 % Shape the wave per columns of lenslet pixels
                 val       = reshape(val,obj.nLensletWavePx,nLensletSquareWavePx);
                 u         = any(val); % Index of non-zeros columns
@@ -253,12 +256,15 @@ classdef lensletArray < handle
                 % Select the field of view
                 v = [];
                 if nOutWavePx>nLensletImagePx
+%                     disp('Cropping!')
 %                     centerIndex = (nOutWavePx+1)/2;
 %                     halfLength  = (nLensletImagePx-1)/2;
                     centerIndex = ceil((nOutWavePx+1)/2);
                     halfLength  = floor(nLensletImagePx/2);
                     v           = true(nOutWavePx,1);
-                    v((-halfLength:halfLength)+centerIndex) ...
+%                     v((-halfLength:halfLength)+centerIndex) ...
+%                                 = false;
+                    v((0:nLensletImagePx-1)-halfLength+centerIndex) ...
                                 = false;
                 elseif nOutWavePx<nLensletImagePx
                     error('lensletArray:propagateThrough:size','The computed image is smaller than the expected image!')
@@ -275,7 +281,7 @@ classdef lensletArray < handle
                 wavePrgted(v,:) = [];
             else
             %%% EVEN # OF PIXELS PER LENSLET
-%                 disp('Phasor exist!')
+%                 fprintf('EVEN # OF PIXELS PER LENSLET (%d) Phasor exist!\n',obj.nLensletImagePx)
                 val       = val.*repmat(obj.fftPhasor,1,nLensletArray);
                 % Shape the wave per columns of lenslet pixels
                 val       = reshape(val,obj.nLensletWavePx,nLensletSquareWavePx);
@@ -283,10 +289,10 @@ classdef lensletArray < handle
                 wavePrgted(:,u) = fft(val(:,u),nOutWavePx);
                 v = [];
                 if nOutWavePx>nLensletImagePx
-%                     disp('Cutting through!')
+%                     disp('Cropping!')
 %                     centerIndex = nOutWavePx/2+1;
 %                     halfLength  = nLensletImagePx/2;
-                    centerIndex = ceil((nOutWavePx+1)/2);
+                    centerIndex = ceil((nOutWavePx+1)/2) + rem(nLensletWavePx,2);
                     halfLength  = floor(nLensletImagePx/2);
                     v           = true(nOutWavePx,1);
                     v((0:nLensletImagePx-1)+centerIndex-halfLength) ...
@@ -381,10 +387,11 @@ classdef lensletArray < handle
             end
             nOutWavePx = max(nOutWavePx,obj.nLensletWavePx);
 %             fprintf(' - new nOutWavePx = %d\n',nOutWavePx);
+
             if ~rem(obj.nLensletImagePx,2)
                 % shift the intensity of half a pixel for even sampling
                 fprintf(' @(lensletArray)> Set phasor (shift the intensity of half a pixel\n for even intensity sampling)\n')
-                [u,v]         = ndgrid((0:(obj.nLensletWavePx-1)).*(1-nOutWavePx)./nOutWavePx);
+                [u,v]         = ndgrid((0:(obj.nLensletWavePx-1)).*(~rem(obj.nLensletWavePx,2)-nOutWavePx)./nOutWavePx);
                 obj.fftPhasor = repmat( exp(-1i.*pi.*(u+v)) , obj.nLenslet, obj.nLenslet );
             else
                 fprintf(' @(lensletArray)> Reset phasor\n')

@@ -62,7 +62,7 @@ classdef gpuSource < source
                 yL(kObj) = obj(1,kObj,1).viewPoint(2);
             end
             fr = cat(3,obj.extent);
-            dmPhase = [];
+            dmPhase = 0;
             for kDevice = 1:nDevice
                 deviceClass = class(obj(1).opticalPath{kDevice});
                 switch deviceClass
@@ -74,7 +74,12 @@ classdef gpuSource < source
                         dm = obj(1).opticalPath{kDevice};
 %                         relay(dm,obj)
 %                         dmPhase = obj.phase;
-                        dmPhase    = -2*dm.surface*obj(1).waveNumber;
+                        dmPhase    = dmPhase -2*dm.surface*obj(1).waveNumber;
+                    case 'zernike'
+                        zern = obj(1).opticalPath{kDevice};
+                        dmPhase = dmPhase + utilities.toggleFrame(zern.p*zern.c*obj(1).waveNumber,3);
+                    case 'cell'
+                        dmPhase = dmPhase + obj(1).opticalPath{kDevice}{2};
                     case 'shackHartmann'
                         wfs = obj(1).opticalPath{kDevice};
                         nLenslet      = wfs.lenslets.nLenslet;
@@ -92,9 +97,15 @@ classdef gpuSource < source
                         n2             = n1*nArray;
                         
                         % phasor to align the spot on the center of the image
-                        u = (0:(nLensletWavePx-1)).*(1-nLensletWavePx)./nOutWavePx;
-                        phasor = exp(-1i*pi.*u);
-                        phasor = phasor.'*phasor;
+%                         if rem(nLensletWavePx,2)
+%                             phasor = 1;
+%                         else
+%                 fprintf(' @(lensletArray)> Set phasor (shift the intensity of half a pixel\n for even intensity sampling)\n')
+                            u = (0:(nLensletWavePx-1)).*(~rem(nLensletWavePx,2)-nOutWavePx)./nOutWavePx;
+%                             u = (1:(nLensletWavePx)).*(1-nOutWavePx)./nOutWavePx;
+                            phasor = exp(-1i*pi.*u);
+                            phasor = phasor.'*phasor;
+%                         end
                         %%
                         index    = tools.rearrange( [n1,n1]  , [nLensletWavePx,nLensletWavePx] );
                         if isinf(tel.samplingTime)
@@ -102,7 +113,7 @@ classdef gpuSource < source
                         end
                         pupilWave = tel.pupil.*sqrt(tel.samplingTime*tel.area/tel.pixelArea)/nOutWavePx;
                         pupilWave = reshape( pupilWave(index) , nPixelLenslet,nPixelLenslet,nLenslet2);
-                        if isempty(dmPhase)
+                        if isempty(dmPhase) || numel(dmPhase)==1
                             dmPhase = gzeros(1,1,nLenslet2,'single');
                         else
                             fprintf('Reshaping the DM phase from %d.%d.%d to ...',...
@@ -128,8 +139,11 @@ classdef gpuSource < source
                         buf3     = gzeros(nLensletImagePx,'single');
                         lensletIndex     = false(nOutWavePx);
 %                         lensletIndex(1:nPixelLenslet,1:nPixelLenslet) = false;
-                        t_n = nPixelLenslet/2-nLensletImagePx/2 + 1;
-                        field = t_n:(t_n+nLensletImagePx-1);
+%                         t_n = nPixelLenslet/2-nLensletImagePx/2 + 1;
+
+                        centerIndex = ceil((nOutWavePx+1)/2);
+                        halfLength  = floor(nLensletImagePx/2);
+                        field = (0:nLensletImagePx-1)-halfLength+centerIndex+rem(nOutWavePx,2);
                         lensletIndex(field,field) = true;
 
                         %%
@@ -160,7 +174,7 @@ classdef gpuSource < source
                         yLensletCoordinates = gsingle(yLensletCoordinates);
                         %%
                         lensletIntensity = gzeros(nLensletImagePx^2,nValidLenslets,'single');
-                        nGpu = ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
+                        nGpu = max(ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135),2);
                         validLensletMaxStep = floor(nValidLenslets/nGpu);
                         validLensletRange   = 1:validLensletMaxStep;
                         time = tel.time;
