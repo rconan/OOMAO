@@ -298,7 +298,7 @@ classdef telescopeAbstract < handle
                         pixelLength = obj.atm.layer(kLayer).D./(obj.atm.layer(kLayer).nPixel-1); % sampling in meter
                         % 1 pixel increased phase sampling vector
                         u0 = (-1:obj.atm.layer(kLayer).nPixel).*pixelLength;
-%                         [x0,y0] = meshgrid(u0);
+                        [x0,y0] = meshgrid(u0);
                         %                     [xu0,yu0] = meshgrid(u0);
                         % phase sampling vector
                         u = (0:obj.atm.layer(kLayer).nPixel-1).*pixelLength;
@@ -332,10 +332,10 @@ classdef telescopeAbstract < handle
                             
                             xShift = u - step(1);
                             yShift = u - step(2);
-%                             [xi,yi] = meshgrid(xShift,yShift);
-                            obj.atm.layer(kLayer).phase ...
-                                = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
-%                             obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
+                            [xi,yi] = meshgrid(xShift,yShift);
+%                             obj.atm.layer(kLayer).phase ...
+%                                 = spline2({u0,u0},obj.mapShift{kLayer},{yShift,xShift});
+                            obj.atm.layer(kLayer).phase = linear(x0,y0,obj.mapShift{kLayer},xi,yi);
 %                                                     obj.atm.layer(kLayer).phase ...
 %                                                            = interp2(xu0,yu0,obj.mapShift{kLayer},xShift',yShift,'*nearest');
 
@@ -421,7 +421,7 @@ classdef telescopeAbstract < handle
             for kSrc=1:nSrc % Browse the srcs array
                 src = srcs(kSrc);
                 % Set mask and pupil first
-                src.mask      = obj.pupilLogical;
+                src.mask      = src.mask & obj.pupilLogical;
                 if isempty(src.nPhoton) || (isempty(obj.samplingTime) || isinf(obj.samplingTime))
                     src.amplitude = obj.pupil;
                 else

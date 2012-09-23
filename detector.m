@@ -205,7 +205,7 @@ classdef detector < handle
                     colormap(pink)
                     axis xy equal tight
                     colorbar('location','SouthOutside')
-                    hu = findobj('Type','uimenu','Label','OOMAO');
+                    hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
                         hu = uimenu('Label','OOMAO');
                     end

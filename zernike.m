@@ -157,7 +157,15 @@ classdef zernike < telescopeAbstract
             % display(obj) prints information about the atmosphere+telescope object
             
             fprintf('___ %s ___\n',obj.tag)
-            fprintf(' . %d modes\n',obj.nMode)
+            if obj.nMode>10
+                fprintf(' . %d modes: [ %d , %d ]\n',obj.nMode,obj.j(1),obj.j(end))
+            elseif obj.nMode>1
+                fprintf(' . %d modes: ',obj.nMode)
+                fprintf('%d,',obj.j)
+                fprintf('\b\n')
+            else
+                fprintf(' . %d mode: %d \n',obj.j(1))
+            end
             fprintf('----------------------------------------------------\n')
             
         end

@@ -124,11 +124,12 @@ classdef linearMMSE < handle
             inputs.addParamValue('unit',[],@isnumeric);
             inputs.addParamValue('model','zonal',@ischar);
             inputs.addParamValue('zernikeMode',[],@isnumeric);
-            inputs.addParamValue('noiseCovariance',[],@isnumeric);
+            inputs.addParamValue('noiseCovariance',0,@isnumeric);
             inputs.addParamValue('tilts','Z',@ischar);
             inputs.addParamValue('lag',0,@isnumeric);
             inputs.addParamValue('xyOutput',[],@isnumeric);
             inputs.addParamValue('G',0,@isnumeric);
+            inputs.addParamValue('P',1,@isnumeric);
            
             inputs.parse(sampling,diameter,atmModel,guideStar,varargin{:});
             
@@ -143,7 +144,6 @@ classdef linearMMSE < handle
             obj.unit       = inputs.Results.unit;   
             obj.model      = inputs.Results.model;
             obj.zernikeMode= inputs.Results.zernikeMode;
-            obj.noiseCovariance   = inputs.Results.noiseCovariance;
             obj.tilts      = inputs.Results.tilts;
             obj.p_lag        = inputs.Results.lag;
             obj.xyOutput     = inputs.Results.xyOutput;
@@ -196,6 +196,10 @@ classdef linearMMSE < handle
                     else
                         obj.Coo = phaseStats.covarianceMatrix(complex(obj.xyOutput(:,1),obj.xyOutput(:,2)),obj.atmModel);
                     end
+                    
+                    obj.p_P                 = inputs.Results.P;
+                    spaceJump(obj);
+                    obj.p_noiseCovariance   = inputs.Results.noiseCovariance;                        
                     
                     if ~poolWasAlreadyOpen
                         matlabpool('close')
@@ -302,20 +306,10 @@ classdef linearMMSE < handle
         %% Set/Get P
         function set.P(obj,val)
             obj.p_P = val;
-            if isempty(obj.P)
-                obj.Cxx = obj.covarianceSafe{1};
-                obj.Cox = obj.covarianceSafe{2};
-                obj.CoxLag = obj.covarianceSafe(3);
-            else
-                fprintf(' -->> Space jump!\n')
-                obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
-                obj.Cxx = obj.P*obj.Cxx*obj.P';
-                obj.Cox = cellfun( @(x) x*obj.P', obj.Cox , 'UniformOutput', false);
-                if obj.lag>0
-                    obj.CoxLag = cellfun( @(x) x*obj.P', obj.CoxLag , 'UniformOutput', false);
-                end
+            if ~isempty(obj.p_P)
+                spaceJump(obj);
+                solveMmse(obj);
             end
-            solveMmse(obj);
         end
         function val = get.P(obj)
             val = obj.p_P;
@@ -676,6 +670,20 @@ classdef linearMMSE < handle
             obj.mmseBuilder = m_mmseBuilder;
             obj.Bmse = [];
             obj.p_otf = [];
+        end
+        
+    end
+    
+    methods (Access=private)
+        
+        function spaceJump(obj)
+            fprintf(' -->> Space jump!\n')
+            %                 obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
+            obj.Cxx = obj.p_P*obj.Cxx*obj.p_P';
+            obj.Cox = cellfun( @(x) x*obj.p_P', obj.Cox , 'UniformOutput', false);
+            if obj.lag>0
+                obj.CoxLag = cellfun( @(x) x*obj.p_P', obj.CoxLag , 'UniformOutput', false);
+            end
         end
         
     end
