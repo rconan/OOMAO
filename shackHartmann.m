@@ -31,6 +31,8 @@ classdef shackHartmann < hgsetget
         matchedFilter = false;
         % use correlation
         correlation = false;
+        % centroiding mask
+        centroidingMask = 1;
         % timer
         paceMaker;
         % slopes display handle
@@ -403,6 +405,7 @@ classdef shackHartmann < hgsetget
             % Buffer pre-processing
             buffer     = obj.camera.frame(obj.indexRasterLenslet);
             buffer = (buffer - obj.flatField)./obj.pixelGains;
+            buffer = bsxfun( @times, obj.centroidingMask(:) , buffer);
 %             % Thresholding
 %             if isfinite(obj.framePixelThreshold)
 %                 buffer           = buffer - obj.framePixelThreshold;
@@ -631,6 +634,11 @@ classdef shackHartmann < hgsetget
                 slopesMap(p) = obj.slopes;
                 slopesMap    = reshape(slopesMap,obj.lenslets.nLenslet,[]);
                 
+                if nSlopes>3 && rem(nSlopes,2)==0
+                    slopesMap = cell2mat(reshape( mat2cell( ...
+                        slopesMap,obj.lenslets.nLenslet,2*obj.lenslets.nLenslet*ones(1,nSlopes)) , 2, []));
+                end
+                
                 if ishandle(obj.slopesDisplayHandle)
                     set(obj.slopesDisplayHandle,'CData',slopesMap)
                 else
@@ -643,9 +651,12 @@ classdef shackHartmann < hgsetget
                         hu = uimenu('Label','OOMAO');
                     end
                     hus  = uimenu(hu,'Label','Slopes Listener Off','Callback',@oomaoMenu);
-                    if obj.slopesListener.Enabled
+                    if isvalid(obj.slopesListener) & obj.slopesListener.Enabled
                         set(hus,'Label','Slopes Listener On')
                     end
+                    
+%                     set(gcf,'WindowButtonMotionFcn',@wbmcb)
+                    
                 end
                 
             else
@@ -692,6 +703,15 @@ classdef shackHartmann < hgsetget
                     set(src,'Label','Slopes Listener Off')
                 end
             end
+            
+%         function wbmcb(src,evnt)
+%            cp = get(get(obj.slopesDisplayHandle,'parent'),'CurrentPoint');
+%            disp(round([cp(1,1),cp(1,2)]))
+% %            xdat = [xinit,cp(1,1)];
+% %            ydat = [yinit,cp(1,2)];
+% %            set(hl,'XData',xdat,'YData',ydat);drawnow
+%         end
+            
         end
         
         function varargout = intensityDisplay(obj,varargin)

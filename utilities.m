@@ -582,6 +582,16 @@ classdef utilities
             title(sprintf('%d segments',nSegment))
         end
         
+        function B = eyeBlockDiag( A , n)
+            %% EYEBLOCKDIAG Block diagonal concatenation
+            %
+            % B = eyeBlockDiag( A , n) concatenates n copies of the matrix A on
+            % the diagonal of the matrix B. B is a sparse matrix.
+            
+            B = repmat( {sparse(A)} , 1 , n);
+            B = blkdiag( B{:} ); 
+        end
+        
         function V = gramSchmidt(V)
             %% GRAMSCHMIDT Gram-Schmidt orthonormalization process
             %
@@ -589,15 +599,17 @@ classdef utilities
             % to the Gram-Schimdt process
             
             k = size(V,2);
+            h = waitbar(0,'Gram-Schmith orthogonalization ...!');
             for j=1:k
                 v = V(:,j);
                 for i=1:j-1
                     u = V(:,i);
                     v = v - u*(u'*v)*(u'*u);
-                end
+                end                
                 V(:,j) = v/norm(v);
+                waitbar(j/k)
             end
-            
+            close(h)
         end
         
         function out = besselJDerivative(nu,x)
@@ -787,6 +799,214 @@ classdef utilities
             end
             
             out = angle(A);
+        end
+        
+        function out = fftcentre(x,dir,n1,n2)
+            %FFTCENTRE Computes the Fourier transform of a signal centered in the middle of the sample
+            %The result is also centered on the same point. It is a conversion of an IDL routine written
+            % by F. Cassaing (ONERA)
+            %out = fftcentre(x,dir): x, the signal; dir: 1 for direct FT, -1 for inverse FT
+            % IDL doc. written by Fred:
+            % ;NOM :
+            % ;   FFTCENTRE - Effectue une FFT d'un signal suppos? centr? sur le pixel m?dian
+            % ;
+            % ;CATEGORIE :
+            % ;   Signal Processing Routines
+            % ;
+            % ;SYNTAXE :
+            % ;   y=FFTCENTRE (x [,direction] [,/inverse] [,/double] [,/VERSION] [,/HELP])
+            % ;
+            % ;DESCRIPTION :
+            % ;   Effectue une TF en  prenant pour origine non pas le pixel 0 mais le pixel
+            % ;   central. Syntaxe identique ? FFT. Voir d?tails calcul ci-dessous.
+            % ;
+            % ;   ARGUMENTS :
+            % ;          x : (entr?e) le signal ? transformer
+            % ;  direction : (entr?e) le sens de la TF (-1 par d?faut=TF directe)
+            % ;   /inverse : (entr?e) pour forcer direction ? +1
+            % ;    /double : (entr?e) effectue le calcul en double
+            % ; /overwrite : (entr?e) ?crase la variable x d'entr?e pour gagner en RAM
+            % ;   /VERSION : (entr?e) affichage de la version avant l'ex?cution.
+            % ;   /HELP    : (entr?e) affichage de la syntaxe et sortie du programme.
+            % ;
+            % ;   Principe:
+            % ;   Soit une ?quence x(k) de longueur N points, centr?e sur #
+            % ;      si N=2p    | 0 | 1 | 2 | . |p-1# p |p+1| . |2p-1|
+            % ;      si N=2p+1  | 0 | 1 | 2 | . |p-1| # |p+1| . |2p-1|2p |
+            % ;   Le pixel central tombe donc entre 2 pixels quand N est pair.
+            % ;   Mais dans tous les cas, il a pour abscisse s=(N-1)/2.
+            % ;
+            % ;   La proc?dure est donc de recentrer le signal sur le pixel 0 avec un
+            % ;   d?calage S1 vers la gauche de s=(N-1)/2 pixels, d'effectuer une FFT
+            % ;   normale, puis enfin de recentrer la TF avec une translation S2 de (N-1)/2
+            % ;   pixels vers la droite. La s?quence totale pour obtenir y=TF(x) est donc :
+            % ;
+            % ;        x(k)  --S1--> x'(k) --TF--> y'(l) --S2--> y(l)
+            % ;
+            % ;   Avec x(k+s)=x'(k) ou x'(k-s)=x(k) [idem pour y]. ON SUPPOSE DANS LA SUITE
+            % ;   N IMPAIR DE SORTE QUE s SOIT ENTIER, MAIS CA MARCHE AUSSI POUR N PAIR.
+            % ;
+            % ;   La grosse ruse (merci Laurent Mugnier) et de remplacer le d?calage par une
+            % ;   multiplication par un terme de phase dans l'espace conjug?. Ainsi, en
+            % ;   appelant d (=-1 direct et =+1 inverse) la direction de la TF, et en notant
+            % ;   w=exp[d2i pi/N] le terme de base du calcul de la TF, la s?quence
+            % ;   pr?c?dente s'?crit :
+            % ;
+            % ;               y'(l)=SUM(k=0,N-1)   x'(k)  w^[  l   k]
+            % ;     On translate k et l [muet] de s
+            % ;             y'(l-s)=SUM(k=s,N-1+s) x'(k-s)w^[(l-s)(k-s)]
+            % ;     On fait intervenir la def de x' et y'
+            % ;                y(l)=SUM(k=s,N-1+s) x(k)   w^[(l-s)(k-s)]
+            % ; Cette somme se coupe en 2 termes de k=+s ? N-1 et de k=N ? N-1+s. Par la
+            % ; p?riodicit? des x(k) et des w^k, la derni?re se ram?ne ? k=0 ? s-1. D'o?
+            % ;                y(l)=SUM(k=0,N-1)   x(k)   w^[(l-s)(k-s)]
+            % ; ==> y(l)=p(-s)*p(l)*SUM(k=0,N-1) x(k)p(k) w^[  l    k]
+            % ;
+            % ;   o? p(k)=w^[-ks] est un phaseur. Il y a donc une rampe de phase p(k) ?
+            % ;   appliquer avant la TF, la m?me rampe de phase p(l) ? appliquer apr?s la
+            % ;   TF, ET un outsider, un terme de phase constant p(-s). Comme s=(N-1)/2, les
+            % ;   deux rampes de phase s'?crivent exp[-dir*i*!pi*indice*(N-1)/N].
+            % ;
+            % ;   Le remplacement du d?calage par une multiplication permet peut-etre de
+            % ;   gagner en temps d'ex?cution (? v?rifier) mais surtout de permettre le
+            % ;   d?calage d'un nombre demi-entier de pixels. Je n'ai pas r?ussi ? d?montrer
+            % ;   la formule pr?c?dente pour N pair (car avec s demi-entier et les deux
+            % ;   s?quences x et x' ne d?coulent plus simplement l'une de l'autre) mais ?a
+            % ;   marche num?riquement. Peut-?tre peut-on d?montrer en revenant ? des
+            % ;   fonctions continues et en les num?risant ? ou faire jouer l'argument de la
+            % ;   continuit?... Si quelqu'un trouve la d?monstration, elle sera la
+            % ;   bienvenue!
+            % ;
+            % ;   Les 2 derni?res multiplications pourraient etre ?vit?e si l'on ne cherche
+            % ;   que le module, ajouter un keyword ulterieur ?
+            % ;
+            % ;DIAGNOSTIC D'ERREUR :
+            % ;
+            % ;
+            % ;VOIR AUSSI :
+            % ;   FFT, la routine de base IDL
+            % ;  VFFT, de L. Mugnier pour appeler FFTW (de L. Rousset-Rouvi?re) si besoin
+            % ;
+            % ;AUTEUR :
+            % ;   $Author: cassaing $
+            % ;
+            % ;HISTORIQUE :
+            % ;   $Log: fftcentre.pro,v $
+            % ;   Revision 1.10  2001-02-02 16:43:01+01  cassaing
+            % ;   Keyword double=double pass? a vfft supprim? car type variable pass? suffit
+            % ;
+            % ;   Revision 1.9  2001-01-26 14:55:22+01  cassaing
+            % ;   Appel syst?matique de vfft au lieu de fft.
+            % ;
+            % ;   Revision 1.8  2001-01-17 12:29:54+01  cassaing
+            % ;   Appel ? routine_courante() pour la doc
+            % ;
+            % ;   Revision 1.7  2001-01-17 11:18:35+01  cassaing
+            % ;   Remplacement du message d'aide obsol?te par l'appel auto ? doc_library
+            % ;
+            % ;   Revision 1.6  2001-01-17 10:45:48+01  cassaing
+            % ;   Phaseur 2D rempli par blas_axpy plutot que indgen#(fltarr+1). Bug doc corrig?
+            % ;
+            % ;   Revision 1.5  2001-01-16 17:59:00+01  cassaing
+            % ;   VERSION PAS FINIE EN COURS DE DEBUG ....
+            % ;
+            % ;   Revision 1.4  2001-01-16 17:31:57+01  cassaing
+            % ;   Prise en compte de /overwrite sur x (dej? fait ds fft sur var temp)
+            % ;
+            % ;   Revision 1.3  1999-09-20 10:35:51+02  cassaing
+            % ;   Demo ?crite pour N impair, cas double/float group?s avec diripi
+            % ;
+            % ;   Revision 1.2  1999-09-17 16:57:28+02  cassaing
+            % ;   Calcul enfin OK avec bons termes de phase. Mais d?mo th?orique pas claire...
+            % ;
+            % ;   Revision 1.1  1999-09-16 15:47:41+02  cassaing
+            % ;   Initial revision
+            % ;-
+            
+            %   R. Conan - LAOG-ONERA
+            %   $Version 1.0 $  $Date: 2002/11/29 $
+            
+            persistent phasor coef
+            
+            if nargin<3
+                [n1,n2,n3] = size(x);
+            else
+                x(n1,n2,size(x,3)) = 0;
+                [n1,n2,n3] = size(x);
+            end
+            
+            if isempty(phasor) || ndims(phasor)~=ndims(x) || any(size(phasor)~=size(x))
+                
+                disp('Info.: Pre-computing for fftcentre...')
+                
+                diripi = -dir.*1i.*pi;
+                switch ndims(x)
+                    case 1
+                        n = length(x);
+                        phasor = exp(diripi.*(0:(n-1)).*(1-n)./n);
+                        coef   = exp(diripi*(n-1).^2./(2.*n));
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    case 2
+                        [u,v] = ndgrid((0:(n1-1)).*(1-n1)./n1,(0:(n2-1)).*(1-n2)./n2);
+                        phasor = exp(diripi.*(u+v));
+                        coef   = exp(diripi.*((n1-1).^2./n1+(n2-1).^2./n2)./2);
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft2(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft2(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    case 3
+                        [u,v] = ndgrid((0:(n1-1)).*(1-n1)./n1,(0:(n2-1)).*(1-n2)./n2);
+                        phasor = exp(diripi.*(u+v));
+                        coef   = exp(diripi.*((n1-1).^2./n1+(n2-1).^2./n2)./2);
+                        phasor = repmat(phasor,[1,1,n3]);
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft2(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft2(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    otherwise
+                        error('fft dim must be < 3')
+                end
+                
+            end
+            
+            switch ndims(x)
+                case 1
+                    switch dir
+                        case 1
+                            out    = coef.*fft(x.*phasor).*phasor;
+                        case -1
+                            out    = coef.*ifft(x.*phasor).*phasor;
+                        otherwise
+                            error('dir must be 1 or -1')
+                    end
+                case {2,3}
+                    switch dir
+                        case 1
+                            out    = coef.*fft2(x.*phasor).*phasor;
+                        case -1
+                            out    = coef.*ifft2(x.*phasor).*phasor;
+                        otherwise
+                            error('dir must be 1 or -1')
+                    end
+                otherwise
+                    error('fft dim must be < 3')
+            end
+                        
         end
         
     end

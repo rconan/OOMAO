@@ -399,7 +399,7 @@ classdef atmosphere < hgsetget
         end
         
         function out = fourierSubHarmonicPhaseScreen(atm,D,nPixel,nMap)
-            %% FOURIERPHASESCREEN Phase screen computation
+            %% FOURIERSUBHARMONICPHASESCREEN Phase screen computation
             %
             % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
             % phase screen of D meter and sampled with nPixel using the
