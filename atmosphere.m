@@ -417,9 +417,12 @@ classdef atmosphere < hgsetget
             
             if nargin>3
                 out = zeros(nPixel,nPixel,nMap);
+                h = waitbar(0,'Phase screens computing ...');
                 for kMap=1:nMap
                     out(:,:,kMap) = fourierSubHarmonicPhaseScreen(atm,D,nPixel);
+                    waitbar(kMap/nMap,h)
                 end
+                close(h)
             else
             if nargin<2
                 D = atm.layer.D;

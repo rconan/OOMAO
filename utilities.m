@@ -801,6 +801,51 @@ classdef utilities
             out = angle(A);
         end
         
+        function varargout = barycenter(x,y,body)
+            %% BARYCENTER Barycenter estimation
+            %
+            % barycenter = barycenter(x,y,body) computes the barycenber of
+            % body defined in the coordinates system [x,y] ; barycenter is
+            % a vector with the x-coordinates followed by the y-coordinates
+            %
+            % [xBary,yBary] = barycenter(x,y,body) computes the barycenber of
+            % body defined in the coordinates system [x,y]
+            
+            
+            n = numel(x);
+            body = reshape( body , n, []);
+            bodyMass = sum(body);
+            xBary = sum(bsxfun(@times,x(:),body))./bodyMass;
+            yBary = sum(bsxfun(@times,y(:),body))./bodyMass;
+            
+            switch nargout
+                case {0,1}
+                    varargout = {[xBary(:);yBary(:)]};
+                case 2
+                    varargout= { xBary(:) ; yBary(:) };
+                otherwise
+                    error('oomao:utilities:barycenter','Number of output arguments is less than 3!')
+            end
+            
+        end
+        
+        function out = randnCov(covariance,nSample)
+            % RANDNCOV Gaussian correlated random draw
+            %
+            % out = randnCov(covariance,nSample) draws correlated randow
+            % numbers; the corelation is given by the covariance matrix;
+            % the output size is [length(covariance),nSample]
+            
+            if nargin<2
+                nSample = 1;
+            end
+            
+            choleskyFactor = chol(covariance,'lower');
+            out = choleskyFactor*randn(length(covariance),prod(nSample));
+            out = reshape(out,[length(covariance),nSample]);
+            
+        end
+        
         function out = fftcentre(x,dir,n1,n2)
             %FFTCENTRE Computes the Fourier transform of a signal centered in the middle of the sample
             %The result is also centered on the same point. It is a conversion of an IDL routine written
