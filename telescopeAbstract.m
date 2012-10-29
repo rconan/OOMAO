@@ -421,7 +421,7 @@ classdef telescopeAbstract < handle
             for kSrc=1:nSrc % Browse the srcs array
                 src = srcs(kSrc);
                 % Set mask and pupil first
-                src.mask      = src.mask & obj.pupilLogical;
+                src.mask      = obj.pupilLogical;
                 if isempty(src.nPhoton) || (isempty(obj.samplingTime) || isinf(obj.samplingTime))
                     src.amplitude = obj.pupil;
                 else

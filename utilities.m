@@ -775,30 +775,65 @@ classdef utilities
             end
         end
         
+        function out = marechalStrehl(rmsWfe,band)
+            
+            out = (1 - (rmsWfe*2*pi/band.wavelength)^2/2)^2;
+            
+        end
+        
         function [out,cvgce] = gerchbergSaxton(pupilPlaneImage,focalPlaneImage)
             
             source = sqrt(pupilPlaneImage);
             target = sqrt(focalPlaneImage);
             A = fftshift( ifft2( fftshift( target ) ) );
-            figure,imagesc(abs(A))
-            nIteration = 100;
+            phaseA = pi*(rand(size(source))*2-1);
+%             figure,imagesc(abs(A))
+            n = length(source);
+            nIteration = 300;
             kIteration = 0;
             cvgce = zeros(1,nIteration);
             
+            figure(111)
+            subplot(2,4,[1,2])
+            h(1) = imagesc(zeros(n,2*n));
+            axis equal tight
+            subplot(2,4,[5,6])
+            h(2) = imagesc(zeros(n,2*n));
+            axis equal tight
+            subplot(2,4,[3,8])
+            h(3) = imagesc(phaseA.*source);
+            ht = title(sprintf('Iteration #: %d',0));
+            axis equal tight
+            colorbar('south')
+            drawnow
+            
+            tic
             while kIteration<nIteration
                 
                 kIteration = kIteration + 1;
                 
-                B = source.*exp(1i*angle(A));
+                B = source.*exp(1i*phaseA);
                 C = fftshift( fft2( fftshift( B ) ) );
                 D = target.*exp(1i*angle(C));
                 A = fftshift( ifft2( fftshift( D ) ) );
                 
-                cvgce(kIteration) = norm(abs(D).^2-focalPlaneImage,'fro');
+                set(h(1),'CData',abs([C,D]))
+                set(h(2),'CData',abs([B,A]))
+                
+                phaseA = angle(A);
+                
+                phaseA_ = phaseA;
+                phaseA_(~source) = NaN;
+                set(h(3),'CData',phaseA_)
+                set(ht,'string',sprintf('Iteration #: %d',kIteration))
+                drawnow
+                
+                cvgce(kIteration) = norm(abs(C).^2-focalPlaneImage,'fro');
                 
             end
+            toc
             
-            out = angle(A);
+            out = phaseA;
         end
         
         function varargout = barycenter(x,y,body)

@@ -75,7 +75,7 @@ classdef zernikeStats
         end
         
         function out = anisoplanatismTemporalSpectrum(nu,atm,zern,src)
-            %% NISOPLANATISMTEMPORALSPECTRUM Zernike anisoplanatism temporal power spectrum density
+            %% ANISOPLANATISMTEMPORALSPECTRUM Zernike anisoplanatism temporal power spectrum density
             %
             % out = phaseStats.anisoplanatismTemporalSpectrum(nu,atm,zern,src)
             % computes the anisoplanatism temporal power spectrum density
@@ -726,9 +726,9 @@ classdef zernikeStats
 %                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
 %                     tripleBessel1 = besselj(mi+mj,red);
 %                     tripleBessel2 = besselj(abs(mi-mj),red);
-                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
-                    tripleBessel1 = besselmx('J',mi+mj,red);
-                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
                     out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
                         ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
                         besselsRadialOrder;
@@ -759,13 +759,13 @@ classdef zernikeStats
                 factor3 = factor3*factor1;
                 red1 = a1l.*x;
                 red2 = a2l.*x;
-                besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
+                besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
                 f = 0.5*x/pi;
                 phasePSD = ...
                     psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6)./x;
                 red = sl*x;
-                tripleBessel1 = besselmx('J',mipmj,red);
-                tripleBessel2 = besselmx('J',mimmj,red);
+                tripleBessel1 = besselj(mipmj,red);
+                tripleBessel2 = besselj(mimmj,red);
                 out = (fr0*phasePSD).*...
                     ( factor2.*tripleBessel1 + factor3.*tripleBessel2 );
                 out = sum( bsxfun( @times , out , besselsRadialOrder ) );
@@ -899,9 +899,9 @@ classdef zernikeStats
 %                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
 %                     tripleBessel1 = besselj(mi+mj,red);
 %                     tripleBessel2 = besselj(abs(mi-mj),red);
-                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
-                    tripleBessel1 = besselmx('J',mi+mj,red);
-                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
                     out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
                         ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
                         besselsRadialOrder;
@@ -1117,9 +1117,9 @@ classdef zernikeStats
                 
             end
             
-            if nargout==1
-                out = mean(out);
-            end
+%             if nargout==1
+%                 out = mean(out);
+%             end
             if nargin>3
                 if isnumeric(unit)
                 out = 10^-unit*...
@@ -1131,7 +1131,7 @@ classdef zernikeStats
                     end
                 end
             end
-            if nargout>1
+            if nargout==2
                 varargout{1} = out(1);
                 varargout{2} = out(2);
             else
@@ -1141,6 +1141,43 @@ classdef zernikeStats
             
         end
         
+        function out = anisoplanatism(zern,atm,src,unit)
+            %% ANISOPLANATISM Anisoplanatism error of Zernike modes
+            %
+            % out = anisoplanatism(zern,atm,src,unit) computes the variance
+            % of the anisoplanatism error of the Zernike modes zern for the
+            % atmosphere atm in the direction of the source src
+            %
+            % out = anisoplanatism(zern,atm,src,unit) computes the rms of
+            % the anisoplanatism error at the specified unit; 
+            % unit=-9 returns the rms error in nanometer 
+            % unit='mas' returns the rms error in milliarcsecond
+                        
+            persistent onAxisNgs
+            if isempty(onAxisNgs)
+                onAxisNgs = source;
+            end
+            
+            Coo = zernikeStats.angularCovarianceAlt(zern,atm,src,src);
+            Cxx = Coo;
+            Cox = zernikeStats.angularCovarianceAlt(zern,atm,onAxisNgs,src);
+            
+            out = diag(Coo+Cxx-2*Cox);
+            
+            if nargin>3
+                if isnumeric(unit)
+                    out = 10^-unit*...
+                        sqrt(out)*(atm.wavelength/(2*pi));
+                elseif ischar(unit)
+                    if strcmp(unit,'mas')
+                        out = 1e3*constants.radian2arcsec*(4/zern.D)*...
+                            sqrt(out)*(atm.wavelength/(2*pi));
+                    end
+                end
+            end
+            
+        end
+       
         function out = anisokinetismAngle(zern,atm)
             %% ANISOKINETISMANGLE Tip-tilt anisoplanatism angle
             %
