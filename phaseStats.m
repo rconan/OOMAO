@@ -38,6 +38,27 @@ classdef phaseStats
             out = sum([layers.fractionnalR0]).*out;
         end
         
+        function out = covarianceXDerivative(rho,argRho,atm)
+            %% COVARIANCE Phase covariance
+            %
+            % out = phaseStats.covariance(rho,atm) computes the phase covariance from
+            % the baseline rho and an atmosphere object
+            %
+            % See also atmosphere
+             
+            L0r0ratio= (atm.L0./atm.r0).^(5./3);
+            cst      = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
+                L0r0ratio;
+            out   = zeros(size(rho));
+            index         = rho~=0;
+            u             = 2.*pi.*rho(index)./atm.L0;
+            out(index) = -cst.*(1/6).*u.^(-1./6).*(2*pi/atm.L0).*cos(argRho(index)).*...
+                (-5*besselk(5./6,u) + 3.*u.*(besselk(-1./6,u)+besselk(11./6,u)));
+            layers = atm.layer;
+            out = sum([layers.fractionnalR0]).*out;
+        end
+        
         function out = angularCovariance(theta,atm)
             %% ANGULARCOVARIANCE Phase angular covariance
             %
