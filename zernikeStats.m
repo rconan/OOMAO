@@ -911,6 +911,150 @@ classdef zernikeStats
             end
         end
         
+        function aiaj_ = temporalAngularCovariance(zern_,atm_,tau,src_,optSrc)
+            % TEMPORALANGULARCOVARIANCE Zernike coefficients temporal and angular covariance
+            %
+            % aiaj = zernikeAngularCovariance(zern,atm,tau,src) computes
+            % the covariance matrix between Zernike coefficients of Zernike
+            % polynomials zern corresponding to wavefront propagating from
+            % two sources src(1) and src(2) through the atmosphere atm
+            %
+            % See also zernike, atmosphere, source
+            
+            nGs = numel(src_);
+                    iSrc = src_;
+                    jSrc = optSrc;
+                    mGs = numel(jSrc);
+                    aiaj_ = cell(nGs,mGs);
+%                     for iGs = 1:nGs
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> ');
+%                         gsCurrent = iSrc(iGs);
+%                         for jGs = 1:mGs
+%                             fprintf('gs#%d/gs#%d - ',iGs,jGs);
+%                             aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
+%                         end
+%                         fprintf('\b\b\b\n')
+%                     end
+                    nmGs  = [nGs mGs];
+                    for kGs = 1:nGs*mGs
+                        [iGs,jGs] = ind2sub(nmGs,kGs);
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
+                        aiaj_{kGs} = temporalAngularCovarianceFun(zern_,atm_,[iSrc(iGs),jSrc(jGs)]);
+                    end
+                aiaj_ = cell2mat(aiaj_);
+                
+            function  aiaj = temporalAngularCovarianceFun(zern,atm,src)
+%                 aiaj = cell2mat(aiaj);
+                    R   = zern.R;
+                    zs1 = src(1).height;
+                    zs2 = src(2).height;
+                    xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
+                        tan(src(2).zenith).*cos(src(2).azimuth);
+                    ySrc = tan(src(1).zenith).*sin(src(1).azimuth) - ...
+                        tan(src(2).zenith).*sin(src(2).azimuth);
+                    rhoSrcLayer = hypot(xSrc,ySrc);
+                    oSrcLayer = atan2(ySrc,xSrc);
+                    zSrcAngle = rhoSrcLayer.*exp(1i*oSrcLayer);
+                    nMode = length(zern.j);
+                    znmj = mat2cell([zern.j;zern.n;zern.m],3,ones(1,nMode));
+                    znmj = repmat(znmj,nMode,1);
+                    znmi = znmj';
+                    psdCst = (24.*gamma(6./5)./5).^(5./6).*...
+                        (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                        atm.r0.^(-5./3);
+%                     if all( isinf( [zs1 zs2] ) ) % NGS CASE
+%                         a1l     = R;
+%                         a2l     = R;
+%                         denom   = pi.*a1l.*a2l;
+%                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
+%                         fr0     = [atm.layer.fractionnalR0]';
+%                         aiajFun = @ (znmi,znmj) ...
+%                             quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+%                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
+% %                         n = 201;
+% %                         r = linspace(0,20,n);
+% %                         r(1) = 1e-6;
+% %                         aiajFun = @ (znmi,znmj) ...
+% %                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     else % LGS CASE (TO DO: optimize for LGS as for NGS)
+                        a1l   = zeros(1,atm.nLayer);
+                        a2l   = zeros(1,atm.nLayer);
+                        denom = zeros(1,atm.nLayer);
+                        sl    = zeros(1,atm.nLayer);
+                        thetaSrcLayer ...
+                              = zeros(1,atm.nLayer);
+                        for lLayer=1:atm.nLayer
+                            a1l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs1);
+                            a2l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs2);
+                            denom(lLayer) = pi.*a1l(lLayer).*a2l(lLayer);
+                            zSrcWind = atm.layer(lLayer).windSpeed.*exp(1i.*atm.layer(lLayer).windDirection);
+                            zSrc = atm.layer(lLayer).altitude.*zSrcAngle - tau.*zSrcWind;
+                            sl(lLayer) = abs(zSrc);
+                            thetaSrcLayer(lLayer) = angle(zSrc);
+                        end
+                        aiajFun = @ (znmi,znmj) ...
+                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                            0, Inf);
+%                         n = 201;
+%                         r = linspace(0,20,n);
+%                         r(1) = 1e-6;
+%                         aiajFun = @ (znmi,znmj) ...
+%                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     end
+                    aiaj = zeros(nMode);
+                    index = triu(true(nMode));
+                    %                 tic
+                    aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
+                    %                 toc
+                    aiaj = aiaj + triu(aiaj,1)';
+                    aiaj = bsxfun(@times,aiaj,(-1).^zern.m');
+                    %                     aiaj = cellfun(aiajFun,znmj,znmi);
+            function out = integrand(x,zi,ni,mi,zj,nj,mj)
+                krkr_mi = mi==0;
+                krkr_mj = mj==0;
+                out = 0;
+                factor1 = sqrt((ni+1)*(nj+1)).*...
+                    (-1).^(0.5.*(ni+nj)).*...
+                    2.^(1-0.5.*(krkr_mi+krkr_mj));%.*...
+                %(-1).^mj;
+                for kLayer=1:atm.nLayer
+                    factor2 = (-1).^(1.5*(mi+mj)).*...
+                        cos( ...
+                        (mi+mj).*thetaSrcLayer(kLayer) + ...
+                        pi.*( (1-krkr_mi).*((-1).^zi-1) + ...
+                        (1-krkr_mj).*((-1).^zj-1) )./4 );
+                    factor3 = (-1).^(1.5*abs(mi-mj)).*...
+                        cos( ...
+                        (mi-mj).*thetaSrcLayer(kLayer) + ...
+                        pi.*( (1-krkr_mi).*((-1).^zi-1) - ...
+                        (1-krkr_mj).*((-1).^zj-1) )./4 );
+%                     a1l = R.*(1 - atm.layer(kLayer).altitude./zs1);
+%                     a2l = R.*(1 - atm.layer(kLayer).altitude./zs2);
+%                     denom = pi.*a1l.*a2l;
+%                     sl = atm.layer(kLayer).altitude.*rhoSrcLayer;
+                    red1 = a1l(kLayer).*x;
+                    red2 = a2l(kLayer).*x;
+                    red = sl(kLayer).*x;
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atmLayers{kLayer});
+                    f = 0.5*x/pi;
+                    phasePSD = atm.layer(kLayer).fractionnalR0.*...
+                        psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atm.slab(lLayer));
+%                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+%                     tripleBessel1 = besselj(mi+mj,red);
+%                     tripleBessel2 = besselj(abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
+                    out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
+                        ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
+                        besselsRadialOrder;
+                end
+                out = real(out);
+            end
+            end
+        end
+        
         function out = tiltsAngularCovariance(zern,atm,src1,varargin)
             
             p = inputParser;
