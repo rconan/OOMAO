@@ -164,7 +164,7 @@ classdef zernike < telescopeAbstract
                 fprintf('%d,',obj.j)
                 fprintf('\b\n')
             else
-                fprintf(' . %d mode: %d \n',obj.j(1))
+                fprintf(' . mode: %d \n',obj.j(1))
             end
             fprintf('----------------------------------------------------\n')
             
