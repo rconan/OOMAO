@@ -1089,6 +1089,50 @@ classdef utilities
                         
         end
         
+        function out = oneParameterExample2(mu,alpha,q,p,a,nmax)
+            
+            n = 0:nmax;
+            size_a = size(a);
+            
+            a = a(:)*0.5;
+            
+            coef1 = (-1).^n.*gamma( 2*(n+(alpha+mu)*0.5)/q ).*gamma( p-2*(n+(alpha+mu)*0.5)/q )./(gamma( n+1+alpha ).*gamma(n+1))./q;
+            a1 = bsxfun( @power , a , 2*n+alpha+mu );
+            a1 = bsxfun( @times, coef1, a1);
+            
+            coef2 = (-1).^n.*0.5.*gamma( -q*(n+p)*0.5+(alpha+mu)*0.5 ).*gamma( n+p )./(gamma( (alpha-mu)*0.5+1+q*(n+p)*0.5 ).*gamma(n+1));
+            a2 = bsxfun( @power , a , q*(n+p) );
+            a2 = bsxfun( @times, coef2, a2);
+            
+            out = sum( a1 + a2 , 2);
+            out = 2.^mu.*out./gamma(p);
+            out = reshape( out, size_a);
+            
+        end
+        
+        function out = oneParameterExample3(mu,alpha,q,p,a,nmax)
+            
+            n = 0:nmax;
+            size_a = size(a);
+            
+            a = a(:);
+            
+            coef1 = (-1).^n.*gamma( 0.5+n+alpha ).*gamma( 2*(n+(2*alpha+mu)*0.5)/q ).*gamma( p-2*(n+(2*alpha+mu)*0.5)/q )./...
+                (gamma( n+2*alpha+1 ).*gamma( n+alpha+1 ).*gamma(n+1))./q;
+            a1 = bsxfun( @power , a , 2*n+2*alpha+mu );
+            a1 = bsxfun( @times, coef1, a1);
+            
+            coef2 = (-1).^n.*0.5.*gamma( -q*(n+p)*0.5+(2*alpha+mu)*0.5 ).*gamma( 0.5+q*(n+p)*0.5-mu*0.5 ).*gamma( n+p )./...
+                (gamma( (2*alpha-mu)*0.5+1+q*(n+p)*0.5 ).*gamma( 1+q*(n+p)*0.5-mu*0.5 ).*gamma(n+1));
+            a2 = bsxfun( @power , a , q*(n+p) );
+            a2 = bsxfun( @times, coef2, a2);
+            
+            out = sum( a1 + a2 , 2);
+            out = out./(sqrt(pi)*gamma(p));
+            out = reshape( out, size_a);
+            
+        end
+        
     end
 
 end
