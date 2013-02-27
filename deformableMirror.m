@@ -9,6 +9,17 @@ classdef deformableMirror < handle
     % deformableMirror object from the number of actuator across the mirror
     % diameter and from the influence function matrix
     %
+    % dm = deformableMirror(nActuator,'modes',IF,'resolution',nPixel) creates a
+    % deformableMirror object from the number of actuator across the mirror
+    % diameter, from the influence function matrix and from the influence
+    % function resolution
+    %
+    % dm = deformableMirror(nActuator,'modes',IF,'resolution',nPixel,'validActuator',validActuator)
+    % creates a deformableMirror object from the number of actuator across
+    % the mirror diameter, from the influence function matrix, from the
+    % influence function resolution and from the map of valid influence
+    % function
+    %
     % See also influenceFunction
    
     properties
@@ -216,6 +227,11 @@ classdef deformableMirror < handle
             % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
             % the DM object with the sensor object using the calibration
             % source src and the actuator stroke calibDmStroke
+            %
+            % obj = calibration(obj,sensor,src,calibDmCommands,nSteps)
+            % calibrate the DM object with the sensor object using the
+            % calibration source src and the actuator stroke calibDmStroke;
+            % the calibration process is split in nSteps steps.
             
             obj.coefs = 0;
             if nargin<5
@@ -236,6 +252,7 @@ classdef deformableMirror < handle
                     calibDmStroke = 1;
                 end
                 
+                tId = tic;
                 if steps==1
                     obj.coefs = calibDmCommands;
                     +src;
@@ -257,36 +274,52 @@ classdef deformableMirror < handle
                     end
                     close(h)
                 end
-                pokeMatrix = pokeMatrix./calibDmStroke;
-                calib = calibrationVault(pokeMatrix);
+                elt = toc(tId);
                 
+%                 pokeMatrix = src.wavelength*pokeMatrix./calibDmStroke;
+                fprintf('__ Poke Matrix Stats ___\n')
+                fprintf(' . computing time: %5.2fs\n',elt)
+                fprintf(' . size: %dx%d\n',size(pokeMatrix))
+                nonZerosIndex = pokeMatrix(:)~=0;
+                nonZeros = sum(nonZerosIndex);
+                fprintf(' . non zeros values: %d i.e. %4.2f%%\n',nonZeros,100*nonZeros/numel(pokeMatrix))
+                pokeMatrixNZ = pokeMatrix(nonZerosIndex);
+                fprintf(' . min. and max. values: [%5.2f,%5.2f]\n',max(pokeMatrixNZ),min(pokeMatrixNZ))
+                fprintf(' . mean and median of absolute values: [%5.2f,%5.2f]\n',mean(abs(pokeMatrixNZ)),median(abs(pokeMatrixNZ)))
+                fprintf('________________________\n')
+
+                pokeMatrix = pokeMatrix./calibDmStroke;
+                if isnumeric(obj.modes)
+                    calib = calibrationVault(pokeMatrix,obj.modes,src.mask);
+                else
+                    calib = calibrationVault(pokeMatrix,obj.modes.modes,src.mask);
+                end
             else 
                 
                 %%% Tip-Tilt sensor calibration
                 
                 tel = src.opticalPath{1};
                 zern = zernike(tel,2:3);
-                zern.c = eye(2)*src.wavelength/4;
+                zern.c = eye(2)*calibDmStroke;%src.wavelength/4;
                 src = src.*zern;
-                buf = reshape(src.phase,tel.resolution,2*tel.resolution);
+%                 buf = reshape(src.phase,tel.resolution,2*tel.resolution);
                 
                 % zernike projection onto DM influence functions
                 obj = obj\src;
-                src = src.*tel*obj;
+%                 src = src.*tel*obj;
                 dmTtCoefs = obj.coefs;
+%                 
+%                 buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
+%                 figure
+%                 imagesc(buf)
+%                 axis square
+%                 colorbar
                 
-                buf = [buf;reshape(src.phase,tel.resolution,2*tel.resolution)];
-                figure
-                imagesc(buf)
-                axis square
-                colorbar
-                
-                obj.coefs = dmTtCoefs*calibDmStroke;
+%                 obj.coefs = dmTtCoefs;
                 src = src.*tel*obj*sensor;
                 pokeTipTilt = sensor.slopes/calibDmStroke;
                 calib = calibrationVault(pokeTipTilt);
-                calib.spaceJump = dmTtCoefs;
-                calib.nThresholded = 0;
+                calib.spaceJump = dmTtCoefs/calibDmStroke;
             end
             
             obj.coefs = 0;

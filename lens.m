@@ -286,8 +286,10 @@ classdef lens < handle
 %             end
             src = resetAmplitudeAndPhase(src);
             for kSrc = 1:length(src)
+                src(kSrc).mask = true(size(wavePrgted(:,:,kSrc)));
             src(kSrc).amplitude = abs(wavePrgted(:,:,kSrc));
             src(kSrc).phase     = angle(wavePrgted(:,:,kSrc));
+            src(kSrc).mask = true(n);
             end
             obj.imagelets = wavePrgted.*conj(wavePrgted)*obj.throughput;
         end

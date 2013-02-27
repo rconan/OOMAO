@@ -4,13 +4,14 @@ classdef zernikeStats
     methods (Static)
          
         function out = spectrum(f,o,atm,zern_i)
-            %% SPECTRUM Phase power spectrum density
+            %% SPECTRUM Zernike power spectrum density
             %
-            % out = phaseStats.spectrum(f,atm) computes the phase power
-            % spectrum density from the spatial frequency f and an
-            % atmosphere object
+            % out = phaseStats.spectrum(f,o,atm,zern) computes the power
+            % spectrum density of the zernike coefficients from the spatial
+            % frequency polar vector (f,o), an atmosphere object and a
+            % Zernike object
             %
-            % See also atmosphere
+            % See also atmosphere and zernike
             
 %             if nargin<5
 %                 zern_i = zern_j;
@@ -20,13 +21,14 @@ classdef zernikeStats
         end
          
         function out = temporalSpectrum(nu,atm,zern)
-            %% SPECTRUM Phase power spectrum density
+            %% TEMPORALSPECTRUM Zernike temporal power spectrum density
             %
-            % out = phaseStats.spectrum(f,atm) computes the phase power
-            % spectrum density from the spatial frequency f and an
-            % atmosphere object
+            % out = phaseStats.temporalSpectrum(nu,atm,zern) computes the
+            % temporal power spectrum density of the Zernike coefficients
+            % from the temporal frequency nu, an atmosphere object and a
+            % zernike object
             %
-            % See also atmosphere
+            % See also atmosphere and zernike
             
             out = zeros(size(nu));
             for kLayer = 1:atm.nLayer
@@ -51,6 +53,60 @@ classdef zernikeStats
                 int = zernikeStats.spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern)/vy;
             end
         end
+         
+        function out = anisoplanatismSpectrum(f,o,atm,zern,src)
+            %% ANISOPLANATISMSPECTRUM Zernike anisoplanatism power spectrum density
+            %
+            % out = phaseStats.anisoplanatismSpectrum(f,atm,zern) computes
+            % the anisoplanatism power spectrum density of the Zernike
+            % coefficients from the spatial frequency polar vector (f,o),
+            % an atmosphere object, a Zernike object object and a source
+            % object
+            %
+            % See also atmosphere and zernike
+            
+            theta = src.zenith;
+            out = zeros(size(f));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                out = out + zernikeStats.spectrum(f,o,atmSlab,zern).*...
+                    (1 - besselj(0,2*pi.*f.*theta.*atmSlab.layer.altitude));
+            end
+        end
+        
+        function out = anisoplanatismTemporalSpectrum(nu,atm,zern,src)
+            %% ANISOPLANATISMTEMPORALSPECTRUM Zernike anisoplanatism temporal power spectrum density
+            %
+            % out = phaseStats.anisoplanatismTemporalSpectrum(nu,atm,zern,src)
+            % computes the anisoplanatism temporal power spectrum density
+            % of the Zernike coefficients from the temporal frequency nu,
+            % an atmosphere object and a zernike object
+            %
+            % See also atmosphere and zernike
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = zernikeStats.anisoplanatismSpectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern, src)/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = zernikeStats.anisoplanatismSpectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab , zern, src)/vy;
+            end
+        end
         
         function out = closedLoopVariance(zern,atm,T,tau,gain)
             %% SPECTRUM Phase power spectrum density
@@ -69,11 +125,16 @@ classdef zernikeStats
                 gain./(1-exp(-s(x)*T));
             E = @(x) abs(1./(1+G(x)));
             
-            figure
             nu = logspace(-2,log10(2/T),101);
-            loglog(nu,abs(E(nu)).^2)
-            xlabel('Hz')
-            drawnow
+%             figure
+%             subplot(1,2,1)
+%             loglog(nu,abs(E(nu)).^2)
+%             xlabel('Hz')
+%             subplot(1,2,2)
+%             loglog(nu,zernikeStats.temporalSpectrum(nu,atm,zern),...
+%                 nu,zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2)
+%             xlabel('Hz')
+%             drawnow
             
             out = 2*quadgk( @(nu) zernikeStats.temporalSpectrum(nu,atm,zern).*abs(E(nu)).^2 , 0 , Inf);
 
@@ -245,7 +306,25 @@ classdef zernikeStats
             end
         end
         
-        function out = rmsArcsec(zern,atm)
+        function out = rms(zern,atm,unit)
+            %% RMS Zernike coefficients rms
+            %
+            % out = zernikeStats.rms(zernike,atmosphere) computes the
+            % rms of Zernike coefficients from the Zernike
+            % polynomials object and the atmosphere object
+            %
+            % out = zernikeStats.rms(zernike,atmosphere,unit) computes the
+            % rms of Zernike coefficients from the Zernike
+            % polynomials object and the atmosphere object. The rms is
+            % given in nm(unit=-9), microm(unit=-6), ...
+            %
+            % See also zernikeStats.variance
+            
+            out = (0.5*atm.wavelength/pi)*sqrt(zernikeStats.variance(zern,atm)).*10^-unit;
+
+        end
+        
+        function out = rmsArcsec(zern,atm,T,tau,gain)
             %% RMSARCSEC Zernike coefficients rms in arcsecond
             %
             % out = zernikeStats.rmsArcsec(zernike,atmosphere) computes the
@@ -254,15 +333,22 @@ classdef zernikeStats
             %
             % See also zernikeStats.variance
 
-            
-            out = constants.radian2arcsec*...
-                (0.5*atm.wavelength/pi)*...
-                sqrt(zernikeStats.variance(zern,atm)).*4/zern.D;
+            if nargin>2
+                out = constants.radian2arcsec*...
+                    (0.5*atm.wavelength/pi)*...
+                    sqrt(zernikeStats.closedLoopVariance(zern,atm,T,tau,gain)).*4/zern.D;
+            else
+                out = constants.radian2arcsec*...
+                    (0.5*atm.wavelength/pi)*...
+                    sqrt(zernikeStats.variance(zern,atm)).*4/zern.D;
+            end
             
         end
         
         function out = closedLoopRmsArcsec(zern,atm,T,tau,gain)
             %% CLOSEDLOOPRMSARCSEC
+            %
+            % out = closedLoopRmsArcsec(zern,atm,T,tau,gain)
             
             out = constants.radian2arcsec*...
                 (0.5*atm.wavelength/pi)*...
@@ -640,9 +726,9 @@ classdef zernikeStats
 %                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
 %                     tripleBessel1 = besselj(mi+mj,red);
 %                     tripleBessel2 = besselj(abs(mi-mj),red);
-                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
-                    tripleBessel1 = besselmx('J',mi+mj,red);
-                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
                     out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
                         ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
                         besselsRadialOrder;
@@ -673,13 +759,13 @@ classdef zernikeStats
                 factor3 = factor3*factor1;
                 red1 = a1l.*x;
                 red2 = a2l.*x;
-                besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
+                besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
                 f = 0.5*x/pi;
                 phasePSD = ...
                     psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6)./x;
                 red = sl*x;
-                tripleBessel1 = besselmx('J',mipmj,red);
-                tripleBessel2 = besselmx('J',mimmj,red);
+                tripleBessel1 = besselj(mipmj,red);
+                tripleBessel2 = besselj(mimmj,red);
                 out = (fr0*phasePSD).*...
                     ( factor2.*tripleBessel1 + factor3.*tripleBessel2 );
                 out = sum( bsxfun( @times , out , besselsRadialOrder ) );
@@ -813,9 +899,153 @@ classdef zernikeStats
 %                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
 %                     tripleBessel1 = besselj(mi+mj,red);
 %                     tripleBessel2 = besselj(abs(mi-mj),red);
-                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
-                    tripleBessel1 = besselmx('J',mi+mj,red);
-                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
+                    out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
+                        ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
+                        besselsRadialOrder;
+                end
+                out = real(out);
+            end
+            end
+        end
+        
+        function aiaj_ = temporalAngularCovariance(zern_,atm_,tau,src_,optSrc)
+            % TEMPORALANGULARCOVARIANCE Zernike coefficients temporal and angular covariance
+            %
+            % aiaj = zernikeAngularCovariance(zern,atm,tau,src) computes
+            % the covariance matrix between Zernike coefficients of Zernike
+            % polynomials zern corresponding to wavefront propagating from
+            % two sources src(1) and src(2) through the atmosphere atm
+            %
+            % See also zernike, atmosphere, source
+            
+            nGs = numel(src_);
+                    iSrc = src_;
+                    jSrc = optSrc;
+                    mGs = numel(jSrc);
+                    aiaj_ = cell(nGs,mGs);
+%                     for iGs = 1:nGs
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> ');
+%                         gsCurrent = iSrc(iGs);
+%                         for jGs = 1:mGs
+%                             fprintf('gs#%d/gs#%d - ',iGs,jGs);
+%                             aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
+%                         end
+%                         fprintf('\b\b\b\n')
+%                     end
+                    nmGs  = [nGs mGs];
+                    for kGs = 1:nGs*mGs
+                        [iGs,jGs] = ind2sub(nmGs,kGs);
+%                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
+                        aiaj_{kGs} = temporalAngularCovarianceFun(zern_,atm_,[iSrc(iGs),jSrc(jGs)]);
+                    end
+                aiaj_ = cell2mat(aiaj_);
+                
+            function  aiaj = temporalAngularCovarianceFun(zern,atm,src)
+%                 aiaj = cell2mat(aiaj);
+                    R   = zern.R;
+                    zs1 = src(1).height;
+                    zs2 = src(2).height;
+                    xSrc = tan(src(1).zenith).*cos(src(1).azimuth) - ...
+                        tan(src(2).zenith).*cos(src(2).azimuth);
+                    ySrc = tan(src(1).zenith).*sin(src(1).azimuth) - ...
+                        tan(src(2).zenith).*sin(src(2).azimuth);
+                    rhoSrcLayer = hypot(xSrc,ySrc);
+                    oSrcLayer = atan2(ySrc,xSrc);
+                    zSrcAngle = rhoSrcLayer.*exp(1i*oSrcLayer);
+                    nMode = length(zern.j);
+                    znmj = mat2cell([zern.j;zern.n;zern.m],3,ones(1,nMode));
+                    znmj = repmat(znmj,nMode,1);
+                    znmi = znmj';
+                    psdCst = (24.*gamma(6./5)./5).^(5./6).*...
+                        (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                        atm.r0.^(-5./3);
+%                     if all( isinf( [zs1 zs2] ) ) % NGS CASE
+%                         a1l     = R;
+%                         a2l     = R;
+%                         denom   = pi.*a1l.*a2l;
+%                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
+%                         fr0     = [atm.layer.fractionnalR0]';
+%                         aiajFun = @ (znmi,znmj) ...
+%                             quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+%                             0, Inf, 'AbsTol',1e-3, 'RelTol',1e-2);
+% %                         n = 201;
+% %                         r = linspace(0,20,n);
+% %                         r(1) = 1e-6;
+% %                         aiajFun = @ (znmi,znmj) ...
+% %                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     else % LGS CASE (TO DO: optimize for LGS as for NGS)
+                        a1l   = zeros(1,atm.nLayer);
+                        a2l   = zeros(1,atm.nLayer);
+                        denom = zeros(1,atm.nLayer);
+                        sl    = zeros(1,atm.nLayer);
+                        thetaSrcLayer ...
+                              = zeros(1,atm.nLayer);
+                        for lLayer=1:atm.nLayer
+                            a1l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs1);
+                            a2l(lLayer) = R.*(1 - atm.layer(lLayer).altitude./zs2);
+                            denom(lLayer) = pi.*a1l(lLayer).*a2l(lLayer);
+                            zSrcWind = atm.layer(lLayer).windSpeed.*exp(1i.*atm.layer(lLayer).windDirection);
+                            zSrc = atm.layer(lLayer).altitude.*zSrcAngle - tau.*zSrcWind;
+                            sl(lLayer) = abs(zSrc);
+                            thetaSrcLayer(lLayer) = angle(zSrc);
+                        end
+                        aiajFun = @ (znmi,znmj) ...
+                            quadgk(@(x) integrand(x,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)), ...
+                            0, Inf);
+%                         n = 201;
+%                         r = linspace(0,20,n);
+%                         r(1) = 1e-6;
+%                         aiajFun = @ (znmi,znmj) ...
+%                             trapz(r,integrandNgs(r,znmi(1),znmi(2),znmi(3),znmj(1),znmj(2),znmj(3)));                       
+%                     end
+                    aiaj = zeros(nMode);
+                    index = triu(true(nMode));
+                    %                 tic
+                    aiaj(index) = cellfun(aiajFun,znmj(index),znmi(index));
+                    %                 toc
+                    aiaj = aiaj + triu(aiaj,1)';
+                    aiaj = bsxfun(@times,aiaj,(-1).^zern.m');
+                    %                     aiaj = cellfun(aiajFun,znmj,znmi);
+            function out = integrand(x,zi,ni,mi,zj,nj,mj)
+                krkr_mi = mi==0;
+                krkr_mj = mj==0;
+                out = 0;
+                factor1 = sqrt((ni+1)*(nj+1)).*...
+                    (-1).^(0.5.*(ni+nj)).*...
+                    2.^(1-0.5.*(krkr_mi+krkr_mj));%.*...
+                %(-1).^mj;
+                for kLayer=1:atm.nLayer
+                    factor2 = (-1).^(1.5*(mi+mj)).*...
+                        cos( ...
+                        (mi+mj).*thetaSrcLayer(kLayer) + ...
+                        pi.*( (1-krkr_mi).*((-1).^zi-1) + ...
+                        (1-krkr_mj).*((-1).^zj-1) )./4 );
+                    factor3 = (-1).^(1.5*abs(mi-mj)).*...
+                        cos( ...
+                        (mi-mj).*thetaSrcLayer(kLayer) + ...
+                        pi.*( (1-krkr_mi).*((-1).^zi-1) - ...
+                        (1-krkr_mj).*((-1).^zj-1) )./4 );
+%                     a1l = R.*(1 - atm.layer(kLayer).altitude./zs1);
+%                     a2l = R.*(1 - atm.layer(kLayer).altitude./zs2);
+%                     denom = pi.*a1l.*a2l;
+%                     sl = atm.layer(kLayer).altitude.*rhoSrcLayer;
+                    red1 = a1l(kLayer).*x;
+                    red2 = a2l(kLayer).*x;
+                    red = sl(kLayer).*x;
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atmLayers{kLayer});
+                    f = 0.5*x/pi;
+                    phasePSD = atm.layer(kLayer).fractionnalR0.*...
+                        psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
+%                     phasePSD = phaseStats.spectrum(0.5*x/pi,atm.slab(lLayer));
+%                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+%                     tripleBessel1 = besselj(mi+mj,red);
+%                     tripleBessel2 = besselj(abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
                     out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
                         ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
                         besselsRadialOrder;
@@ -981,7 +1211,7 @@ classdef zernikeStats
             
         end
         
-        function out = anisokinetism(zern,atm,src,unit)
+        function varargout = anisokinetism(zern,atm,src,unit)
             %% ANISOKINETISM
             %
             % out = anisokinetism(zern,atm,src,unit)
@@ -1006,7 +1236,7 @@ classdef zernikeStats
                 Cxx = Coo;
                 Cox = zernikeStats.angularCovarianceAlt(zern,atm,onAxisNgs,src);
                 
-                out = trace(Coo+Cxx-2*Cox);
+                out = diag(Coo+Cxx-2*Cox);
                 
                 
                 
@@ -1031,6 +1261,9 @@ classdef zernikeStats
                 
             end
             
+%             if nargout==1
+%                 out = mean(out);
+%             end
             if nargin>3
                 if isnumeric(unit)
                 out = 10^-unit*...
@@ -1042,11 +1275,53 @@ classdef zernikeStats
                     end
                 end
             end
-            
+            if nargout==2
+                varargout{1} = out(1);
+                varargout{2} = out(2);
+            else
+                varargout{1} = out;
+            end
 %             logBook.RESUME;
             
         end
         
+        function out = anisoplanatism(zern,atm,src,unit)
+            %% ANISOPLANATISM Anisoplanatism error of Zernike modes
+            %
+            % out = anisoplanatism(zern,atm,src,unit) computes the variance
+            % of the anisoplanatism error of the Zernike modes zern for the
+            % atmosphere atm in the direction of the source src
+            %
+            % out = anisoplanatism(zern,atm,src,unit) computes the rms of
+            % the anisoplanatism error at the specified unit; 
+            % unit=-9 returns the rms error in nanometer 
+            % unit='mas' returns the rms error in milliarcsecond
+                        
+            persistent onAxisNgs
+            if isempty(onAxisNgs)
+                onAxisNgs = source;
+            end
+            
+            Coo = zernikeStats.angularCovarianceAlt(zern,atm,src,src);
+            Cxx = Coo;
+            Cox = zernikeStats.angularCovarianceAlt(zern,atm,onAxisNgs,src);
+            
+            out = diag(Coo+Cxx-2*Cox);
+            
+            if nargin>3
+                if isnumeric(unit)
+                    out = 10^-unit*...
+                        sqrt(out)*(atm.wavelength/(2*pi));
+                elseif ischar(unit)
+                    if strcmp(unit,'mas')
+                        out = 1e3*constants.radian2arcsec*(4/zern.D)*...
+                            sqrt(out)*(atm.wavelength/(2*pi));
+                    end
+                end
+            end
+            
+        end
+       
         function out = anisokinetismAngle(zern,atm)
             %% ANISOKINETISMANGLE Tip-tilt anisoplanatism angle
             %
@@ -1631,7 +1906,7 @@ classdef zernikeStats
                         mj = zM(zj);
                         if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
                             fnm = sqrt((ni+1)*(nj+1)).*(-1).^((ni+nj-mi-mj)/2);
-                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
+Na                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
                         end
                     end
                 end

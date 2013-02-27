@@ -57,7 +57,7 @@ classdef telescoporama < handle
         
         %% Constructor
         function obj = telescoporama(hdf5file,tel,varargin)
-            
+            varargin{:}
             p = inputParser;
             p.addRequired('hdf5file'          , @ischar);
             p.addRequired('tel'               , @(x) isa(x,'telescopeAbstract') );
@@ -121,7 +121,7 @@ classdef telescoporama < handle
                 length(obj.srcs)*...
                 obj.tel.resolution^2*...
                 obj.p_dataSetTimeLength/obj.tel.samplingTime/2^30;
-            obj.dataSetMemSize = 0.01;
+            obj.dataSetMemSize = 1;
             obj.p_dataSetLength = max( round( obj.dataSetMemSize*2^30/( 8*sum([obj.layers.nPixel].^2) ) ) , 1);
             obj.p_dataSetTimeLength = obj.tel.samplingTime*obj.p_dataSetLength;
             add(obj.log,obj,sprintf('%.3fs of data corresponds to %.2fGB!',obj.p_dataSetTimeLength,obj.dataSetMemSize))

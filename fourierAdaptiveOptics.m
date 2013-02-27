@@ -352,10 +352,10 @@ classdef fourierAdaptiveOptics < handle
             wavelength = 1.6444e-6;
             d_atm = gmtAtmosphere(1);
             d_atm.wavelength = wavelength;
-            d_atm.r0 = wavelength/(0.6/constants.radian2arcsec);
+%             d_atm.r0 = wavelength/(0.6/constants.radian2arcsec);
             resolution = 2^10;
             gmt = giantMagellanTelescope('resolution',resolution);
-            fao = fourierAdaptiveOptics(gmt,d_atm,51,1.5,0.5,1/500,0);
+            fao = fourierAdaptiveOptics(gmt,d_atm,61,1.5,0.5,1/500,0);
             figure
             imagesc(image(gmt,resolution,1/wavelength/constants.radian2mas).^0.25)
             axis square

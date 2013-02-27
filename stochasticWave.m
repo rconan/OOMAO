@@ -240,6 +240,16 @@ classdef stochasticWave < handle
             out = stats(obj,@std);
         end
         
+        function out = reSample(obj,newResolution)
+            nSrc = obj(1).nSrc;
+            n    = length(obj(1).p_phase);
+            out  = zeros(newResolution,newResolution,nSrc);
+            [xi,yi] = meshgrid( 1 + (0:newResolution-1)*(n-1)/(newResolution-1) );
+            for kSrc=1:nSrc
+                out(:,:,kSrc) = interp2(obj(kSrc).p_phase,xi,yi,'spline');
+            end
+        end
+        
     end
         
     methods (Access=private)

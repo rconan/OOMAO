@@ -211,6 +211,7 @@ loopGain = 0.5;
 nIteration = 200;
 total  = zeros(1,nIteration);
 residue = zeros(1,nIteration);
+tic
 for kIteration=1:nIteration
     % Propagation throught the atmosphere to the telescope, +tel means that
     % all the layers move of one step based on the sampling time and the
@@ -232,6 +233,7 @@ for kIteration=1:nIteration
     set(h,'Cdata',[turbPhase,ngs.meanRmPhase])
     drawnow
 end
+toc
 snapnow
 u = (0:nIteration-1).*tel.samplingTime;
 atm.wavelength = ngs.wavelength;

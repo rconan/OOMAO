@@ -67,6 +67,7 @@ classdef atmosphere < hgsetget
         % state at initialization of the atmosphere random number generator stream
         initState;
         wavelengthScale;
+        gpu = false;
     end
     
     properties (Dependent, SetObservable=true)
@@ -316,8 +317,8 @@ classdef atmosphere < hgsetget
             %
             % See also atmosphere
             
-%             warning('oomao:atmosphere:fourierPhaseScreen',...
-%                 'The fourierPhaseScreen seems to have a bug, to use with care!')
+            %             warning('oomao:atmosphere:fourierPhaseScreen',...
+            %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
             
             if nargin<4
                 nMap = 1;
@@ -334,25 +335,138 @@ classdef atmosphere < hgsetget
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
             psdRoot = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude
-%             figure
-%             imagesc(map)
-%             axis square
-%             colorbar
+            %             figure
+            %             imagesc(map)
+            %             axis square
+            %             colorbar
             clear fr
             fourierSampling = 1./L;
-%                         % -- Checking the variances --
-%                         theoreticalVar = phaseStats.variance(atm);
-%                         disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
-%                         %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
-%                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
-%                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
-%                         % -------------------------------
+            %                         % -- Checking the variances --
+            %                         theoreticalVar = phaseStats.variance(atm);
+            %                         disp(['Info.: Theoretical variance: ',num2str(theoreticalVar,'%3.3f'),'rd^2'])
+            %                         %     numericalVar    = sum(abs(phMagSpectrum(:)).^2).*fourierSampling.^2;
+            %                         numericalVar    = trapz(trapz(map.^2)).*fourierSampling.^2;
+            %                         disp(['Info.: Numerical variance  :',num2str(numericalVar,'%3.3f'),'rd^2'])
+            %                         % -------------------------------
             u = 1:nPixel;
             out = zeros(nPixel,nPixel,nMap);
             for kMap=1:nMap
                 map = psdRoot.*fft2(randn(atm.rngStream,N))./N; % White noise filtering
                 map = real(ifft2(map).*fourierSampling).*N.^2;
                 out(:,:,kMap) = map(u,u);
+            end
+        end
+        function out = fourierPhaseScreenStraight(atm,D,nPixel)
+            %% FOURIERPHASESCREEN Phase screen computation
+            %
+            % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
+            % phase screen of D meter and sampled with nPixel using the
+            % Fourier method
+            %
+            % map = fourierPhaseScreen(atm) Computes a square phase screen
+            % of atm.layer.D meter and sampled with atm.layer.nPixel using
+            % the Fourier method; atm must contain only one turbulent
+            % layer!
+            %
+            % See also atmosphere
+            
+            %             warning('oomao:atmosphere:fourierPhaseScreen',...
+            %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
+            
+            if nargin<2
+                D = atm.layer.D;
+                nPixel = atm.layer.nPixel;
+            end
+            
+            N = nPixel;
+            del_f = 1/D;   % frequency grid spacing [1/m]
+            fx = (-N/2 : N/2-1) * del_f;
+            % frequency grid [1/m]
+            [fx fy] = meshgrid(fx);
+            [~, f] = cart2pol(fx, fy);  % polar grid
+            % fm = 5.92/l0/(2*pi); % inner scale frequency [1/m]
+            % f0 = 1/L0;           % outer scale frequency [1/m]
+            % von Karman atmospheric phase PSD
+            % PSD_phi = 0.023*r0^(-5/3) * exp(-(f/fm).^2) ...
+            %     ./ (f.^2 + f0^2).^(11/6);
+            PSD_phi = phaseStats.spectrum(f,atm);
+            PSD_phi(N/2+1,N/2+1) = 0;
+            % random draws of Fourier coefficients
+            cn = (randn(atm.rngStream,N) + 1i*randn(atm.rngStream,N)) .* sqrt(PSD_phi)*del_f;
+            % synthesize the phase screen
+            out = real(ifftshift(ifft2(ifftshift(cn))))*N^2;
+            
+        end
+        
+        function out = fourierSubHarmonicPhaseScreen(atm,D,nPixel,nMap)
+            %% FOURIERSUBHARMONICPHASESCREEN Phase screen computation
+            %
+            % map = fourierPhaseScreen(atm,D,nPixel) Computes a square
+            % phase screen of D meter and sampled with nPixel using the
+            % Fourier method
+            %
+            % map = fourierPhaseScreen(atm) Computes a square phase screen
+            % of atm.layer.D meter and sampled with atm.layer.nPixel using
+            % the Fourier method; atm must contain only one turbulent
+            % layer!
+            %
+            % See also atmosphere
+            
+            %             warning('oomao:atmosphere:fourierPhaseScreen',...
+            %                 'The fourierPhaseScreen seems to have a bug, to use with care!')
+            
+            if nargin>3
+                out = zeros(nPixel,nPixel,nMap);
+                for kMap=1:nMap
+                    out(:,:,kMap) = fourierSubHarmonicPhaseScreen(atm,D,nPixel);
+                end
+            else
+            if nargin<2
+                D = atm.layer.D;
+                nPixel = atm.layer.nPixel;
+            end
+            
+            % function [phz_lo phz_hi] ...
+            %     = ft_sh_phase_screen(r0, N, delta, L0, l0)
+            
+            %     D = N*delta;
+            N = nPixel;
+            delta = D/N;
+            % high-frequency screen from FFT method
+            %     phz_hi = ft_phase_screen(atm.r0, N, delta, atm.L0, 0);
+            phz_hi = fourierPhaseScreenStraight(atm,D,nPixel);
+            % spatial grid [m]
+            [x y] = meshgrid((-N/2 : N/2-1) * delta);
+            % initialize low-freq screen
+            phz_lo = zeros(size(phz_hi));
+            % loop over frequency grids with spacing 1/(3^p*L)
+            for p = 1:3
+                % setup the PSD
+                del_f = 1 / (3^p*D); % frequency grid spacing [1/m]
+                fx = (-1 : 1) * del_f;
+                % frequency grid [1/m]
+                [fx fy] = meshgrid(fx);
+                [~, f] = cart2pol(fx, fy);  % polar grid
+%                 fm = 5.92/l0/(2*pi); % inner scale frequency [1/m]
+%                 f0 = 1/L0;           % outer scale frequency [1/m]
+                % modified von Karman atmospheric phase PSD
+                %         PSD_phi = 0.023*r0^(-5/3) * exp(-(f/fm).^2) ...
+                %             ./ (f.^2 + f0^2).^(11/6);
+                PSD_phi = phaseStats.spectrum(f,atm);
+                PSD_phi(2,2) = 0;
+                % random draws of Fourier coefficients
+                cn = (randn(atm.rngStream,3) + 1i*randn(atm.rngStream,3)) ...
+                    .* sqrt(PSD_phi)*del_f;
+                SH = zeros(N);
+                % loop over frequencies on this grid
+                for ii = 1:9
+                    SH = SH + cn(ii) ...
+                        * exp(i*2*pi*(fx(ii)*x+fy(ii)*y));
+                end
+                phz_lo = phz_lo + SH;   % accumulate subharmonics
+            end
+            phz_lo = real(phz_lo) - mean(real(phz_lo(:)));
+            out = phz_hi + phz_lo;
             end
         end
         
@@ -406,6 +520,16 @@ classdef atmosphere < hgsetget
             end
         end
         
+        function host2gpu(obj)
+            host2gpu(obj.layer)
+            obj.gpu = true;
+        end
+        
+        function gpu2host(obj)
+            gpu2host(obj.layer)
+            obj.gpu = false;
+        end
+        
     end
     
     methods (Static)
@@ -428,4 +552,26 @@ classdef atmosphere < hgsetget
         
     end
     
+end
+
+function phz = ft_phase_screen(r0, N, delta, L0, l0)
+% function phz ...
+%     = ft_phase_screen(r0, N, delta, L0, l0)
+
+% setup the PSD
+del_f = 1/(N*delta);   % frequency grid spacing [1/m]
+fx = (-N/2 : N/2-1) * del_f;
+% frequency grid [1/m]
+[fx fy] = meshgrid(fx);
+[~, f] = cart2pol(fx, fy);  % polar grid
+fm = 5.92/l0/(2*pi); % inner scale frequency [1/m]
+f0 = 1/L0;           % outer scale frequency [1/m]
+% modified von Karman atmospheric phase PSD
+PSD_phi = 0.023*r0^(-5/3) * exp(-(f/fm).^2) ...
+    ./ (f.^2 + f0^2).^(11/6);
+PSD_phi(N/2+1,N/2+1) = 0;
+% random draws of Fourier coefficients
+cn = (randn(N) + 1i*randn(N)) .* sqrt(PSD_phi)*del_f;
+% synthesize the phase screen
+phz = real(ifftshift(ifft2(ifftshift(cn))))*N^2;
 end

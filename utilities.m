@@ -111,11 +111,11 @@ classdef utilities
             
             if isempty(v)
                 if numel(u)==1
-                    u = 2*( -(u-1)/2:(u-1)/2 )/u;%linspace(-1,1,u);
+                    u = linspace(-1,1,u);%2*( -(u-1)/2:(u-1)/2 )/u;
                 end
                 v=u;
             elseif (numel(u)==1) && (numel(v)==1)
-                u = 2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
+                u = linspace(-v,v,u);%2*v*( -(u-1)/2:(u-1)/2 )/u;%linspace(-v,v,u);
                 v = u;
             end
             
@@ -484,7 +484,7 @@ classdef utilities
             % -6, -9 for example correspond to km, m, mm, micron, nm,
             % respectively
             
-            out = 16*sqrt(3)*a4*(focalLength/diameter)^2/...
+            out = 16*sqrt(3)*a4*(focalLength/diameter)^2./...
                 ( 2*pi/wavelength - 16*sqrt(3)*a4*focalLength/diameter^2 );
             
             if nargin>4
@@ -544,7 +544,7 @@ classdef utilities
         end
         
         function [vertex,center,hp] = hexagonalArray(nCycle,pitch)
-            %% HEXAGONALARRAY Array of hexagonals
+            %% HEXAGONALARRAY Array of hexagons
             %
             % [vertex,center] = hexagonalArray(nCycle,pitch) computes the
             % vertex and center coordinates of hexagons with the given
@@ -582,6 +582,16 @@ classdef utilities
             title(sprintf('%d segments',nSegment))
         end
         
+        function B = eyeBlockDiag( A , n)
+            %% EYEBLOCKDIAG Block diagonal concatenation
+            %
+            % B = eyeBlockDiag( A , n) concatenates n copies of the matrix A on
+            % the diagonal of the matrix B. B is a sparse matrix.
+            
+            B = repmat( {sparse(A)} , 1 , n);
+            B = blkdiag( B{:} ); 
+        end
+        
         function V = gramSchmidt(V)
             %% GRAMSCHMIDT Gram-Schmidt orthonormalization process
             %
@@ -589,15 +599,17 @@ classdef utilities
             % to the Gram-Schimdt process
             
             k = size(V,2);
+            h = waitbar(0,'Gram-Schmith orthogonalization ...!');
             for j=1:k
                 v = V(:,j);
                 for i=1:j-1
                     u = V(:,i);
                     v = v - u*(u'*v)*(u'*u);
-                end
+                end                
                 V(:,j) = v/norm(v);
+                waitbar(j/k)
             end
-            
+            close(h)
         end
         
         function out = besselJDerivative(nu,x)
@@ -672,6 +684,408 @@ classdef utilities
             onemt = 1-t;
             F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
                 ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+        end
+        
+        function fr = gaussian(resolution,fwhm,n_f)
+            
+            u = (0:resolution-1)-(resolution)/2;
+            [x,y] = meshgrid(u);
+            r = hypot(x,y);
+            sig = fwhm./(2.*sqrt(2*log(2)));
+            f = exp(-r.^2/(2*sig.^2));
+            f = f/sum(f(:));
+            
+%             n_f = 20;
+            if nargin<3
+                n_f = resolution;
+            end
+            if n_f<resolution/2
+                fr = f;
+                fr(:,end-n_f+1:end) =[];
+                fr(end-n_f+1:end,:) =[];
+                fr(:,1:n_f) =[];
+                fr(1:n_f,:) =[];
+                %     figure(101)
+                %     subplot(1,2,1)
+                %     imagesc(f)
+                %     axis square
+                %     subplot(1,2,2)
+                %     imagesc(fr)
+                %     axis square
+            else
+                fr = f;
+            end
+            
+            
+        end
+        
+        function out1 = pupAutoCorr(D,r)
+            
+            f_index       = r <= D;
+            red         = r(f_index)./D;
+            out1        = zeros(size(r));
+            out1(f_index) = D.*D.*(acos(red)-red.*sqrt((1-red.*red)))./2;
+            
+        end
+        
+        function out2 = pupCrossCorr(R1,R2,r)
+            
+            out2 = zeros(size(r));
+            f_index       = r <= abs(R1-R2);
+            out2(f_index) = pi*min([R1,R2]).^2;
+            
+            f_index       = (r > abs(R1-R2)) & (r < (R1+R2));
+            rho         = r(f_index);
+            red         = (R1*R1-R2*R2+rho.*rho)./(2.*rho)/(R1);
+            out2(f_index) = out2(f_index) + R1.*R1.*(acos(red)-red.*sqrt((1-red.*red)));
+            red         = (R2*R2-R1*R1+rho.*rho)./(2.*rho)/(R2);
+            out2(f_index) = out2(f_index) + R2.*R2.*(acos(red)-red.*sqrt((1-red.*red)));
+            
+        end
+        
+        function out = temporalSpectrum(nu,atm,spectrum)
+            %% TEMPORALSPECTRUM Temporal power spectrum density
+            %
+            % out = phaseStats.temporalSpectrum(nu,spectrum) computes the
+            % phase temporal power spectrum density from the spatial power
+            % spectrum for a frozen flow atmosphere temporal model atm;
+            % spectrum is a handle of an anonymous function fun(fr,fo,atm)
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab)/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = spectrum( hypot(fx,fy) , atan2(fy,fx), atmSlab)/vy;
+            end
+        end
+        
+        function out = marechalStrehl(rmsWfe,band)
+            
+            out = (1 - (rmsWfe*2*pi/band.wavelength)^2/2)^2;
+            
+        end
+        
+        function [out,cvgce] = gerchbergSaxton(pupilPlaneImage,focalPlaneImage)
+            
+            source = sqrt(pupilPlaneImage);
+            target = sqrt(focalPlaneImage);
+            A = fftshift( ifft2( fftshift( target ) ) );
+            phaseA = pi*(rand(size(source))*2-1);
+%             figure,imagesc(abs(A))
+            n = length(source);
+            nIteration = 300;
+            kIteration = 0;
+            cvgce = zeros(1,nIteration);
+            
+            figure(111)
+            subplot(2,4,[1,2])
+            h(1) = imagesc(zeros(n,2*n));
+            axis equal tight
+            subplot(2,4,[5,6])
+            h(2) = imagesc(zeros(n,2*n));
+            axis equal tight
+            subplot(2,4,[3,8])
+            h(3) = imagesc(phaseA.*source);
+            ht = title(sprintf('Iteration #: %d',0));
+            axis equal tight
+            colorbar('south')
+            drawnow
+            
+            tic
+            while kIteration<nIteration
+                
+                kIteration = kIteration + 1;
+                
+                B = source.*exp(1i*phaseA);
+                C = fftshift( fft2( fftshift( B ) ) );
+                D = target.*exp(1i*angle(C));
+                A = fftshift( ifft2( fftshift( D ) ) );
+                
+                set(h(1),'CData',abs([C,D]))
+                set(h(2),'CData',abs([B,A]))
+                
+                phaseA = angle(A);
+                
+                phaseA_ = phaseA;
+                phaseA_(~source) = NaN;
+                set(h(3),'CData',phaseA_)
+                set(ht,'string',sprintf('Iteration #: %d',kIteration))
+                drawnow
+                
+                cvgce(kIteration) = norm(abs(C).^2-focalPlaneImage,'fro');
+                
+            end
+            toc
+            
+            out = phaseA;
+        end
+        
+        function out = fftcentre(x,dir,n1,n2)
+            %FFTCENTRE Computes the Fourier transform of a signal centered in the middle of the sample
+            %The result is also centered on the same point. It is a conversion of an IDL routine written
+            % by F. Cassaing (ONERA)
+            %out = fftcentre(x,dir): x, the signal; dir: 1 for direct FT, -1 for inverse FT
+            % IDL doc. written by Fred:
+            % ;NOM :
+            % ;   FFTCENTRE - Effectue une FFT d'un signal suppos? centr? sur le pixel m?dian
+            % ;
+            % ;CATEGORIE :
+            % ;   Signal Processing Routines
+            % ;
+            % ;SYNTAXE :
+            % ;   y=FFTCENTRE (x [,direction] [,/inverse] [,/double] [,/VERSION] [,/HELP])
+            % ;
+            % ;DESCRIPTION :
+            % ;   Effectue une TF en  prenant pour origine non pas le pixel 0 mais le pixel
+            % ;   central. Syntaxe identique ? FFT. Voir d?tails calcul ci-dessous.
+            % ;
+            % ;   ARGUMENTS :
+            % ;          x : (entr?e) le signal ? transformer
+            % ;  direction : (entr?e) le sens de la TF (-1 par d?faut=TF directe)
+            % ;   /inverse : (entr?e) pour forcer direction ? +1
+            % ;    /double : (entr?e) effectue le calcul en double
+            % ; /overwrite : (entr?e) ?crase la variable x d'entr?e pour gagner en RAM
+            % ;   /VERSION : (entr?e) affichage de la version avant l'ex?cution.
+            % ;   /HELP    : (entr?e) affichage de la syntaxe et sortie du programme.
+            % ;
+            % ;   Principe:
+            % ;   Soit une ?quence x(k) de longueur N points, centr?e sur #
+            % ;      si N=2p    | 0 | 1 | 2 | . |p-1# p |p+1| . |2p-1|
+            % ;      si N=2p+1  | 0 | 1 | 2 | . |p-1| # |p+1| . |2p-1|2p |
+            % ;   Le pixel central tombe donc entre 2 pixels quand N est pair.
+            % ;   Mais dans tous les cas, il a pour abscisse s=(N-1)/2.
+            % ;
+            % ;   La proc?dure est donc de recentrer le signal sur le pixel 0 avec un
+            % ;   d?calage S1 vers la gauche de s=(N-1)/2 pixels, d'effectuer une FFT
+            % ;   normale, puis enfin de recentrer la TF avec une translation S2 de (N-1)/2
+            % ;   pixels vers la droite. La s?quence totale pour obtenir y=TF(x) est donc :
+            % ;
+            % ;        x(k)  --S1--> x'(k) --TF--> y'(l) --S2--> y(l)
+            % ;
+            % ;   Avec x(k+s)=x'(k) ou x'(k-s)=x(k) [idem pour y]. ON SUPPOSE DANS LA SUITE
+            % ;   N IMPAIR DE SORTE QUE s SOIT ENTIER, MAIS CA MARCHE AUSSI POUR N PAIR.
+            % ;
+            % ;   La grosse ruse (merci Laurent Mugnier) et de remplacer le d?calage par une
+            % ;   multiplication par un terme de phase dans l'espace conjug?. Ainsi, en
+            % ;   appelant d (=-1 direct et =+1 inverse) la direction de la TF, et en notant
+            % ;   w=exp[d2i pi/N] le terme de base du calcul de la TF, la s?quence
+            % ;   pr?c?dente s'?crit :
+            % ;
+            % ;               y'(l)=SUM(k=0,N-1)   x'(k)  w^[  l   k]
+            % ;     On translate k et l [muet] de s
+            % ;             y'(l-s)=SUM(k=s,N-1+s) x'(k-s)w^[(l-s)(k-s)]
+            % ;     On fait intervenir la def de x' et y'
+            % ;                y(l)=SUM(k=s,N-1+s) x(k)   w^[(l-s)(k-s)]
+            % ; Cette somme se coupe en 2 termes de k=+s ? N-1 et de k=N ? N-1+s. Par la
+            % ; p?riodicit? des x(k) et des w^k, la derni?re se ram?ne ? k=0 ? s-1. D'o?
+            % ;                y(l)=SUM(k=0,N-1)   x(k)   w^[(l-s)(k-s)]
+            % ; ==> y(l)=p(-s)*p(l)*SUM(k=0,N-1) x(k)p(k) w^[  l    k]
+            % ;
+            % ;   o? p(k)=w^[-ks] est un phaseur. Il y a donc une rampe de phase p(k) ?
+            % ;   appliquer avant la TF, la m?me rampe de phase p(l) ? appliquer apr?s la
+            % ;   TF, ET un outsider, un terme de phase constant p(-s). Comme s=(N-1)/2, les
+            % ;   deux rampes de phase s'?crivent exp[-dir*i*!pi*indice*(N-1)/N].
+            % ;
+            % ;   Le remplacement du d?calage par une multiplication permet peut-etre de
+            % ;   gagner en temps d'ex?cution (? v?rifier) mais surtout de permettre le
+            % ;   d?calage d'un nombre demi-entier de pixels. Je n'ai pas r?ussi ? d?montrer
+            % ;   la formule pr?c?dente pour N pair (car avec s demi-entier et les deux
+            % ;   s?quences x et x' ne d?coulent plus simplement l'une de l'autre) mais ?a
+            % ;   marche num?riquement. Peut-?tre peut-on d?montrer en revenant ? des
+            % ;   fonctions continues et en les num?risant ? ou faire jouer l'argument de la
+            % ;   continuit?... Si quelqu'un trouve la d?monstration, elle sera la
+            % ;   bienvenue!
+            % ;
+            % ;   Les 2 derni?res multiplications pourraient etre ?vit?e si l'on ne cherche
+            % ;   que le module, ajouter un keyword ulterieur ?
+            % ;
+            % ;DIAGNOSTIC D'ERREUR :
+            % ;
+            % ;
+            % ;VOIR AUSSI :
+            % ;   FFT, la routine de base IDL
+            % ;  VFFT, de L. Mugnier pour appeler FFTW (de L. Rousset-Rouvi?re) si besoin
+            % ;
+            % ;AUTEUR :
+            % ;   $Author: cassaing $
+            % ;
+            % ;HISTORIQUE :
+            % ;   $Log: fftcentre.pro,v $
+            % ;   Revision 1.10  2001-02-02 16:43:01+01  cassaing
+            % ;   Keyword double=double pass? a vfft supprim? car type variable pass? suffit
+            % ;
+            % ;   Revision 1.9  2001-01-26 14:55:22+01  cassaing
+            % ;   Appel syst?matique de vfft au lieu de fft.
+            % ;
+            % ;   Revision 1.8  2001-01-17 12:29:54+01  cassaing
+            % ;   Appel ? routine_courante() pour la doc
+            % ;
+            % ;   Revision 1.7  2001-01-17 11:18:35+01  cassaing
+            % ;   Remplacement du message d'aide obsol?te par l'appel auto ? doc_library
+            % ;
+            % ;   Revision 1.6  2001-01-17 10:45:48+01  cassaing
+            % ;   Phaseur 2D rempli par blas_axpy plutot que indgen#(fltarr+1). Bug doc corrig?
+            % ;
+            % ;   Revision 1.5  2001-01-16 17:59:00+01  cassaing
+            % ;   VERSION PAS FINIE EN COURS DE DEBUG ....
+            % ;
+            % ;   Revision 1.4  2001-01-16 17:31:57+01  cassaing
+            % ;   Prise en compte de /overwrite sur x (dej? fait ds fft sur var temp)
+            % ;
+            % ;   Revision 1.3  1999-09-20 10:35:51+02  cassaing
+            % ;   Demo ?crite pour N impair, cas double/float group?s avec diripi
+            % ;
+            % ;   Revision 1.2  1999-09-17 16:57:28+02  cassaing
+            % ;   Calcul enfin OK avec bons termes de phase. Mais d?mo th?orique pas claire...
+            % ;
+            % ;   Revision 1.1  1999-09-16 15:47:41+02  cassaing
+            % ;   Initial revision
+            % ;-
+            
+            %   R. Conan - LAOG-ONERA
+            %   $Version 1.0 $  $Date: 2002/11/29 $
+            
+            persistent phasor coef
+            
+            if nargin<3
+                [n1,n2,n3] = size(x);
+            else
+                x(n1,n2,size(x,3)) = 0;
+                [n1,n2,n3] = size(x);
+            end
+            
+            if isempty(phasor) || ndims(phasor)~=ndims(x) || any(size(phasor)~=size(x))
+                
+                disp('Info.: Pre-computing for fftcentre...')
+                
+                diripi = -dir.*1i.*pi;
+                switch ndims(x)
+                    case 1
+                        n = length(x);
+                        phasor = exp(diripi.*(0:(n-1)).*(1-n)./n);
+                        coef   = exp(diripi*(n-1).^2./(2.*n));
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    case 2
+                        [u,v] = ndgrid((0:(n1-1)).*(1-n1)./n1,(0:(n2-1)).*(1-n2)./n2);
+                        phasor = exp(diripi.*(u+v));
+                        coef   = exp(diripi.*((n1-1).^2./n1+(n2-1).^2./n2)./2);
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft2(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft2(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    case 3
+                        [u,v] = ndgrid((0:(n1-1)).*(1-n1)./n1,(0:(n2-1)).*(1-n2)./n2);
+                        phasor = exp(diripi.*(u+v));
+                        coef   = exp(diripi.*((n1-1).^2./n1+(n2-1).^2./n2)./2);
+                        phasor = repmat(phasor,[1,1,n3]);
+                        %             switch dir
+                        %                 case 1
+                        %                     out    = coef.*fft2(x.*phasor).*phasor;
+                        %                 case -1
+                        %                     out    = coef.*ifft2(x.*phasor).*phasor;
+                        %                 otherwise
+                        %                     error('dir must be 1 or -1')
+                        %             end
+                    otherwise
+                        error('fft dim must be < 3')
+                end
+                
+            end
+            
+            switch ndims(x)
+                case 1
+                    switch dir
+                        case 1
+                            out    = coef.*fft(x.*phasor).*phasor;
+                        case -1
+                            out    = coef.*ifft(x.*phasor).*phasor;
+                        otherwise
+                            error('dir must be 1 or -1')
+                    end
+                case {2,3}
+                    switch dir
+                        case 1
+                            out    = coef.*fft2(x.*phasor).*phasor;
+                        case -1
+                            out    = coef.*ifft2(x.*phasor).*phasor;
+                        otherwise
+                            error('dir must be 1 or -1')
+                    end
+                otherwise
+                    error('fft dim must be < 3')
+            end
+                        
+        end
+        
+        function out = oneParameterExample2(mu,alpha,q,p,a,nmax)
+            
+            n = 0:nmax;
+            size_a = size(a);
+            
+            a = a(:)*0.5;
+            
+            coef1 = (-1).^n.*gamma( 2*(n+(alpha+mu)*0.5)/q ).*gamma( p-2*(n+(alpha+mu)*0.5)/q )./(gamma( n+1+alpha ).*gamma(n+1))./q;
+            a1 = bsxfun( @power , a , 2*n+alpha+mu );
+            a1 = bsxfun( @times, coef1, a1);
+            
+            coef2 = (-1).^n.*0.5.*gamma( -q*(n+p)*0.5+(alpha+mu)*0.5 ).*gamma( n+p )./(gamma( (alpha-mu)*0.5+1+q*(n+p)*0.5 ).*gamma(n+1));
+            a2 = bsxfun( @power , a , q*(n+p) );
+            a2 = bsxfun( @times, coef2, a2);
+            
+            out = sum( a1 + a2 , 2);
+            out = 2.^mu.*out./gamma(p);
+            out = reshape( out, size_a);
+            
+        end
+        
+        function out = oneParameterExample3(mu,alpha,q,p,a,nmax)
+            
+            n = 0:nmax;
+            size_a = size(a);
+            
+            a = a(:);
+            
+            coef1 = (-1).^n.*gamma( 0.5+n+alpha ).*gamma( 2*(n+(2*alpha+mu)*0.5)/q ).*gamma( p-2*(n+(2*alpha+mu)*0.5)/q )./...
+                (gamma( n+2*alpha+1 ).*gamma( n+alpha+1 ).*gamma(n+1))./q;
+            a1 = bsxfun( @power , a , 2*n+2*alpha+mu );
+            a1 = bsxfun( @times, coef1, a1);
+            
+            coef2 = (-1).^n.*0.5.*gamma( -q*(n+p)*0.5+(2*alpha+mu)*0.5 ).*gamma( 0.5+q*(n+p)*0.5-mu*0.5 ).*gamma( n+p )./...
+                (gamma( (2*alpha-mu)*0.5+1+q*(n+p)*0.5 ).*gamma( 1+q*(n+p)*0.5-mu*0.5 ).*gamma(n+1));
+            a2 = bsxfun( @power , a , q*(n+p) );
+            a2 = bsxfun( @times, coef2, a2);
+            
+            out = sum( a1 + a2 , 2);
+            out = out./(sqrt(pi)*gamma(p));
+            out = reshape( out, size_a);            
+            
         end
         
     end

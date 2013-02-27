@@ -124,11 +124,12 @@ classdef linearMMSE < handle
             inputs.addParamValue('unit',[],@isnumeric);
             inputs.addParamValue('model','zonal',@ischar);
             inputs.addParamValue('zernikeMode',[],@isnumeric);
-            inputs.addParamValue('noiseCovariance',[],@isnumeric);
+            inputs.addParamValue('noiseCovariance',0,@isnumeric);
             inputs.addParamValue('tilts','Z',@ischar);
             inputs.addParamValue('lag',0,@isnumeric);
             inputs.addParamValue('xyOutput',[],@isnumeric);
             inputs.addParamValue('G',0,@isnumeric);
+            inputs.addParamValue('P',1,@isnumeric);
            
             inputs.parse(sampling,diameter,atmModel,guideStar,varargin{:});
             
@@ -143,7 +144,6 @@ classdef linearMMSE < handle
             obj.unit       = inputs.Results.unit;   
             obj.model      = inputs.Results.model;
             obj.zernikeMode= inputs.Results.zernikeMode;
-            obj.noiseCovariance   = inputs.Results.noiseCovariance;
             obj.tilts      = inputs.Results.tilts;
             obj.p_lag        = inputs.Results.lag;
             obj.xyOutput     = inputs.Results.xyOutput;
@@ -172,7 +172,7 @@ classdef linearMMSE < handle
                             matlabpool('open')
                             poolWasAlreadyOpen = false;
                         catch ME
-                            ME
+                            ME;
                         end
                     end
                     
@@ -196,6 +196,10 @@ classdef linearMMSE < handle
                     else
                         obj.Coo = phaseStats.covarianceMatrix(complex(obj.xyOutput(:,1),obj.xyOutput(:,2)),obj.atmModel);
                     end
+                    
+                    obj.p_P                 = inputs.Results.P;
+                    spaceJump(obj);
+                    obj.p_noiseCovariance   = inputs.Results.noiseCovariance;                        
                     
                     if ~poolWasAlreadyOpen
                         matlabpool('close')
@@ -302,20 +306,10 @@ classdef linearMMSE < handle
         %% Set/Get P
         function set.P(obj,val)
             obj.p_P = val;
-            if isempty(obj.P)
-                obj.Cxx = obj.covarianceSafe{1};
-                obj.Cox = obj.covarianceSafe{2};
-                obj.CoxLag = obj.covarianceSafe(3);
-            else
-                fprintf(' -->> Space jump!\n')
-                obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
-                obj.Cxx = obj.P*obj.Cxx*obj.P';
-                obj.Cox = cellfun( @(x) x*obj.P', obj.Cox , 'UniformOutput', false);
-                if obj.lag>0
-                    obj.CoxLag = cellfun( @(x) x*obj.P', obj.CoxLag , 'UniformOutput', false);
-                end
+            if ~isempty(obj.p_P)
+                spaceJump(obj);
+                solveMmse(obj);
             end
-            solveMmse(obj);
         end
         function val = get.P(obj)
             val = obj.p_P;
@@ -498,10 +492,10 @@ classdef linearMMSE < handle
               fx = pixelScale*fx*resolution/2;
               fy = pixelScale*fy*resolution/2;
             
-              fc = 1;
-              psd = fourierAdaptiveOptics.fittingPSD(fx,fy,fc,obj.atmModel);
-              sf  = fft2(fftshift(psd))*pixelScale^2;
-              sf  = 2*fftshift( sf(1) - sf );
+%               fc = 1;
+%               psd = fourierAdaptiveOptics.fittingPSD(fx,fy,fc,obj.atmModel);
+%               sf  = fft2(fftshift(psd))*pixelScale^2;
+%               sf  = 2*fftshift( sf(1) - sf );
             
               [rhoX,rhoY] = freqspace(resolution,'meshgrid');
               rhoX = 0.5*rhoX/pixelScale;
@@ -511,9 +505,12 @@ classdef linearMMSE < handle
               [u,v] = freqspace(resolution,'meshgrid');
               fftPhasor = exp(1i.*pi.*(u+v)*0.5);
 
-              thisOtf = otf(obj,rhoX+1i.*rhoY).*exp(-0.5*sf);
+              thisOtf = otf(obj,rhoX+1i.*rhoY);%.*exp(-0.5*sf);
 %               figure
 %               mesh(rhoX,rhoY,thisOtf)
+size(rhoX)
+size(fftPhasor)
+size(thisOtf)
               out = real(ifftshift(ifft2(ifftshift(fftPhasor.*thisOtf))))/pixelScale^2;
               out = out./obj.tel.area;
 %               out = out.*obj.strehlRatio./max(out(:));
@@ -561,7 +558,6 @@ classdef linearMMSE < handle
             map = zeros(obj.sampling,obj.sampling*obj.nmmseStar);
             mask = repmat( obj.pupil, 1 , obj.nmmseStar);
             map(mask) = out;
-                
         end
        
         function out = get.var(obj)
@@ -603,6 +599,15 @@ classdef linearMMSE < handle
             end
         end        
 
+        function wfe(obj)
+            m_rmsMap = obj.rmsMap;
+            imagesc(m_rmsMap)
+            axis equal tight
+            idx = m_rmsMap>0;
+            set(gca,'clim',[min(m_rmsMap(idx)),max(m_rmsMap(idx))])
+            ylabel(colorbar,sprintf('WFE [10^-%dm]',obj.unit))
+            title(sprintf('(WFE: %4.2f) ',obj.rms))
+        end
     end
        
     
@@ -668,6 +673,20 @@ classdef linearMMSE < handle
             obj.mmseBuilder = m_mmseBuilder;
             obj.Bmse = [];
             obj.p_otf = [];
+        end
+        
+    end
+    
+    methods (Access=private)
+        
+        function spaceJump(obj)
+            fprintf(' -->> Space jump!\n')
+            %                 obj.covarianceSafe = { obj.Cxx , obj.Cox , obj.CoxLag };
+            obj.Cxx = obj.p_P*obj.Cxx*obj.p_P';
+            obj.Cox = cellfun( @(x) x*obj.p_P', obj.Cox , 'UniformOutput', false);
+            if obj.lag>0
+                obj.CoxLag = cellfun( @(x) x*obj.p_P', obj.CoxLag , 'UniformOutput', false);
+            end
         end
         
     end

@@ -186,6 +186,71 @@ classdef phaseStats
             layers = atm.layer;
             out = sum([layers.fractionnalR0]).*out;
         end
+            
+        function out = temporalSpectrum(nu,atm)
+            %% TEMPORALSPECTRUM Phase temporal power spectrum density
+            %
+            % out = phaseStats.temporalSpectrum(nu,atm,zern) computes the
+            % phase temporal power spectrum density from the temporal
+            % frequency nu, an atmosphere object and a zernike object
+            %
+            % See also atmosphere and zernike
+            
+            out = zeros(size(nu));
+            for kLayer = 1:atm.nLayer
+                atmSlab = slab(atm,kLayer);
+                [vx,vy] = pol2cart(atmSlab.layer.windDirection,atmSlab.layer.windSpeed);
+                for k=1:numel(nu)
+                    if vx>eps(atmSlab.layer.windSpeed)
+                        out(k) = out(k) + quadgk( @integrandFy , -Inf, Inf);
+                    else
+                        out(k) = out(k) + quadgk( @integrandFx , -Inf, Inf);
+                    end
+                end
+            end
+            
+            function int = integrandFy(fy)
+                fx = (nu(k) -fy*vy)/vx;
+                int = phaseStats.spectrum( hypot(fx,fy) , atmSlab )/vx;
+            end
+            
+            function int = integrandFx(fx)
+                fy = (nu(k) -fx*vx)/vy;
+                int = phaseStats.spectrum( hypot(fx,fy) , atmSlab )/vy;
+            end
+        end    
+        
+        function out = closedLoopVariance(atm,T,tau,gain)
+            %% SPECTRUM Phase power spectrum density
+            %
+            % out = phaseStats.spectrum(f,atm) computes the phase power
+            % spectrum density from the spatial frequency f and an
+            % atmosphere object
+            %
+            % See also atmosphere
+            
+            s = @(x) 2*1i*pi*x;
+            z = @(x) exp(s(x)*T);
+            
+            G = @(x) ((1-exp(-s(x)*T))./(s(x)*T)).^2.*...
+                exp(-tau*s(x)).*...
+                gain./(1-exp(-s(x)*T));
+            E = @(x) abs(1./(1+G(x)));
+            
+            figure
+            nu = logspace(-2,log10(2/T),101);
+            subplot(1,2,1)
+            loglog(nu,abs(E(nu)).^2)
+            xlabel('Hz')
+            subplot(1,2,2)
+            loglog(nu,phaseStats.temporalSpectrum(nu,atm),...
+                nu,phaseStats.temporalSpectrum(nu,atm).*abs(E(nu)).^2)
+            xlabel('Hz')
+            drawnow
+            
+            out = 2*quadgk( @(nu) phaseStats.temporalSpectrum(nu,atm).*abs(E(nu)).^2 , 0 , Inf);
+
+        end        
         
         function out = symSpectrum(symf)
             syms r0 L0
@@ -274,7 +339,7 @@ classdef phaseStats
                 cst      = (24.*gamma(6./5)./5).^(5./6).*...
                     (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
                     L0r0ratio;
-                out   = ones(size(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
+                out   = ones(size(rho),class(rho)).*(24.*gamma(6./5)./5).^(5./6).*...
                     (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
                 index         = rho~=0;
                 u             = 2.*pi.*rho(index)./atm.L0;
@@ -1358,6 +1423,313 @@ classdef phaseStats
             end
             
         end
+        
+        function varargout = spatioAngularAngleOfArrivalCovarianceMatrix(sampling,range,D,atm,srcAC,varargin)
+            %% SPATIOANGULARCOVARIANCEMATRIX Phase spatio-angular covariance meta matrix
+            %
+            % S = spatioAngularCovarianceMatrix(sampling,range,atm,src1)
+            % computes the spatio-angular auto-correlation meta-matrix of the
+            % wavefront between all the sources srcAC. The phase is
+            % sampling with sampling points in the given range and
+            % propagates through the atmosphere defined by the object atm
+            %
+            % C = spatioAngularCovarianceMatrix(sampling,range,atm,src1,src2)
+            % computes the spatio-angular cross-correlation meta-matrix of the
+            % wavefront between all src2 and src1. The phase is
+            % sampling with sampling points in the given range and
+            % propagates through the atmosphere defined by the object atm
+            %
+            % [S,C] = spatioAngularCovarianceMatrix(...) computes both
+            % auto- and cross-correlation meta-matrix
+            %
+            % ... = spatioAngularCovarianceMatrix(...,'mask',mask) restrict
+            % the sampling within the mask
+            
+            inputs = inputParser;
+            inputs.addRequired('atm',@(x) isa(x,'atmosphere'));
+            inputs.addRequired('srcAC',@(x) isa(x,'source'));
+            inputs.addOptional('srcCC',[],@(x) isa(x,'source'));
+            inputs.addParamValue('slopesAxis',0,@isnumeric);
+            inputs.addParamValue('phaseSlopesCC',false,@islogical);
+            inputs.addParamValue('mask',true(sampling),@islogical);
+            inputs.addParamValue('lag',0,@isnumeric);
+            inputs.addParamValue('xyOutput',[],@isnumeric);
+            inputs.parse(atm,srcAC,varargin{:});
+            
+            m_srcCC = inputs.Results.srcCC;
+            m_mask  = inputs.Results.mask;
+            m_tau   = inputs.Results.lag;
+            xyOutput= inputs.Results.xyOutput;
+            
+            nCC = 0;
+            if inputs.Results.phaseSlopesCC
+                nCC = 1;
+            end
+                
+            [m_x,m_y] = meshgrid( ((0:sampling-1)-(sampling-1)*0.5)*D );
+            m_nGs   = length(srcAC);
+            L0r0ratio= (atm.L0./atm.r0).^(5./3);
+            m_cst      = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6)./(2.^(5./6).*pi.^(8./3))).*...
+                L0r0ratio;
+            m_cstL0 = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).*gamma(5./6)./(2.*pi.^(8./3))).*L0r0ratio;
+            m_cstr0 = (24.*gamma(6./5)./5).^(5./6).*...
+                (gamma(11./6).^2./(2.*pi.^(11./3))).*...
+                atm.r0.^(-5./3);
+            m_L0      = atm.L0;
+            m_lambda  = atm.wavelength;
+            m_cst_xy = 0.0719*m_lambda.^2.*atm.r0.^(-5/3).*m_L0^(11/3);
+            m_cst_xyCC = 0.0719*m_lambda.^(2-nCC).*atm.r0.^(-5/3).*m_L0^(11/3);
+            
+            slopesAxis = inputs.Results.slopesAxis;
+
+            m_nLayer   = atm.nLayer;
+            layers   = atm.layer;
+            m_altitude = [layers.altitude];
+            m_fr0      = [layers.fractionnalR0];
+            [m_windVx,m_windVy] = pol2cart([layers.windDirection],[layers.windSpeed]);
+            m_srcACdirectionVector = cat(2,srcAC.directionVector);
+            m_srcACheight          = [srcAC.height];
+            
+            if nargout==2
+                
+                tic
+                varargout{1} = autoCorrelation(m_x,m_y,m_mask,...
+                    m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                    m_nLayer,m_altitude,m_fr0,...
+                    m_L0,m_cst_xy);
+                toc
+                
+                m_xAC = m_x(m_mask);
+                m_yAC = m_y(m_mask);
+                if isempty(xyOutput)
+                    m_xCC = m_xAC;
+                    m_yCC = m_yAC;
+                else
+                    m_xCC = xyOutput(:,1);
+                    m_yCC = xyOutput(:,2);
+                end
+                
+                tic                
+                varargout{2} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
+                    m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                    m_nLayer,m_altitude,m_fr0,...
+                    m_L0,m_cst_xyCC,m_windVx,m_windVy,m_tau);
+                toc
+                
+            else
+                
+                if isempty(m_srcCC)
+                    
+                    varargout{1} = autoCorrelation(m_x,m_y,m_mask,...
+                        m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                        m_nLayer,m_altitude,m_fr0,...
+                        m_L0,m_cst_xy);
+                    
+                else
+                    
+                    m_xAC = m_x(m_mask);
+                    m_yAC = m_y(m_mask);
+                    if isempty(xyOutput)
+                        m_xCC = m_xAC;
+                        m_yCC = m_yAC;
+                    else
+                        m_xCC = xyOutput(:,1);
+                        m_yCC = xyOutput(:,2);
+                    end
+                    varargout{1} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
+                        m_nGs,m_srcACdirectionVector,m_srcACheight,...
+                        m_nLayer,m_altitude,m_fr0,...
+                        m_L0,m_cst_xyCC,m_windVx,m_windVy,m_tau);
+                    
+                end
+                
+            end
+            
+            function C = crossCorrelation(srcCC,xAC,yAC,xCC,yCC,...
+                    nGs,srcACdirectionVector,srcACheight,...
+                    nLayer,altitude,fr0,...
+                    L0,cst_xy,windVx,windVy,tau)
+                    
+                fprintf(' -->> Cross-correlation meta-matrix!\n')
+                
+                nSs = length(srcCC);
+                srcCCdirectionVector = cat(2,srcCC.directionVector);
+                srcCCheight          = [srcCC.height];
+                C = cellfun( @(x) zeros(length(xCC),length(xAC)) , cell(nSs,nGs) , 'UniformOutput' , false );
+                f0 = 1/L0;
+                nmax = 10;
+
+                var_xy = cst_xy.*4*(pi*D).^-(4-nCC).*...
+                    tools.oneParameterExample3(2-nCC,1,2,11/6,pi.*D*f0,nmax)*ones(length(xCC),length(xAC));
+
+                for k=1:nSs*nGs
+                    
+                    [kSs,iGs] = ind2sub([nSs,nGs],k);
+                    buf = 0;
+                    
+                    for kLayer=1:nLayer
+                        
+                        
+                        beta = srcACdirectionVector(:,iGs)*altitude(kLayer);
+                        scale = 1 - altitude(kLayer)/srcACheight(iGs);
+                        iZ = complex( xAC*scale + beta(1) , yAC*scale + beta(2) );
+                        
+                        betaSs = srcCCdirectionVector(:,kSs)*altitude(kLayer);
+                        scale = 1 - altitude(kLayer)/srcCCheight(kSs);
+                        zSs = complex( ...
+                            xCC*scale + betaSs(1) + windVx(kLayer)*tau, ...
+                            yCC*scale + betaSs(2) + windVy(kLayer)*tau );
+                        
+                        rho   = bsxfun(@minus,zSs,iZ.');
+                        arg_rho = angle(rho);
+                        rho   = abs(rho);
+                        out   = var_xy;
+                        index = rho~=0;
+                        u          = 2.*pi.*rho(index)./L0;
+                        out(index) = cst_xy.*(u*L0).^-(4-nCC).*...
+                            ( tools.oneParameterExample2(4-nCC,0,2,11/6,u,nmax) - ...
+                            cos(2*(arg_rho(index)-slopesAxis)).*...
+                            tools.oneParameterExample2(4-nCC,2,2,11/6,u,nmax) );
+                        
+                        buf = buf + fr0(kLayer)*out;
+                        
+                    end
+                    
+                    C{k} = buf;
+                    
+                end
+                                
+                    buf = C;
+                    C = cell(nSs,1);
+                    for k=1:nSs
+                        C{k} = cell2mat(buf(k,:));
+                    end
+                
+            end
+            
+            function S = autoCorrelation(x,y,mask,...
+                    nGs,srcACdirectionVector,srcACheight,...
+                    nLayer,altitude,fr0,...
+                    L0,cst_xy)
+                    
+                    fprintf(' -->> Auto-correlation meta-matrix!\n')
+                    
+                    kGs = reshape( triu( reshape(1:nGs^2,nGs,nGs) , 1) , 1, []);
+                    kGs(1) = 1;
+                    kGs(kGs==0) = [];
+                    S = cellfun( @(x) zeros(sum(mask(:))) , cell(1,length(kGs)) , 'UniformOutput' , false );
+%                     cstL0AC = cstL0*ones(sampling);
+                    f0 = 1./m_L0;
+                    nmax = 20;
+                    
+                    var_xy = cst_xy.*4*(pi*D).^-4.*...
+                        tools.oneParameterExample3(2,1,2,11/6,pi.*D*f0,nmax)*ones(sampling);
+                    
+                    parfor k=1:length(kGs)
+                        
+                        [iGs,jGs] = ind2sub( [nGs,nGs] , kGs(k) );
+                        buf = 0;
+                        
+                        for kLayer=1:nLayer
+                            
+                            %                         atmSlab = slab(atm,kLayer);
+                            
+                            beta = srcACdirectionVector(:,iGs)*altitude(kLayer);
+                            scale = 1 - altitude(kLayer)/srcACheight(iGs);
+                            iZ = complex( x*scale + beta(1) , y*scale + beta(2) );
+                            
+                            beta = srcACdirectionVector(:,jGs)*altitude(kLayer);
+                            scale = 1 - altitude(kLayer)/srcACheight(jGs);
+                            jZ  = complex( x*scale + beta(1) , y*scale + beta(2) );
+                            
+                            z1 = iZ;
+                            z2 = jZ;
+                            [nz,mz] = size( z1 );
+                                                        
+                            % First Row
+                            %                         r  =  phaseStats.covariance( abs(z2-z1(1)) , atm );
+                            rho = z2-z1(1);
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
+                            r   = var_xy;
+                            index         = rho~=0;
+                            u             = 2.*pi.*rho(index)./L0;
+                            r(index) = cst_xy.*(u.*L0).^-4.*...
+                                ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                            
+                            r   = mat2cell( fr0(kLayer)*r  , nz , ones(mz,1));
+                            % First column in first blocks fow
+                            %                         c  =  phaseStats.covariance( abs( bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' ) ) , atm );
+                            rho = bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' );
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
+                            c   = var_xy;
+                            index         = rho~=0;
+                            u             = 2.*pi.*rho(index)./L0;
+                            c(index) = cst_xy.*(u.*L0).^-4.*...
+                                ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                            
+                            c   = mat2cell( fr0(kLayer)*c , nz , ones(mz,1) );
+                            % First block rows
+                            rr   = cellfun( @(x,y) myToeplitz(x,y) , c , r , 'UniformOutput' , false);
+                            
+                            % First Column
+                            %                         c  =  phaseStats.covariance( abs(z1-z2(1)) , atm );
+                            rho = z1-z2(1);
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
+                            c   = var_xy;
+                            index         = rho~=0;
+                            u             = 2.*pi.*rho(index)./L0;
+                            c(index) = cst_xy.*(u.*L0).^-4.*...
+                                ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                            
+                            c   = mat2cell( fr0(kLayer)*c  , nz , ones(mz,1));
+                            % First row in first blocks column
+                            %                         r  =  phaseStats.covariance( abs( bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' ) ) , atm );
+                            rho = bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' );
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
+                            r   = var_xy;
+                            index         = rho~=0;
+                            u             = 2.*pi.*rho(index)./L0;
+                            r(index) = cst_xy.*(u.*L0).^-4.*...
+                                ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                            
+                            r   = mat2cell( fr0(kLayer)*r , nz , ones(mz,1) );
+                            % First blocks column
+                            cc   = cellfun( @(x,y) myToeplitz(x,y) , c , r , 'UniformOutput' , false);
+                            
+                            out = cell2mat( myToeplitz(cc,rr) );
+                            out(~mask,:) = [];
+                            out(:,~mask) = [];
+                            
+                            buf = buf + out;
+                            
+                        end
+                        
+                        S{k} = buf;
+                        
+                    end
+                    
+                    buf = S;
+                    S = cellfun( @(x) zeros(sum(mask(:))) , cell(nGs) , 'UniformOutput' , false );
+                    S(kGs) = buf;
+                    S(1:nGs+1:nGs^2) = S(1,1);
+                    S = cell2mat(S);
+                    S = triu(S,1)+triu(S)';
+
+            end
+            
+            
+        end
+
         
     end
     
