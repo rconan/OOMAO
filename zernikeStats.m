@@ -1906,7 +1906,7 @@ classdef zernikeStats
                         mj = zM(zj);
                         if (mi==mj) && (rem(abs(zi-zj),2)==0 || ((mi==0) && (mj==0)))
                             fnm = sqrt((ni+1)*(nj+1)).*(-1).^((ni+nj-mi-mj)/2);
-                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
+Na                            aiaj(zi,zj) = c2.*fnm.*aiajFun(ni,nj,red1);
                         end
                     end
                 end

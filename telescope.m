@@ -142,7 +142,7 @@ classdef telescope < telescopeAbstract
         function pupil = get.pupil(obj)
             pupil = obj.p_pupil;
             if isempty(pupil) && ~isempty(obj.resolution)
-                pupil = utilities.piston(obj.resolution);
+                pupil = utilities.piston(obj.resolution,'shape',obj.shape);
                 if obj.obstructionRatio>0
                     pupil = pupil - ...
                         utilities.piston(...

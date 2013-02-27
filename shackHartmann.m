@@ -57,6 +57,12 @@ classdef shackHartmann < hgsetget
         meanSlopes;
         % handle to the function processing the lenslet intensity
         intensityFunction = @sum;
+        % pointing direction [zenith,azimuth]
+        pointingDirection = [0;0];
+    end
+    
+    properties (SetAccess=private)
+        directionVector = zeros(3,1);
     end
     
     properties (SetObservable=true)
@@ -151,6 +157,7 @@ classdef shackHartmann < hgsetget
             obj.log = logBook.checkIn(obj);
             end
             setSlopesListener(obj)
+            setDirectionVector(obj)
         end
         
         %% Destructor
@@ -202,6 +209,13 @@ classdef shackHartmann < hgsetget
             display(obj.lenslets)
             display(obj.camera)
             
+        end
+        
+        function setDirectionVector(obj)
+            obj.directionVector = [...
+                tan(obj.pointingDirection(1,:)).*cos(obj.pointingDirection(2,:));...
+                tan(obj.pointingDirection(1,:)).*sin(obj.pointingDirection(2,:));...
+                ones(1,size(obj.pointingDirection,2))];
         end
         
         function obj = saveobj(obj)
@@ -543,6 +557,37 @@ classdef shackHartmann < hgsetget
             % Shack-Hartmann lenslet array, grab a frame from the detector
             % adding noise if any and process the frame to get the
             % wavefront slopes
+            
+            nSrc = length(src);
+            m_directionVector = obj.directionVector;
+            if size(m_directionVector,2)<nSrc
+                m_directionVector = repmat( m_directionVector(:) , 1 , nSrc );
+            end
+            for kSrc = 1:nSrc
+                delta = m_directionVector(:,kSrc) - src(kSrc).directionVector;
+                if any(delta)
+                    warning('oomao:shackHartmann:relay',...
+                        'WFS not align on source, this induces an additional tip-tilt error!')
+                    D = src(kSrc).opticalPath{1}.D;
+                    
+                    nOutWavePx    = obj.lenslets.nLensletWavePx*obj.lenslets.fftPad;    % Pixel length of the output wave
+                    evenOdd       = rem(obj.lenslets.nLensletWavePx,2);
+                    if ~rem(nOutWavePx,2) && evenOdd
+                        nOutWavePx = nOutWavePx + evenOdd;
+                    end
+                    nOutWavePx = max(nOutWavePx,obj.lenslets.nLensletWavePx);
+                    %                 fprintf(' - new nOutWavePx = %d\n',nOutWavePx);
+                    
+                    alpha_p = (src(kSrc).wavelength/D)*obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet/nOutWavePx;
+                    delta = delta/alpha_p;
+                    
+                    [u,v]         = ndgrid((0:(obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet-1)));
+                    
+                    u = u*delta(2)/nOutWavePx;
+                    v = v*delta(1)/nOutWavePx;
+                    src(kSrc).phase = 2*pi*(u+v);
+                end
+            end
             
 %             if isempty(src(1).magnitude)
 %                 obj.camera.photonNoise = false;
