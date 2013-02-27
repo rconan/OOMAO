@@ -1867,7 +1867,7 @@ classdef zernikeStats
             
             persistent aiaj zMode zN zM R L0 L0r0Ratio L0RRatio c1 c2 cst ...
                 red1 atmVar
-            if isempty(aiaj)
+            if isempty(aiaj) || zMode(end)~=N
                 fprintf(' @(zernikeStats.residueStructureFunction)> Initializing aiaj ...')
                 
                 R         = tel.R;
@@ -1895,8 +1895,8 @@ classdef zernikeStats
                 r2    = r2/R;
                 zMode = 1:N;
                 zern = zernike(zMode,'logging',false);
-                zN    = zern.n;%radialOrder(zMode)
-                zM    = zern.m;%azimuthFrequency(zMode,zN)
+                zN    = zern.n;
+                zM    = zern.m;
                 aiaj = zeros(N);
                 for zi = zMode
                     ni = zN(zi);

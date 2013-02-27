@@ -35,7 +35,7 @@ classdef linearMMSE < handle
         Cox
         CoxLag % temporal lag
         nGuideStar
-        nmmseStar
+        nMmseStar
         % error unit
         unit;
         % Bayesian minimum mean square error        
@@ -139,7 +139,7 @@ classdef linearMMSE < handle
             obj.guideStar  = inputs.Results.guideStar;
             obj.nGuideStar = length(obj.guideStar);
             obj.p_mmseStar = inputs.Results.mmseStar;    
-            obj.nmmseStar  = length(obj.p_mmseStar);
+            obj.nMmseStar  = length(obj.p_mmseStar);
             obj.pupil      = inputs.Results.pupil;   
             obj.unit       = inputs.Results.unit;   
             obj.model      = inputs.Results.model;
@@ -555,8 +555,8 @@ size(thisOtf)
 %             add(obj.log,obj,'Pupil error variance map computation in progress...')
             out = cellfun( @diag , obj.Bmse' , 'uniformOutput', false );
             out = cell2mat(out);
-            map = zeros(obj.sampling,obj.sampling*obj.nmmseStar);
-            mask = repmat( obj.pupil, 1 , obj.nmmseStar);
+            map = zeros(obj.sampling,obj.sampling*obj.nMmseStar);
+            mask = repmat( obj.pupil, 1 , obj.nMmseStar);
             map(mask) = out;
         end
        
@@ -607,6 +607,25 @@ size(thisOtf)
             set(gca,'clim',[min(m_rmsMap(idx)),max(m_rmsMap(idx))])
             ylabel(colorbar,sprintf('WFE [10^-%dm]',obj.unit))
             title(sprintf('(WFE: %4.2f) ',obj.rms))
+        end
+        
+        function out = mtimes(obj,data)
+            % * Matrix multilplication
+            %
+            % out = obj*data multilplies the data by the linear MMSE
+            % estimator matrix; data is a NxMxnStar map whith N and M equal
+            % to obj.sampling and nStar equal to obj.nGuideStar; the output
+            % is a NxMxobj.nMmseStar array
+            
+            [n,m,k] = size(data);
+            data = reshape( data, n*m , k);
+            data = data(obj.pupil,:);
+            data = data(:);
+            out = zeros(n*m,obj.nMmseStar);
+            for kMmseStar=1:obj.nMmseStar
+                out(obj.pupil,kMmseStar) = obj.mmseBuilder{kMmseStar}*data;
+            end
+            out = reshape( out, n , m , obj.nMmseStar );
         end
     end
        
@@ -662,22 +681,18 @@ size(thisOtf)
             %% SOLVEMMSE
             
             fprintf(' -->> mmse solver!\n')
-            m_mmseBuilder = cell(obj.nmmseStar,1);
+            m_mmseBuilder = cell(obj.nMmseStar,1);
             m_Cox = obj.Cox;
             m_Cxx = obj.Cxx;
 %             Is = 1e6*speye(size(obj.P,1));
             m_noiseCovariance = obj.p_noiseCovariance;
-            for k=1:obj.nmmseStar
+            for k=1:obj.nMmseStar
                 m_mmseBuilder{k} = m_Cox{k}/(m_Cxx+m_noiseCovariance);
             end
             obj.mmseBuilder = m_mmseBuilder;
             obj.Bmse = [];
             obj.p_otf = [];
         end
-        
-    end
-    
-    methods (Access=private)
         
         function spaceJump(obj)
             fprintf(' -->> Space jump!\n')
