@@ -61,6 +61,10 @@ classdef linearMMSE < handle
         prediction = false;
         % additive error covariance
         G = 0;
+        % resolution of the phase map; this property is used inside the
+        % mtimes method; the phase map is computed first on a grid of size
+        % sampling and then interpolated on a grid of size resolution
+        resolution;
     end
     
     properties (SetObservable=true)
@@ -148,6 +152,7 @@ classdef linearMMSE < handle
             obj.p_lag        = inputs.Results.lag;
             obj.xyOutput     = inputs.Results.xyOutput;
             obj.G            = inputs.Results.G;
+            obj.resolution   = obj.sampling;
             
             obj.guideStarListener = addlistener(obj,'guideStar','PostSet',@obj.resetGuideStar);
             fprintf(' @(linearMMSE)> atmosphere wavelength set to mmse star wavelength!\n') 
@@ -609,7 +614,7 @@ size(thisOtf)
             title(sprintf('(WFE: %4.2f) ',obj.rms))
         end
         
-        function out = mtimes(obj,data)
+        function phase = mtimes(obj,data)
             % * Matrix multilplication
             %
             % out = obj*data multilplies the data by the linear MMSE
@@ -617,15 +622,46 @@ size(thisOtf)
             % to obj.sampling and nStar equal to obj.nGuideStar; the output
             % is a NxMxobj.nMmseStar array
             
-            [n,m,k] = size(data);
-            data = reshape( data, n*m , k);
+            [n,m,nData] = size(data);
+            % Check if data is sampled according to the reconstructor
+            % sampling
+            if n~=obj.sampling
+                % Interpolate data on the reconstructor grid
+                obj.resolution = n;
+                phase = data;
+                data = zeros(obj.sampling,obj.sampling,nData);
+                phase(phase==0) = NaN;
+                [x,y] = meshgrid( linspace(-1,1,n)*obj.diameter/2 );
+                xyi = linspace(-1,1,obj.sampling)*obj.diameter/2;
+                for kData = 1:nData
+                    data(:,:,kData) = interp2(x,y,phase(:,:,kData),xyi,xyi');
+                end
+                data(isnan(data)) = 0;
+            end
+            
+            data = reshape( data, obj.sampling^2 , nData);
             data = data(obj.pupil,:);
             data = data(:);
-            out = zeros(n*m,obj.nMmseStar);
-            for kMmseStar=1:obj.nMmseStar
-                out(obj.pupil,kMmseStar) = obj.mmseBuilder{kMmseStar}*data;
+            phase = zeros(obj.sampling);
+            
+            if obj.resolution==obj.sampling
+                out   = zeros(n,m,obj.nMmseStar);
+                for kMmseStar=1:obj.nMmseStar
+                    phase(obj.pupil) = obj.mmseBuilder{kMmseStar}*data;
+                    out(:,:,kMmseStar) = phase;
+                end
+            else
+                out   = zeros(obj.resolution,obj.resolution,obj.nMmseStar);
+                [x,y] = meshgrid( linspace(-1,1,obj.sampling)*obj.diameter/2 );
+                xyi = linspace(-1,1,obj.resolution)*obj.diameter/2;
+                for kMmseStar=1:obj.nMmseStar
+                    phase(obj.pupil) = obj.mmseBuilder{kMmseStar}*data;
+                    phase(~obj.pupil) = NaN;
+                    phase = interp2(x,y,phase,xyi,xyi');
+                    phase(isnan(phase)) = 0;
+                    out(:,:,kMmseStar) = phase;
+                end
             end
-            out = reshape( out, n , m , obj.nMmseStar );
         end
     end
        

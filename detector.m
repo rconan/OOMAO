@@ -218,7 +218,7 @@ classdef detector < handle
                     if obj.frameListener.Enabled
                         set(hus,'Label','Frame Listener On')
                     end
-            end
+                end
             
             end
             function oomaoMenu(src,~)
