@@ -160,6 +160,22 @@ classdef lensletArray < handle
 %             % set the wave reshaping index (2D to 3D)
 %             logBook.add(obj,'Set the wave reshaping index (2D to 3D)')
         end  
+        
+        function out = pixelScale(obj,src,tel)
+            %% PIXELSCALE Sky pixel scale
+            %
+            % out = pixelScale(obj,src,tel) returns the pixel scale
+            % projected in the sky for the specified source and telescope
+            % object
+            
+            nOutWavePx    = obj.nLensletWavePx*obj.fftPad;    % Pixel length of the output wave
+            evenOdd       = rem(obj.nLensletWavePx,2);
+            if ~rem(nOutWavePx,2) && evenOdd
+                nOutWavePx = nOutWavePx + evenOdd;
+            end
+            nOutWavePx = max(nOutWavePx,obj.nLensletWavePx);
+            out = skyAngle( (src.wavelength/tel.D)*obj.nLensletWavePx*obj.nLenslet/nOutWavePx );
+        end
 
         function propagateThrough(obj,src_in)
             %% PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane

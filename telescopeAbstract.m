@@ -25,6 +25,8 @@ classdef telescopeAbstract < handle
 %         conjugationHeight;
 %         % focalisation distance
 %         focalDistance;
+        % coordiantes of telescope center
+        origin;
         % elevation
         elevation;
         % field-of-view
@@ -64,6 +66,7 @@ classdef telescopeAbstract < handle
     properties (Dependent)
         % optical aberrations seen by the telescope
         opticalAberration;
+        shape;
     end
     
     properties (Access=protected)
@@ -87,6 +90,7 @@ classdef telescopeAbstract < handle
         ppp;
         layerStep;
         phaseScreenWavelength;
+        p_shape = 'disc';
     end
     
     methods
@@ -98,6 +102,7 @@ classdef telescopeAbstract < handle
             p.addParamValue('obstructionRatio', 0, @isnumeric);
 %             p.addParamValue('conjugationHeight', 0, @isnumeric);
 %             p.addParamValue('focalDistance', Inf, @isnumeric);
+            p.addParamValue('origin', [0,0], @isnumeric);
             p.addParamValue('elevation', 0, @isnumeric);
             p.addParamValue('fieldOfViewInArcsec', [], @isnumeric);
             p.addParamValue('fieldOfViewInArcmin', [], @isnumeric);
@@ -109,6 +114,7 @@ classdef telescopeAbstract < handle
 %             obj.conjugationHeight = p.Results.conjugationHeight;
 %             obj.focalDistance = p.Results.focalDistance;
             obj.obstructionRatio = p.Results.obstructionRatio;
+            obj.origin = p.Results.origin;
             obj.elevation = p.Results.elevation;
             if ~isempty(p.Results.fieldOfViewInArcsec)
                 obj.fieldOfView      = p.Results.fieldOfViewInArcsec./cougarConstants.radian2arcsec;
@@ -146,7 +152,16 @@ classdef telescopeAbstract < handle
         function out = diameterAt(obj,height)
             out = obj.D + 2.*height.*tan(obj.fieldOfView/2);
         end
-                
+        
+        %% Get/Set telescope shape
+        function out = get.shape(obj)
+            out = obj.p_shape;
+        end
+          function set.shape(obj,val)
+            obj.p_shape = val;
+            obj.p_pupil = [];
+        end
+              
         function out = zernike(obj,modes,varargin)
             %% ZERNIKE
             
@@ -429,7 +444,7 @@ classdef telescopeAbstract < handle
                 end
                 out = 0;
                 if ~isempty(obj.atm) % Set phase if an atmosphere is defined
-                    if obj.fieldOfView==0 && isNgs(src)
+                    if obj.fieldOfView==0 && isNgs(src) && obj.atm.layer(1).nPixel==obj.resolution
                         out = out + sum(cat(3,obj.atm.layer.phase),3);
                     else
                         atm_m           = obj.atm;
@@ -439,24 +454,27 @@ classdef telescopeAbstract < handle
                         sampler_m       = obj.sampler;
                         phase_m         = { layers.phase };
                         R_              = obj.R;
-                        layerSampling_m = obj.layerSampling;
+                        layerSampling_m = { layers.sampling };
+                        layersNPixel    = [ layers.nPixel ] ;
                         srcDirectionVector1 = src.directionVector(1);
                         srcDirectionVector2 = src.directionVector(2);
                         srcHeight = src.height;
+                        m_origin = obj.origin;
                         out = zeros(size(src.amplitude,1),size(src.amplitude,2),nLayer);
+                        nOut = size(out,1);
                         parfor kLayer = 1:nLayer
 %                             disp(kLayer)
                             height = altitude_m(kLayer);
 %                             sampling = { layerSampling_m{kLayer} , layerSampling_m{kLayer} };
                             [xs,ys] = meshgrid(layerSampling_m{kLayer});
-                            if height==0
+                            if height==0 && layersNPixel(kLayer)==nOut
                                 out(:,:,kLayer) = phase_m{kLayer};
                             else
                                 layerR = R_*(1-height./srcHeight);
                                 u = sampler_m*layerR;
                                 xc = height.*srcDirectionVector1;
                                 yc = height.*srcDirectionVector2;
-                                [xi,yi] = meshgrid(u+xc,u+yc);
+                                [xi,yi] = meshgrid(u+xc+m_origin(1),u+yc+m_origin(2));
 %                                 disp( [ xc yc ]+layerR )
 %                                 out(:,:,kLayer) = spline2(sampling,phase_m{kLayer},{u+yc,u+xc});
 % size(linear(xs,ys,phase_m{kLayer},xi,yi))
@@ -778,6 +796,16 @@ classdef telescopeAbstract < handle
             end
         end
         
+        function varargout = contour(obj,varargin)
+            o = linspace(0,2*pi,obj.resolution);
+            m_x = obj.R*cos(o) + obj.origin(1);
+            m_y = obj.R*sin(o) + obj.origin(2);
+            h = line(m_x,m_y,varargin{:});
+            if nargout>0
+                varargout{1} = h;
+            end
+        end
+        
     end
     
     methods (Abstract)
@@ -809,7 +837,7 @@ classdef telescopeAbstract < handle
                     obj.atm.layer(kLayer).D = D_m;
                     %                     nPixel = round(1 + (obj.resolution-1)*D./Do);
                     obj.atm.layer(kLayer).nPixel = nPixel;
-                    obj.layerSampling{kLayer}  = D_m*0.5*linspace(-1,1,nPixel);
+                    obj.atm.layer(kLayer).sampling  = D_m*0.5*linspace(-1,1,nPixel);
                     % ---------
                     fprintf('   Layer %d:\n',kLayer)
                     fprintf('            -> Computing initial phase screen (D=%3.2fm,n=%dpx) ...',D_m,nPixel)

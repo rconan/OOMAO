@@ -484,7 +484,7 @@ classdef utilities
             % -6, -9 for example correspond to km, m, mm, micron, nm,
             % respectively
             
-            out = 16*sqrt(3)*a4*(focalLength/diameter)^2/...
+            out = 16*sqrt(3)*a4*(focalLength/diameter)^2./...
                 ( 2*pi/wavelength - 16*sqrt(3)*a4*focalLength/diameter^2 );
             
             if nargin>4
@@ -1129,7 +1129,7 @@ classdef utilities
             
             out = sum( a1 + a2 , 2);
             out = out./(sqrt(pi)*gamma(p));
-            out = reshape( out, size_a);
+            out = reshape( out, size_a);            
             
         end
         

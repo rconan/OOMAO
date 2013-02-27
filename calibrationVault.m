@@ -24,7 +24,7 @@ classdef calibrationVault < handle
         % DM influence function
         modes;
         % updateShow
-        updateShow = false;
+        updateShow = true;
     end
     
     properties (Dependent)
@@ -32,6 +32,8 @@ classdef calibrationVault < handle
         threshold;
         % the number of tresholded eigen values
         nThresholded;
+        % condition number
+        cond
     end
     
     properties (Access=private)
@@ -65,6 +67,8 @@ classdef calibrationVault < handle
             obj.p_nThresholded = 0;
             obj.p_threshold = obj.eigenValues(end);
             
+            add(obj.log,obj,sprintf('Condition number %g',obj.cond))
+            
             show(obj)
             
         end
@@ -95,6 +99,17 @@ classdef calibrationVault < handle
             val = obj.p_nThresholded;
         end
         
+        %% Set/Get cond
+        function set.cond(obj,val)
+            condVec = obj.eigenValues(1)./obj.eigenValues;
+            index = condVec > val;
+            obj.p_nThresholded = sum(index);
+            obj.p_threshold = obj.eigenValues(end-obj.p_nThresholded);
+            updateCommandMatrix(obj)
+        end
+        function val = get.cond(obj)
+            val = obj.eigenValues(1)/obj.eigenValues(end-obj.p_nThresholded);
+        end
           
         function show(obj)
             

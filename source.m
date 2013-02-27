@@ -98,6 +98,7 @@ classdef source < stochasticWave & hgsetget
         p_magnitude;
         p_viewPoint;
         p_objectiveFocalLength;
+        uplinkHandle;
     end
         
     methods
@@ -274,6 +275,9 @@ classdef source < stochasticWave & hgsetget
         end
         function out = get.wavelength(obj)
             out = obj.photometry.wavelength;
+        end
+        function out = get.photometry(obj)
+            out = obj.photometry;
         end
         function set.wavelength(obj,val)
             if ~isa(val,'photometry')
@@ -542,6 +546,88 @@ classdef source < stochasticWave & hgsetget
             else
                 out = obj.wavefront;
             end
+        end
+        
+        function uplink(obj)
+            %% UPLINK Source uplink jitter
+            %
+            % uplink(src) propagates the source uplink through the
+            % atmosphere and derives its new coordiantes (zenith and
+            % azimuth); the propagation is done for a top-hat collimated
+            % beam
+            
+            launch = obj.opticalPath{1}; % launch telescope    
+            if ~isa(launch,'telescope')
+                error('oomao:source:uplink',...
+                    'The first object in the optical path must be a telescope, e.g. src = src.*tel!')
+            end
+            atm = launch.opticalAberration;
+            if ~isa(atm,'atmosphere')
+                error('oomao:source:uplink',...
+                    'An atmosphere object must be hooked to the telescope object, e.g. tel = tel + atm!')
+            end
+            launch = launch - atm;
+            zern = zernike(launch,2:3);
+            heights = [ atm.layer.altitude ];
+            heights(end+1) = obj.height;
+            ngs = source(...
+                'zenith',obj.zenith,...
+                'azimuth',obj.azimuth,...
+                'wavelength',obj.photometry);
+            delta   = zeros(2,atm.nLayer+1);
+            directionVector0 = obj.directionVector(1:2);
+            layerAngle = directionVector0;
+            delta(:,1) = layerAngle*heights(1);
+            
+            for kLayer = 1:atm.nLayer
+                
+                layer = slab(atm,kLayer);
+
+                launch = launch + layer;
+                ngs = ngs.*launch;
+                
+                zern = zern.\ngs;
+
+                layerAngle = layerAngle + (4*zern.c/launch.D);
+                delta(:,kLayer+1) = delta(:,kLayer) + layerAngle*...
+                    (heights(kLayer+1)-heights(kLayer));
+                [obj.azimuth,obj.zenith] = ...
+                    cart2pol(delta(1,kLayer+1)/heights(kLayer+1),delta(2,kLayer+1)/heights(kLayer+1));
+%                 beamOrigin(:,kLayer+1) = layerAngle*...
+%                     (heights(kLayer+1)-heights(kLayer));
+                
+                launch = launch - layer;
+%                 launch.origin = beamOrigin(:,kLayer+1);
+                
+            end
+%             lgsJitter = ((beamOrigin(:,end))/heights(end))
+%             [obj.azimuth,obj.zenith] = cart2pol(lgsJitter(1),lgsJitter(2));
+            
+            launch = launch + atm;
+
+            delta0 = 1e2*(delta - directionVector0*heights);
+            if isempty(obj.uplinkHandle) || ~ishandle(obj.uplinkHandle)
+                deltaRef = 4*heights(end)*zernikeStats.rms(zern,atm,0)./zern.D;
+                angleRef = round(deltaRef(1)/heights(end)*constants.radian2mas);
+                deltaRef = ceil(1e2*sqrt(3)*deltaRef(1));
+                figure
+                obj.uplinkHandle = plot(delta0(1,:),delta0(2,:),'o--');
+                o = linspace(0,2*pi,101);
+                x = 1e2*cos(o)*angleRef*heights(end)/constants.radian2mas;
+                y = 1e2*sin(o)*angleRef*heights(end)/constants.radian2mas;
+                line(x,y,'color','r','linestyle',':')
+                text(x(1),y(1),num2str(angleRef,'%dmas'))
+                grid
+                set(gca,'xlim',[-1,1]*deltaRef,'ylim',[-1,1]*deltaRef)
+                axis square
+                xlabel('[cm]')
+                ylabel('[cm]')
+            else
+                set(obj.uplinkHandle,...
+                    'xData',delta0(1,:),...
+                    'yData',delta0(2,:))
+            end
+            
         end
         
         function copy = clone(obj)

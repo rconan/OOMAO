@@ -1471,6 +1471,7 @@ classdef phaseStats
             inputs.addRequired('srcAC',@(x) isa(x,'source'));
             inputs.addOptional('srcCC',[],@(x) isa(x,'source'));
             inputs.addParamValue('slopesAxis',0,@isnumeric);
+            inputs.addParamValue('phaseSlopesCC',false,@islogical);
             inputs.addParamValue('mask',true(sampling),@islogical);
             inputs.addParamValue('lag',0,@isnumeric);
             inputs.addParamValue('xyOutput',[],@isnumeric);
@@ -1480,8 +1481,13 @@ classdef phaseStats
             m_mask  = inputs.Results.mask;
             m_tau   = inputs.Results.lag;
             xyOutput= inputs.Results.xyOutput;
+            
+            nCC = 0;
+            if inputs.Results.phaseSlopesCC
+                nCC = 1;
+            end
                 
-            [m_x,m_y] = meshgrid( linspace(-1,1,sampling)*range/2 );
+            [m_x,m_y] = meshgrid( ((0:sampling-1)-(sampling-1)*0.5)*D );
             m_nGs   = length(srcAC);
             L0r0ratio= (atm.L0./atm.r0).^(5./3);
             m_cst      = (24.*gamma(6./5)./5).^(5./6).*...
@@ -1495,8 +1501,9 @@ classdef phaseStats
             m_L0      = atm.L0;
             m_lambda  = atm.wavelength;
             m_cst_xy = 0.0719*m_lambda.^2.*atm.r0.^(-5/3).*m_L0^(11/3);
+            m_cst_xyCC = 0.0719*m_lambda.^(2-nCC).*atm.r0.^(-5/3).*m_L0^(11/3);
             
-            arg_rho = inputs.Results.slopesAxis;
+            slopesAxis = inputs.Results.slopesAxis;
 
             m_nLayer   = atm.nLayer;
             layers   = atm.layer;
@@ -1529,7 +1536,7 @@ classdef phaseStats
                 varargout{2} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
                     m_nGs,m_srcACdirectionVector,m_srcACheight,...
                     m_nLayer,m_altitude,m_fr0,...
-                    m_L0,m_cst_xy,m_windVx,m_windVy,m_tau);
+                    m_L0,m_cst_xyCC,m_windVx,m_windVy,m_tau);
                 toc
                 
             else
@@ -1555,7 +1562,7 @@ classdef phaseStats
                     varargout{1} = crossCorrelation(m_srcCC,m_xAC,m_yAC,m_xCC,m_yCC,...
                         m_nGs,m_srcACdirectionVector,m_srcACheight,...
                         m_nLayer,m_altitude,m_fr0,...
-                        m_L0,m_cst_xy,m_windVx,m_windVy,m_tau);
+                        m_L0,m_cst_xyCC,m_windVx,m_windVy,m_tau);
                     
                 end
                 
@@ -1575,10 +1582,10 @@ classdef phaseStats
                 f0 = 1/L0;
                 nmax = 10;
 
-                var_xy = cst_xy.*4*(pi*D).^-3.*...
-                    tools.oneParameterExample3(1,1,2,11/6,pi.*D*f0,nmax)*ones(length(xCC),length(xAC));
+                var_xy = cst_xy.*4*(pi*D).^-(4-nCC).*...
+                    tools.oneParameterExample3(2-nCC,1,2,11/6,pi.*D*f0,nmax)*ones(length(xCC),length(xAC));
 
-                parfor k=1:nSs*nGs
+                for k=1:nSs*nGs
                     
                     [kSs,iGs] = ind2sub([nSs,nGs],k);
                     buf = 0;
@@ -1596,13 +1603,16 @@ classdef phaseStats
                             xCC*scale + betaSs(1) + windVx(kLayer)*tau, ...
                             yCC*scale + betaSs(2) + windVy(kLayer)*tau );
                         
-                        rho   = abs(bsxfun(@minus,zSs,iZ.'));
+                        rho   = bsxfun(@minus,zSs,iZ.');
+                        arg_rho = angle(rho);
+                        rho   = abs(rho);
                         out   = var_xy;
                         index = rho~=0;
                         u          = 2.*pi.*rho(index)./L0;
-                        out(index) = cst_xy.*(u*L0).^-3.*...
-                            ( tools.oneParameterExample2(3,0,2,11/6,u,nmax) - ...
-                            cos(2*arg_rho).*tools.oneParameterExample2(3,2,2,11/6,u,nmax) );
+                        out(index) = cst_xy.*(u*L0).^-(4-nCC).*...
+                            ( tools.oneParameterExample2(4-nCC,0,2,11/6,u,nmax) - ...
+                            cos(2*(arg_rho(index)-slopesAxis)).*...
+                            tools.oneParameterExample2(4-nCC,2,2,11/6,u,nmax) );
                         
                         buf = buf + fr0(kLayer)*out;
                         
@@ -1611,7 +1621,7 @@ classdef phaseStats
                     C{k} = buf;
                     
                 end
-                
+                                
                     buf = C;
                     C = cell(nSs,1);
                     for k=1:nSs
@@ -1633,7 +1643,8 @@ classdef phaseStats
                     S = cellfun( @(x) zeros(sum(mask(:))) , cell(1,length(kGs)) , 'UniformOutput' , false );
 %                     cstL0AC = cstL0*ones(sampling);
                     f0 = 1./m_L0;
-                    nmax = 10;
+                    nmax = 20;
+                    
                     var_xy = cst_xy.*4*(pi*D).^-4.*...
                         tools.oneParameterExample3(2,1,2,11/6,pi.*D*f0,nmax)*ones(sampling);
                     
@@ -1660,24 +1671,28 @@ classdef phaseStats
                                                         
                             % First Row
                             %                         r  =  phaseStats.covariance( abs(z2-z1(1)) , atm );
-                            rho = abs(z2-z1(1));
+                            rho = z2-z1(1);
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
                             r   = var_xy;
                             index         = rho~=0;
                             u             = 2.*pi.*rho(index)./L0;
                             r(index) = cst_xy.*(u.*L0).^-4.*...
                                 ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
-                                - cos(2*arg_rho).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
                             
                             r   = mat2cell( fr0(kLayer)*r  , nz , ones(mz,1));
                             % First column in first blocks fow
                             %                         c  =  phaseStats.covariance( abs( bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' ) ) , atm );
-                            rho = abs( bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' ) );
+                            rho = bsxfun( @minus , z2(1:nz:nz^2), z1(1:nz).' );
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
                             c   = var_xy;
                             index         = rho~=0;
                             u             = 2.*pi.*rho(index)./L0;
                             c(index) = cst_xy.*(u.*L0).^-4.*...
                                 ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
-                                - cos(2*arg_rho).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
                             
                             c   = mat2cell( fr0(kLayer)*c , nz , ones(mz,1) );
                             % First block rows
@@ -1685,24 +1700,28 @@ classdef phaseStats
                             
                             % First Column
                             %                         c  =  phaseStats.covariance( abs(z1-z2(1)) , atm );
-                            rho = abs(z1-z2(1));
+                            rho = z1-z2(1);
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
                             c   = var_xy;
                             index         = rho~=0;
                             u             = 2.*pi.*rho(index)./L0;
                             c(index) = cst_xy.*(u.*L0).^-4.*...
                                 ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
-                                - cos(2*arg_rho).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
                             
                             c   = mat2cell( fr0(kLayer)*c  , nz , ones(mz,1));
                             % First row in first blocks column
                             %                         r  =  phaseStats.covariance( abs( bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' ) ) , atm );
-                            rho = abs( bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' ) );
+                            rho = bsxfun( @minus , z1(1:nz:nz^2), z2(1:nz).' );
+                            arg_rho = angle(rho);
+                            rho   = abs(rho);
                             r   = var_xy;
                             index         = rho~=0;
                             u             = 2.*pi.*rho(index)./L0;
                             r(index) = cst_xy.*(u.*L0).^-4.*...
                                 ( tools.oneParameterExample2(4,0,2,11/6,u,nmax) ...
-                                - cos(2*arg_rho).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
+                                - cos(2*(arg_rho(index)-slopesAxis)).*tools.oneParameterExample2(4,2,2,11/6,u,nmax) );
                             
                             r   = mat2cell( fr0(kLayer)*r , nz , ones(mz,1) );
                             % First blocks column
