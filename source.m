@@ -548,13 +548,31 @@ classdef source < stochasticWave & hgsetget
             end
         end
         
-        function uplink(obj)
+        function uplink(obj,ngs)
             %% UPLINK Source uplink jitter
             %
             % uplink(src) propagates the source uplink through the
             % atmosphere and derives its new coordiantes (zenith and
             % azimuth); the propagation is done for a top-hat collimated
-            % beam
+            % beam and the propagation direction is given by the current
+            % coordinates of the src
+            %
+            % uplink(src,pointingSrc) same as above but the propagation
+            % direction is now given by the pointingSrc
+            %
+            % Example: 
+            % atm = atmosphere(photometry.V,15e-2,30,'altitude',10e3);
+            % tel = telescope(10,'resolution',512,'fieldOfViewInArcmin',3);
+            % tel = tel + atm;
+            % lgs = source('height',90e3,'wavelength',photometry.Na);
+            % launch = telescope(30e-2,'resolution',round(512*30e-2/10));
+            % launch = launch + atm;
+            % uplink(lgs.*launch)
+            % lgs
+            % pointing = source;
+            % uplink(lgs.*launch,pointing)
+            % lgs
+            
             
             launch = obj.opticalPath{1}; % launch telescope    
             if ~isa(launch,'telescope')
@@ -570,12 +588,16 @@ classdef source < stochasticWave & hgsetget
             zern = zernike(launch,2:3);
             heights = [ atm.layer.altitude ];
             heights(end+1) = obj.height;
-            ngs = source(...
-                'zenith',obj.zenith,...
-                'azimuth',obj.azimuth,...
-                'wavelength',obj.photometry);
+            if nargin<2
+                ngs = source(...
+                    'zenith',obj.zenith,...
+                    'azimuth',obj.azimuth,...
+                    'wavelength',obj.photometry);
+            else
+                ngs.wavelength = obj.photometry;
+            end
             delta   = zeros(2,atm.nLayer+1);
-            directionVector0 = obj.directionVector(1:2);
+            directionVector0 = ngs.directionVector(1:2);
             layerAngle = directionVector0;
             delta(:,1) = layerAngle*heights(1);
             
