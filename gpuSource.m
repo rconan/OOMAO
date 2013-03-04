@@ -174,8 +174,8 @@ classdef gpuSource < source
                         yLensletCoordinates = gsingle(yLensletCoordinates);
                         %%
                         lensletIntensity = gzeros(nLensletImagePx^2,nValidLenslets,'single');
-                        nGpu = max(ceil(1.5*wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135),2);
-                        validLensletMaxStep = floor(nValidLenslets/nGpu);
+                        nGpu = ceil(wfs.nValidLenslet*nOutWavePx^2*nArray*1e-6/135);
+                        validLensletMaxStep = max(floor(nValidLenslets/nGpu),1);
                         validLensletRange   = 1:validLensletMaxStep;
                         time = tel.time;
                         

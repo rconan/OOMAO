@@ -171,6 +171,11 @@ classdef detector < handle
                     titleColor = 'r';
                 else
                     m_frame = obj.frame;
+                    [n,m] = size(m_frame);
+                    if m>2*n
+                        m_frame = cell2mat(reshape( mat2cell( ...
+                            m_frame,n,n*ones(1,m/n) ) , 2, []));
+                    end
                     titleColor = 'k';
                 end
                 
@@ -213,7 +218,7 @@ classdef detector < handle
                     if obj.frameListener.Enabled
                         set(hus,'Label','Frame Listener On')
                     end
-            end
+                end
             
             end
             function oomaoMenu(src,~)

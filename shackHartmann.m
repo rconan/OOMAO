@@ -1124,6 +1124,7 @@ classdef shackHartmann < hgsetget
             inputs.addParamValue('naParam',[],@isnumeric); 
             inputs.addParamValue('verbose',true,@islogical); 
             inputs.addParamValue('NS',[],@isnumeric); 
+            inputs.addParamValue('ensquaredEnergy',1,@isnumeric); 
             
             inputs.parse(obj,tel,atm,gs,ss,varargin{:});
             
@@ -1141,6 +1142,7 @@ classdef shackHartmann < hgsetget
                    = inputs.Results.lgsLaunchCoord;
             naParam= inputs.Results.naParam;
             verbose= inputs.Results.verbose;
+            ensquaredEnergy = inputs.Results.ensquaredEnergy;
             naLgs = false;
             
             nLenslet = obj.lenslets.nLenslet;
@@ -1170,7 +1172,7 @@ classdef shackHartmann < hgsetget
             end
             
             % Photon #
-            nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
+            nph = ensquaredEnergy.*obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
                 [gs.nPhoton]*obj.camera.exposureTime*min(tel.area,d^2);
             %             nph = obj.lenslets.throughput*obj.camera.quantumEfficiency.*...
             %                 [gs.nPhoton]*obj.camera.exposureTime*obj.lenslets.nLensletImagePx^2*...
