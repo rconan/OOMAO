@@ -20,7 +20,7 @@ classdef lensletArray < handle
         % stacked imagelets sum
         sumStack = false;
         % the number of lenslet arrays
-        nArray;
+        nArray = 1;
         % optical throughput
         throughput=1;
         % lenslet array tag

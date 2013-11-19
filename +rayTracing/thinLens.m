@@ -10,7 +10,7 @@ classdef thinLens < rayTracing.abcd
         % thin lens parameters vector
         params;
         % tag
-        tag = 'freeSpace';
+        tag = 'thinLens';
     end
     
     methods

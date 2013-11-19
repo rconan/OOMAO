@@ -1333,6 +1333,7 @@ classdef zernikeStats
             
             src = source;
             out = fzero(@fun,arcsec(30));
+            out = out.*constants.radian2arcsec;
             function outFun = fun(x)
                 src.zenith = x;
                 outFun = zernikeStats.anisokinetism(zern,atm,src)-1;

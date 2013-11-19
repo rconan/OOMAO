@@ -58,7 +58,9 @@ classdef shackHartmann < hgsetget
         % handle to the function processing the lenslet intensity
         intensityFunction = @sum;
         % pointing direction [zenith,azimuth]
-        pointingDirection = [0;0];
+        pointingDirection;
+        % inverse of the sparse gradient matrix
+        iG;
     end
     
     properties (SetAccess=private)
@@ -92,6 +94,8 @@ classdef shackHartmann < hgsetget
         xSlopesMap
         % Y slopes map
         ySlopesMap
+        % wavefront estimate from finite difference in wavelength unit
+        finiteDifferenceWavefront
     end
     
     properties (Access=protected)
@@ -109,6 +113,7 @@ classdef shackHartmann < hgsetget
         quadCellY = [1 ; -1 ;  1 ; -1];
         meanProjection;
         spotTrail = zeros(2,10);
+        p_finiteDifferenceWavefront
     end
     
     methods
@@ -157,7 +162,7 @@ classdef shackHartmann < hgsetget
             obj.log = logBook.checkIn(obj);
             end
             setSlopesListener(obj)
-            setDirectionVector(obj)
+%             setDirectionVector(obj)
         end
         
         %% Destructor
@@ -347,6 +352,22 @@ classdef shackHartmann < hgsetget
             end
         end
         
+        %% Computes the finite difference wavefront 
+        function out = get.finiteDifferenceWavefront(obj)
+            if isempty(obj.iG)
+                G = sparseGradientMatrix(obj);
+                modes = speye((obj.lenslets.nLenslet+1)^2);
+                obj.iG = calibrationVault(full(G),...
+                    modes(:,obj.validActuator),obj.validActuator);
+                obj.iG.cond = 100;
+            end
+            if size(obj.slopes,2)>1
+                out = obj.iG.M*obj.slopes;
+            else
+                out = zeros( obj.lenslets.nLenslet+1 );
+                out(obj.validActuator) = obj.iG.M*obj.slopes;
+            end
+        end
         
         function setValidLenslet(obj,pupilIntensity)
             %% SETVALIDLENSLET Valid lenslet mask
@@ -558,35 +579,39 @@ classdef shackHartmann < hgsetget
             % adding noise if any and process the frame to get the
             % wavefront slopes
             
-            nSrc = length(src);
-            m_directionVector = obj.directionVector;
-            if size(m_directionVector,2)<nSrc
-                m_directionVector = repmat( m_directionVector(:) , 1 , nSrc );
-            end
-            for kSrc = 1:nSrc
-                delta = m_directionVector(:,kSrc) - src(kSrc).directionVector;
-                if any(delta)
-                    warning('oomao:shackHartmann:relay',...
-                        'WFS not align on source, this induces an additional tip-tilt error!')
-                    D = src(kSrc).opticalPath{1}.D;
-                    
-                    nOutWavePx    = obj.lenslets.nLensletWavePx*obj.lenslets.fftPad;    % Pixel length of the output wave
-                    evenOdd       = rem(obj.lenslets.nLensletWavePx,2);
-                    if ~rem(nOutWavePx,2) && evenOdd
-                        nOutWavePx = nOutWavePx + evenOdd;
-                    end
-                    nOutWavePx = max(nOutWavePx,obj.lenslets.nLensletWavePx);
-                    %                 fprintf(' - new nOutWavePx = %d\n',nOutWavePx);
-                    
-                    alpha_p = (src(kSrc).wavelength/D)*obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet/nOutWavePx;
-                    delta = delta/alpha_p;
-                    
-                    [u,v]         = ndgrid((0:(obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet-1)));
-                    
-                    u = u*delta(2)/nOutWavePx;
-                    v = v*delta(1)/nOutWavePx;
-                    src(kSrc).phase = 2*pi*(u+v);
+            if ~isempty(obj.pointingDirection)
+                
+                nSrc = length(src);
+                m_directionVector = obj.directionVector
+                if size(m_directionVector,2)<nSrc
+                    m_directionVector = repmat( m_directionVector(:) , 1 , nSrc );
                 end
+                for kSrc = 1:nSrc
+                    delta = m_directionVector(:,kSrc) - src(kSrc).directionVector;
+                    if any(delta)
+                        warning('oomao:shackHartmann:relay',...
+                            'WFS not align on source, this induces an additional tip-tilt error!')
+                        D = src(kSrc).opticalPath{1}.D;
+                        
+                        nOutWavePx    = obj.lenslets.nLensletWavePx*obj.lenslets.fftPad;    % Pixel length of the output wave
+                        evenOdd       = rem(obj.lenslets.nLensletWavePx,2);
+                        if ~rem(nOutWavePx,2) && evenOdd
+                            nOutWavePx = nOutWavePx + evenOdd;
+                        end
+                        nOutWavePx = max(nOutWavePx,obj.lenslets.nLensletWavePx);
+                        %                 fprintf(' - new nOutWavePx = %d\n',nOutWavePx);
+                        
+                        alpha_p = (src(kSrc).wavelength/D)*obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet/nOutWavePx;
+                        delta = delta/alpha_p;
+                        
+                        [u,v]         = ndgrid((0:(obj.lenslets.nLensletWavePx*obj.lenslets.nLenslet-1)));
+                        
+                        u = u*delta(2)/nOutWavePx;
+                        v = v*delta(1)/nOutWavePx;
+                        src(kSrc).phase = 2*pi*(u+v);
+                    end
+                end
+                
             end
             
 %             if isempty(src(1).magnitude)
@@ -809,74 +834,54 @@ classdef shackHartmann < hgsetget
         end
         
         
-        function varargout = sparseGradientMatrix(obj)
-            %% SPARSEGRADIENTMATRIX
+        function G = sparseGradientMatrix(obj)
+            %% SPARSEGRADIENTMATRIX 
             %
-            % Gamma = sparseGradientMatrix(obj)
-            %
-            % [Gamma,gridMask] = sparseGradientMatrix(obj)
+            % Gamma = sparseGradientMatrix(obj) computes the sparse
+            % gradient such as a wavefront in wavelength units multiply
+            % by the gradient matrix gives the centroid in pixel units
             
             nLenslet = obj.lenslets.nLenslet;
-            nMap     = 2*nLenslet+1;
-            nValidLenslet ...
-                = obj.nValidLenslet;
+            nPxPhase = obj.lenslets.nLenslet + 1;
+            nElPhase = nPxPhase^2;
             
-            i0x = [1:3 1:3]; % x stencil row subscript
-            j0x = [ones(1,3) ones(1,3)*3]; % x stencil col subscript
-            i0y = [1 3 1 3 1 3]; % y stencil row subscript
-            j0y = [1 1 2 2 3 3]; % y stencil col subscript
-                        s0x = [-1 -2 -1  1 2  1]/2; % x stencil weight
-                        s0y = -[ 1 -1  2 -2 1 -1]/2; % y stencil weight
-%             s0x = [-1 -1 -1  1 1  1]/3; % x stencil weight
-%             s0y = -[ 1 -1  1 -1 1 -1]/3; % y stencil weight
+            % non zeros row index
+            rows = repmat( 1:nLenslet^2 , 4 , 1);
             
-            i_x = zeros(1,6*nValidLenslet);
-            j_x = zeros(1,6*nValidLenslet);
-            s_x = zeros(1,6*nValidLenslet);
-            i_y = zeros(1,6*nValidLenslet);
-            j_y = zeros(1,6*nValidLenslet);
-            s_y = zeros(1,6*nValidLenslet);
+            % non zeros column index
+            cols = [(1:2) (1:2) + nPxPhase]'; % 1st lenslet stencil
+            cols = bsxfun(@plus, cols, 0:nLenslet-1 ); % 1st lenslet column
+            p(1,1,1:nLenslet) = (0:nLenslet-1)*nPxPhase;
+            cols = bsxfun( @plus, cols , p); % lenslet rows
             
-            [iMap0,jMap0] = ndgrid(1:3);
-            gridMask = false(nMap);
             
-            u   = 1:6;
+            % non zeros values
+            nzv = repmat( [-1 1 -1 1]', 1 , nLenslet^2);
+            Gy = sparse(rows(:),cols(:),nzv(:),nLenslet^2,nElPhase);
+            nzv = repmat( [-1 -1 1 1]', 1 , nLenslet^2);
+            Gx = sparse(rows(:),cols(:),nzv(:),nLenslet^2,nElPhase);
             
-            % Accumulation of x and y stencil row and col subscript and weight
-            for jLenslet = 1:nLenslet
-                jOffset = 2*(jLenslet-1);
-                for iLenslet = 1:nLenslet
-                    
-                    if obj.validLenslet(iLenslet,jLenslet)
-                        
-                        iOffset= 2*(iLenslet-1);
-                        i_x(u) = i0x + iOffset;
-                        j_x(u) = j0x + jOffset;
-                        s_x(u) = s0x;
-                        i_y(u) = i0y + iOffset;
-                        j_y(u) = j0y + jOffset;
-                        s_y(u) = s0y;
-                        u = u + 6;
-                        
-                        gridMask( iMap0 + iOffset , jMap0 + jOffset ) = true;
-                        
-                    end
-                    
-                end
+            mask = ~obj.validActuator;
+            Gx(:,mask) = [];
+            Gy(:,mask) = [];
+            mask = ~obj.validLenslet;
+            Gx(mask,:)  = [];
+            Gy(mask,:)  = [];
+            
+            % scaling factor such as a phase in units of wavelength
+            % multiply by the gradient matrix will return the centroid in
+            % units of pixels
+            nOutWavePx    = obj.lenslets.nLensletWavePx*obj.lenslets.fftPad;    % Pixel length of the output wave
+            evenOdd       = rem(obj.lenslets.nLensletWavePx,2);
+            if ~rem(nOutWavePx,2) && evenOdd
+                nOutWavePx = nOutWavePx + evenOdd;
             end
-            indx = sub2ind([nMap,nMap],i_x,j_x); % mapping the x stencil subscript into location index on the phase map
-            indy = sub2ind([nMap,nMap],i_y,j_y); % mapping the y stencil subscript into location index on the phase map
-            % row index of non zero values in the gradient matrix
-            v = 1:2*nValidLenslet;
-            v = v(ones(6,1),:);
-            % sparse gradient matrix
-            Gamma = sparse(v,[indx,indy],[s_x,s_y],2*nValidLenslet,nMap^2);
-            Gamma(:,~gridMask) = [];
+            nOutWavePx = max(nOutWavePx,obj.lenslets.nLensletWavePx);
+            a = obj.lenslets.nLensletWavePx/nOutWavePx;
             
-            varargout{1} = Gamma;
-            if nargout>1
-                varargout{2} = gridMask;
-            end
+            G = 0.5*[Gx;Gy]/a;
+            figure
+            spy(G)
             
         end
         
