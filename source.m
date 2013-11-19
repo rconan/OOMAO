@@ -712,7 +712,7 @@ classdef source < stochasticWave & hgsetget
         end
         
         
-        function varargout = rayTrace(obj,x0,col)
+        function rayTrace(obj,x0,col)
             nOP = length(obj.opticalPath);
             if nargin==1
                 x0 = 0;
@@ -721,7 +721,6 @@ classdef source < stochasticWave & hgsetget
             o1 = 0;
             o2 = 0;
             zPropDir = 1;
-            hl = zeros(nOA,nOP);
             for kOP=1:nOP-1
                 fprintf(1,'-->> %d -- %d\n',kOP,kOP+1);
                 oa1 = obj.opticalPath{kOP}.offsetAngle;
@@ -731,7 +730,7 @@ classdef source < stochasticWave & hgsetget
                 zPropDir = zPropDir.*obj.opticalPath{kOP}.zPropDir;
                 x = x0 + [0 ; obj.opticalPath{kOP}.thickness*zPropDir]*ones(1,nOA);
                 y = [oa1(1,:) + o1 ; oa2(1,:) + o2];
-                hl(:,kOP) = line(x,y,'color',col);
+                line(x,y,'color',col)
                 x0 = x(end);
 %                 pause
             end
@@ -743,10 +742,7 @@ classdef source < stochasticWave & hgsetget
             x = x0 + [0 ; obj.opticalPath{end}.thickness*zPropDir]*ones(1,nOA);
             y = [oa1(1,:) + o1 ; ...
                 oa2(1,:) + o2];
-            hl(:,nOP) = line(x,y,'color',col);
-            if nargout>1
-                varargout{1} = hl;
-            end
+            line(x,y,'color',col)
         end
     end
     

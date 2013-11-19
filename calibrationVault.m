@@ -168,7 +168,6 @@ classdef calibrationVault < handle
             obj.M = obj.spaceJump*obj.M;
             
             obj.truncD = obj.U(:,u)*diag(obj.eigenValues(u))*obj.V(:,u)';
-            add(obj.log,obj,sprintf('Condition number %g',obj.cond))
         end
         
     end
