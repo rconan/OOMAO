@@ -301,9 +301,9 @@ classdef influenceFunction < handle
                 indIF(~validActuator) = [];
                 [iIF,jIF] = ind2sub([nIF,nIF],indIF);
                 kIF = 1:nValid;
-                wv = wv(:,iIF(kIF));
-                wu = wu(:,jIF(kIF));
-                fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d,    \n',nValid)
+                wv = sparse(wv(:,iIF(kIF)));
+                wu = sparse(wu(:,jIF(kIF)));
+               fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d,    \n',nValid)
                 for kIF = 1:nValid % parfor doesn't worj with sparse matrix!
                     fprintf('\b\b\b\b%4d',kIF)
                     buffer = wv(:,kIF)*wu(:,kIF)';

@@ -712,26 +712,44 @@ classdef source < stochasticWave & hgsetget
         end
         
         
-        function rayTrace(obj,x0,col)
+        function varargout = rayTrace(obj,varargin)
+            
+            p = inputParser;
+            p.addParamValue('zOffset',0,@isnumeric);
+            p.addParamValue('color','k',@(x) ischar(x) || isnumeric(x));
+            p.addParamValue('rotateAround',{0,[0;0]},@iscell);
+            p.parse(varargin{:});
+
             nOP = length(obj.opticalPath);
-            if nargin==1
-                x0 = 0;
-            end
+            x0    = p.Results.zOffset;
+            col   = p.Results.color;
+            rotAngle = p.Results.rotateAround{1};
+            rotMat = [cos(rotAngle) -sin(rotAngle); sin(rotAngle) cos(rotAngle)];
+            rotCoord = p.Results.rotateAround{2};
             nOA = size(obj.offsetAngle,2);
             o1 = 0;
             o2 = 0;
             zPropDir = 1;
+            hl = zeros(nOA,nOP);
             for kOP=1:nOP-1
-                fprintf(1,'-->> %d -- %d\n',kOP,kOP+1);
+                fprintf(1,'-->> %d(%s) ==>> %d(%s)\n',...
+                    kOP,obj.opticalPath{kOP}.tag,...
+                    kOP+1,obj.opticalPath{kOP+1}.tag);
                 oa1 = obj.opticalPath{kOP}.offsetAngle;
                 oa2 = obj.opticalPath{kOP+1}.offsetAngle;
                 o1 = o1 + obj.opticalPath{kOP}.offset;
                 o2 = o2 + obj.opticalPath{kOP+1}.offset;
                 zPropDir = zPropDir.*obj.opticalPath{kOP}.zPropDir;
                 x = x0 + [0 ; obj.opticalPath{kOP}.thickness*zPropDir]*ones(1,nOA);
-                y = [oa1(1,:) + o1 ; oa2(1,:) + o2];
-                line(x,y,'color',col)
                 x0 = x(end);
+                y = [oa1(1,:) + o1 ; oa2(1,:) + o2];
+%                 x = x - rotCoord(1);
+%                 y = y - rotCoord(2);
+                xp = x*rotMat(1,1) + y*rotMat(1,2);
+                yp = x*rotMat(2,1) + y*rotMat(2,2);
+                x = xp + rotCoord(1);
+                y = yp + rotCoord(2);
+                hl(:,kOP) = line(x,y,'color',col);
 %                 pause
             end
             oa1 = obj.opticalPath{end}.offsetAngle;
@@ -742,7 +760,16 @@ classdef source < stochasticWave & hgsetget
             x = x0 + [0 ; obj.opticalPath{end}.thickness*zPropDir]*ones(1,nOA);
             y = [oa1(1,:) + o1 ; ...
                 oa2(1,:) + o2];
-            line(x,y,'color',col)
+%                 x = x - rotCoord(1);
+%                 y = y - rotCoord(2);
+                xp = x*rotMat(1,1) + y*rotMat(1,2);
+                yp = x*rotMat(2,1) + y*rotMat(2,2);
+                x = xp + rotCoord(1);
+                y = yp + rotCoord(2);
+            hl(:,nOP) = line(x,y,'color',col);
+            if nargout>0
+                varargout{1} = x(end);
+            end
         end
     end
     

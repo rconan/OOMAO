@@ -35,7 +35,8 @@ classdef skyAngle < double
         end
         
         function display(obj)
-            fprintf('  sky angle: %g %s\n',convert(obj,obj.unit),obj.unit)
+            format = sprintf('  sky angle: %%g %s\n',obj.unit);
+            fprintf(format,convert(obj,obj.unit))
         end
         
         function c = plus(a,b)

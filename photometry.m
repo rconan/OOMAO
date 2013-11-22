@@ -46,6 +46,7 @@ classdef photometry
         %  Band ( wavelength , bandwidth , zero point )
         U  ( 0.360e-6 , 0.070e-6 , 2.0e12 )
         B  ( 0.440e-6 , 0.100e-6 , 5.4e12 )
+        V0  ( 0.500e-6 , 0.090e-6 , 3.3e12 )
         V  ( 0.550e-6 , 0.090e-6 , 3.3e12 )
         R  ( 0.640e-6 , 0.150e-6 , 4.0e12 )
         I  ( 0.790e-6 , 0.150e-6 , 2.7e12 )

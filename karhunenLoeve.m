@@ -72,15 +72,16 @@ classdef karhunenLoeve < hgsetget
             obj.nf = length(obj.m);
         end
         
-        function out = pol2cart(obj,n,j)
+        function out = pol2cart(obj,n_,j)
             %% POL2CART Cartesian grid interpolation
             %
             % modes = pol2cart(obj,n) interpolates the KL modes on a nxn
             % pixels cartesian grid
             %
-            % modes = pol2cart(obj,n) interpolates the KL mode j on a nxn
+            % modes = pol2cart(obj,n,j) interpolates the KL mode j on a nxn
             % pixels cartesian grid
             
+            n = n_(1);    
             [x,y] = meshgrid( linspace(-1,1,n)*obj.D/2 );
             [o,r] = cart2pol(x,y);
             index = r>=obj.ri*obj.D/2 & r<=obj.D/2;
@@ -88,33 +89,34 @@ classdef karhunenLoeve < hgsetget
             o = o(index);
             
             if nargin<3
-                
-                radialFunInterp = interp1(obj.radius2,obj.radialFun,r2);
-                out = zeros(n^2,obj.nf);
-                j = 0;
-                for km = 1:obj.nv
-                    j = j + 1;
-                    if obj.m(j)==0
-                        out(index,j) = radialFunInterp(:,km);
-                    else
-                        out(index,j) = radialFunInterp(:,km).*...
-                            sqrt(2).*cos(obj.m(j).*o);
-                        j = j + 1;
-                        out(index,j) = radialFunInterp(:,km).*...
-                            sqrt(2).*sin(obj.m(j).*o);
-                    end
-                end
-                
-            else
-                
+                j = 1:obj.nf;
+            end
+            jv = j;
+            nJ = length(jv);
+            out = zeros(n^2,nJ);
+            h = waitbar(0,'Computing the KL modes on a cartesian grid ...');
+            for kJ=1:nJ
+                j = jv(kJ);
                 nRF = obj.radialFunIndex(j);
                 radialFunInterp = interp1(obj.radius2,obj.radialFun(:,nRF),r2);
-                out = zeros(n^2,1);
                 m_m = obj.m(j);
-                out(index) = radialFunInterp.*...
+                out(index,kJ) = radialFunInterp.*...
                     cos(m_m*o+pi.*(m_m~=0).*((-1).^j-1)./4);
+                waitbar(kJ/nJ)
+            end
+            close(h)
+            
+            if length(n_)>1
+                out = reshape(out,n_);
             end
             
+        end
+        
+        function out = covarianceMatrix(obj,j)
+            nRF = obj.radialFunIndex(j);
+            var = obj.varCoef(nRF);
+            nJ = length(j);
+            out = spdiags(var,0,nJ,nJ);
         end
         
         

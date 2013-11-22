@@ -172,9 +172,11 @@ classdef detector < handle
                 else
                     m_frame = obj.frame;
                     [n,m] = size(m_frame);
+                    try
                     if m>2*n
                         m_frame = cell2mat(reshape( mat2cell( ...
                             m_frame,n,n*ones(1,m/n) ) , 2, []));
+                    end
                     end
                     titleColor = 'k';
                 end
