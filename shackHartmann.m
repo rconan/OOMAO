@@ -36,7 +36,7 @@ classdef shackHartmann < hgsetget
         % timer
         paceMaker;
         % slopes display handle
-        slopesDisplayHandle;
+        slopesDisplayHandle;z
         % slope listener
         slopesListener;
         % intensity display handle
@@ -57,14 +57,12 @@ classdef shackHartmann < hgsetget
         meanSlopes;
         % handle to the function processing the lenslet intensity
         intensityFunction = @sum;
-        % pointing direction [zenith,azimuth]
-        pointingDirection;
         % inverse of the sparse gradient matrix
         iG;
     end
     
     properties (SetAccess=private)
-        directionVector = zeros(3,1);
+        directionVector;
     end
     
     properties (SetObservable=true)
@@ -77,6 +75,8 @@ classdef shackHartmann < hgsetget
         validLenslet;
         % measurements reference
         referenceSlopes;
+        % pointing direction [zenith,azimuth]
+        pointingDirection;
     end
     
     properties (Dependent, SetAccess=private)
@@ -102,6 +102,7 @@ classdef shackHartmann < hgsetget
         %         p_slopes;
         p_referenceSlopes=0;
         p_validLenslet;
+        p_pointingDirection;
         % index array to reshape a detector frame into a matrix with one
         % raster imagelet per column
         indexRasterLenslet = NaN;
@@ -121,7 +122,7 @@ classdef shackHartmann < hgsetget
         %% Constructor
         function obj = shackHartmann(nLenslet,detectorResolution,minLightRatio)
             if nargin>1
-            error(nargchk(1, 4, nargin))
+            narginchk(1, 4)
             obj.lenslets = lensletArray(nLenslet);
             obj.camera   = detector(detectorResolution);
             if detectorResolution==2
@@ -162,7 +163,6 @@ classdef shackHartmann < hgsetget
             obj.log = logBook.checkIn(obj);
             end
             setSlopesListener(obj)
-%             setDirectionVector(obj)
         end
         
         %% Destructor
@@ -185,8 +185,12 @@ classdef shackHartmann < hgsetget
             if ishandle(obj.intensityDisplayHandle)
                 delete(obj.intensityDisplayHandle)
             end
-            delete(obj.lenslets)
-            delete(obj.camera)
+            if isvalid(obj.lenslets)
+                delete(obj.lenslets)
+            end
+            if isvalid(obj.camera)
+                delete(obj.camera)
+            end
             if ~isempty(obj.log)
                 checkOut(obj.log,obj);
             end
@@ -216,11 +220,18 @@ classdef shackHartmann < hgsetget
             
         end
         
-        function setDirectionVector(obj)
-            obj.directionVector = [...
-                tan(obj.pointingDirection(1,:)).*cos(obj.pointingDirection(2,:));...
-                tan(obj.pointingDirection(1,:)).*sin(obj.pointingDirection(2,:));...
-                ones(1,size(obj.pointingDirection,2))];
+        %% Get and Set pointing direction
+        function pointingDirection = get.pointingDirection(obj)
+            pointingDirection = obj.p_pointingDirection;
+        end
+        function set.pointingDirection(obj,val)
+            obj.p_pointingDirection = val;
+            if ~isempty(obj.pointingDirection)
+                obj.directionVector = [...
+                    tan(obj.p_pointingDirection(1,:)).*cos(obj.p_pointingDirection(2,:));...
+                    tan(obj.p_pointingDirection(1,:)).*sin(obj.p_pointingDirection(2,:));...
+                    ones(1,size(obj.p_pointingDirection,2))];
+            end
         end
         
         function obj = saveobj(obj)
@@ -354,6 +365,7 @@ classdef shackHartmann < hgsetget
         
         %% Computes the finite difference wavefront 
         function out = get.finiteDifferenceWavefront(obj)
+            add(obj.log,obj,'Computing the finite differerence wavefront!')
             if isempty(obj.iG)
                 G = sparseGradientMatrix(obj);
                 modes = speye((obj.lenslets.nLenslet+1)^2);
@@ -582,7 +594,7 @@ classdef shackHartmann < hgsetget
             if ~isempty(obj.pointingDirection)
                 
                 nSrc = length(src);
-                m_directionVector = obj.directionVector
+                m_directionVector = obj.directionVector;
                 if size(m_directionVector,2)<nSrc
                     m_directionVector = repmat( m_directionVector(:) , 1 , nSrc );
                 end
@@ -619,7 +631,8 @@ classdef shackHartmann < hgsetget
 %             else
 %                 obj.camera.photonNoise = true;
 %             end
-            propagateThrough(obj.lenslets,src)
+%             propagateThrough(obj.lenslets,src)
+            relay(obj.lenslets,src)
             %             grabAndProcess(obj)
             spotsSrcKernelConvolution(obj,src)
             grab(obj.camera)
@@ -710,18 +723,22 @@ classdef shackHartmann < hgsetget
                 end
                 
                 if ishandle(obj.slopesDisplayHandle)
+                    nm = size(slopesMap);
+                    if ~all(size(get(obj.slopesDisplayHandle(1),'Cdata'))==nm)
+                        set(get(obj.slopesDisplayHandle(1),'parent'),'xlim',0.5+[0 nm(2)],'ylim',0.5+[0 nm(1)])
+                    end
                     set(obj.slopesDisplayHandle,'CData',slopesMap)
                 else
                     obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
-                    axis equal tight
-                    xlabel(colorbar('location','northOutside'),'Pixel')
+                    axis xy equal tight
+                    ylabel(colorbar('location','EastOutside'),'Pixel')
                     
                     hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
                         hu = uimenu('Label','OOMAO');
                     end
                     hus  = uimenu(hu,'Label','Slopes Listener Off','Callback',@oomaoMenu);
-                    if isvalid(obj.slopesListener) & obj.slopesListener.Enabled
+                    if isvalid(obj.slopesListener) && obj.slopesListener.Enabled
                         set(hus,'Label','Slopes Listener On')
                     end
                     
@@ -880,8 +897,8 @@ classdef shackHartmann < hgsetget
             a = obj.lenslets.nLensletWavePx/nOutWavePx;
             
             G = 0.5*[Gx;Gy]/a;
-            figure
-            spy(G)
+%             figure
+%             spy(G)
             
         end
         

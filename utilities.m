@@ -64,6 +64,22 @@ classdef utilities
             end
         end
         
+        function out = meanSub(data,mask)
+            %% MEANSUB Substract the mean of the data
+            %
+            % out = meanSub(data) Remove the mean of data from data
+            %
+            % out = meanSub(data,mask) Remove the mean of data on the mask
+            % from data
+            
+            if nargin<2
+                out = bsxfun( @minus, data, mean(data(:)));
+            else
+                out = bsxfun( @minus, data, mean(data(mask(:))) );
+                out = bsxfun( @times, out, mask );
+            end               
+        end
+        
         function varargout = cartAndPol(u,varargin)
             %% CARTANDPOL Cartesian and polar coordinate arrays
             %
@@ -312,7 +328,7 @@ classdef utilities
             
             indexStep = repmat( reshape( indexStep , [1,nNSub*mMSub*k] ) , [nSub*mSub,1] );
             
-            index = index + indexStep;
+            index = index + double( indexStep );
         end
         
         function out = sombrero(n,x)
@@ -684,6 +700,49 @@ classdef utilities
             onemt = 1-t;
             F =  ( arg3(ndx).*(onemt) + arg3(ndx+1).*t ).*(1-s) + ...
                 ( arg3(ndx+nrows).*(onemt) + arg3(ndx+(nrows+1)).*t ).*s;
+        end
+        
+        function m_B = bilinearSparseInterpolator(Ni,N,delta,delta_p)
+            %% BILINEARSPARSEINTERPOLATOR Sparse bilinear interpolation matrix
+            %
+            % m_B = bilinearSparseInterpolator(Ni,N,delta,delta_p) returns a
+            % sparse matrix to perform the bilinear interpolation from a
+            % function defined on a NxN grid with spacing delta_p onto a
+            % NixNi grid with spacing delta
+            
+            [ii,jj] = ndgrid( (0:Ni-1) );
+            ii = reshape(ii,1,[]);
+            jj = reshape(jj,1,[]);
+            
+            scale = delta/(delta_p*(N-1));
+            s = ( scale.*(ii + (1-Ni)*0.5) + 0.5 ) * (N-1);
+            t = ( scale.*(jj + (1-Ni)*0.5) + 0.5 ) * (N-1); 
+            fs = floor(s);
+            ft = floor(t);
+            
+            ndx = ft + fs*N;
+                        
+            idx      = s==(N-1);
+            s        = s - fs;
+            s(idx)   = s(idx) + 1;
+            ndx(idx) = ndx(idx) - N;
+            
+            idx      = t==(N-1);
+            t        = t - ft;
+            t(idx)   = t(idx) + 1;
+            ndx(idx) = ndx(idx) - 1;
+            
+            onems = 1 - s;
+            onemt = 1 - t;
+                        
+            rows = ii*Ni + jj;
+            rows = 1 + reshape( ...
+                [ rows          ; rows     ; rows    ; rows    ], [] ,1);
+            cols = 1 + reshape( ...
+                [ ndx           ; ndx+1    ; ndx+N   ; ndx+N+1 ], [] ,1);
+            values = reshape( ...
+                [ onems.*onemt  ; onems.*t ; s.*onemt ; s.*t   ], [] ,1);
+            m_B = sparse(rows,cols,values,Ni^2,N^2);
         end
         
         function fr = gaussian(resolution,fwhm,n_f)

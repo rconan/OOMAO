@@ -98,9 +98,9 @@ classdef telescope < telescopeAbstract
         function delete(obj)
             if isa(obj.opticalAberration,'atmosphere')
                 add(obj.log,obj,'Deleting atmosphere layer slabs!')
-                for kLayer=1:obj.atm.nLayer
-                    obj.atm.layer(kLayer).phase = [];
-                end
+%                 for kLayer=1:obj.atm.nLayer
+%                     obj.atm.layer(kLayer).phase = [];
+%                 end
             end
             checkOut(obj.log,obj)
         end

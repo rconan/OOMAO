@@ -133,9 +133,11 @@ classdef stochasticWave < handle
             buffer = obj.stochasticAmplitude;
             obj.stochasticAmplitude = false; % Set to false in order for the mean method to return only phase value
             meanPhase   = mean(obj); % Set the mask if empty
-            meanRmPhase = obj.phase;
-            meanRmPhase(obj.mask) ...
-                        = obj.phase(obj.mask) - meanPhase;
+            buf = utilities.toggleFrame(obj.phase,2);
+            meanRmPhase = zeros( size( buf ) );
+            meanRmPhase(obj.mask,:) ...
+                        = bsxfun( @minus, buf(obj.mask) , meanPhase );
+            meanRmPhase = tools.toggleFrame(meanRmPhase,3);
             obj.stochasticAmplitude = buffer;
         end
         
@@ -189,7 +191,7 @@ classdef stochasticWave < handle
             out = cell2mat(out);
         end
         function out = catMeanRmPhase(obj)
-            %% CATPHASE Concatenate mean removed phases
+            %% CATMEANRMPHASE Concatenate mean removed phases
             %
             % out = catMeanRmPhase(obj) concatenates the mean removed
             % phases of an array of stochasticWave objects
