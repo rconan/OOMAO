@@ -53,8 +53,9 @@ classdef imager < detector
                 obj.exposureTime = exposureTime;
                 obj.clockRate = clockRate;
             end
-            obj.imgLens = lens;
+            obj.imgLens = lensletArray(1);
             obj.imgLens.nyquistSampling = 4;
+            obj.imgLens.fieldStopSize = 10;
             % Frame listener
 %             obj.frameListener = addlistener(obj,'frameBuffer','PostSet',...
 %                 @(src,evnt) obj.imagesc );
@@ -78,26 +79,36 @@ classdef imager < detector
 %                 end
 %             end
               readOut(obj,obj.imgLens.imagelets)
-              if obj.frameCount==0
+              if obj.frameCount==0 && obj.startDelay==0
                   flush(obj)
               end
         end
         
         function flush(obj)
-%             fprintf(' @(detector:relay)> reading out and emptying buffer (%d frames)!\n',obj.frameCount)
+            fprintf(' @(detector:relay)> reading out and emptying buffer (%d frames)!\n',obj.frameCount)
             if ~isempty(obj.referenceFrame) && ~isempty(obj.frame)
                 obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize*2;
-                src_ = source.*obj.referenceFrame*obj.imgLens;
-                src_.mask = true(size(obj.imgLens.imagelets));
-                otf =  src_.amplitude;
+                src_ = source.*obj.referenceFrame;
+                wavePrgted = propagateThrough(obj.imgLens,src_);
+                otf =  abs(wavePrgted);
                 nFrame = obj.exposureTime*obj.clockRate;
-                src_ = src_.*(obj.frame/nFrame)*obj.imgLens;
+                
+                n = length(obj.referenceFrame);
+                m_frame = obj.frame/nFrame;
+                nf = size(m_frame)/n;                
+                m_frame = mat2cell( m_frame , n*ones(1,nf(1)), n*ones(1,nf(2)));
+                
+                obj.strehl = zeros(1,length(m_frame));
+                for kFrame = 1:length(m_frame)
+                    src_ = src_.*m_frame{kFrame};
+                    wavePrgted = propagateThrough(obj.imgLens,src_);
+                    otfAO =  abs(wavePrgted);
+                    % strehl ratio
+                    obj.strehl(kFrame) = sum(otfAO(:))/sum(otf(:));
+                end
                 obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize/2;
-                src_.mask = true(size(obj.imgLens.imagelets));
-                otfAO =  src_.amplitude;
+
                 %                         figure, imagesc(real(otfAO)/max(otfAO(:)))
-                % strehl ratio
-                obj.strehl = sum(otfAO(:))/sum(otf(:));
                 % entrapped energy
 %                 obj.tel
 %                 a      = (obj.eeWidth/(src.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;

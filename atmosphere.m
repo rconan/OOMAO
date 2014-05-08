@@ -68,11 +68,28 @@ classdef atmosphere < hgsetget
         initState;
         wavelengthScale;
         gpu = false;
+        % parameters for polar-logarithmic phase screen generation method
+        f;
+        N_k;
+        N_a;
+        freq_mag;
+        delta_freq_mag;
+        freq_ang;
+        cos_freq_ang;
+        sin_freq_ang;
+        sqrt_spectrum_kernel;
+        zeta1; 
+        eta1;
+        zeta2;
+        eta2;
     end
     
     properties (Dependent, SetObservable=true)
         % wavelength of the r0
         wavelength;
+        % frequency resolution for polar-logarithmic phase screen
+        % generation method
+        delta;
     end
     
     properties (Dependent, SetAccess=private)
@@ -93,6 +110,7 @@ classdef atmosphere < hgsetget
     properties (Access=private)
         p_wavelength;
         p_log;
+        p_delta;
     end
     
     methods
@@ -224,6 +242,58 @@ classdef atmosphere < hgsetget
             obj.p_wavelength = val;
         end
         
+        %% Set/Get delta property
+        function val = get.delta(obj)
+            val = obj.p_delta;
+        end
+        function set.delta(obj,val)
+            l0    = 1e-3;
+            L     = 1e2;
+            f     = max(L,3*obj.L0);
+            kmin  = 2*pi/f;
+            f     = f/l0;
+            delta = val; % TODO: like f, should depends on the input parameters but 5pct seems optimal from a statistical stand point
+            N_k = log(f)/log( (2+delta)/(2-delta) );
+            N_a = f.^(1/N_k ) ;
+            N_a = 0.25*pi*( (N_a + 1)/(N_a - 1) );
+            obj.N_k = ceil( N_k );
+            obj.N_a = ceil( N_a );
+            obj.f = ( (4*obj.N_a + pi)/(4*obj.N_a - pi) ).^obj.N_k;
+            obj.p_delta = 0.5*pi/obj.N_a;
+            fprintf('\n@(CEO)>profile:\n');
+            fprintf(' . N_k = %f\n',obj.N_k);
+            fprintf(' . N_a = %f\n',obj.N_a);
+            fprintf(' . frequency range      = %8.2f\n',obj.f);
+            fprintf(' . frequency resolution = %6.4f\n',obj.p_delta);
+            fprintf(' . minimum frequency    = %6.4f\n',kmin);
+            
+            ii = (1:obj.N_k)';
+            obj.freq_mag = 0.5*kmin*obj.f.^(ii/obj.N_k).*...
+                (1 + obj.f.^(-1/obj.N_k) );
+            obj.delta_freq_mag = kmin*obj.f.^(ii/obj.N_k).*...
+                (1 - obj.f.^(-1/obj.N_k) );
+            
+            jj = 1:obj.N_a;
+            obj.freq_ang = (jj-0.5)*obj.delta;
+            obj.cos_freq_ang = cos( obj.freq_ang );
+            obj.sin_freq_ang = sin( obj.freq_ang );
+            
+            k0 = 2*pi/obj.L0;
+            obj.sqrt_spectrum_kernel = ...
+                ( obj.freq_mag.^2 + k0.^2 ).^(-11/12).*...
+                sqrt( obj.freq_mag.*obj.delta_freq_mag.*...
+                obj.delta);
+            
+            obj.zeta1 = rand(obj.N_k,obj.N_a,obj.nLayer);
+            obj.zeta1 = sqrt( -log( obj.zeta1 ) );
+            obj.eta1  = rand(obj.N_k,obj.N_a,obj.nLayer);
+            obj.eta1  = 2.*pi*obj.eta1;
+            obj.zeta2 = rand(obj.N_k,obj.N_a,obj.nLayer);
+            obj.zeta2 = sqrt( -log( obj.zeta2 ) );
+            obj.eta2  = rand(obj.N_k,obj.N_a,obj.nLayer);
+            obj.eta2  = 2.*pi*obj.eta2;         
+        end
+        
         %% Get seeingInArcsec property
         function out = get.seeingInArcsec(obj)
             out = cougarConstants.radian2arcsec.*...
@@ -303,6 +373,48 @@ classdef atmosphere < hgsetget
                 obj.r0;
         end
         
+        function out = polarLogPhaseScreen_(obj,x,y,tau,src)
+            %% POLARLOGPHASESCREEN Polar-logarithmic phase screen
+            
+            if ~any(size(x)==size(y))
+                error('OOMAO:atmosphere:polarLogPhaseScreen',...
+                    'x and y must have the same size!');
+            end
+            n = numel(x); 
+            hl = zeros(1,1,obj.nLayer);
+            vx = zeros(1,1,obj.nLayer);
+            vy = zeros(1,1,obj.nLayer);
+            xi0 = zeros(1,1,obj.nLayer);
+            hl(1,1,:) = [obj.layer.altitude];
+            [vx(1,1,:),vy(1,1,:)] = pol2cart( ...
+                [obj.layer.windDirection],...
+                [obj.layer.windSpeed]);
+            xi0(1,1,:) = sqrt( [obj.layer.fractionnalR0] );
+            gl = 1 - hl./src.height;
+            directionVector = src.directionVector;
+            out = zeros( size(x) );
+            parfor k=1:n
+                xl = gl.* ( x(k) - vx*tau ) + ...
+                    hl*directionVector(1);
+                yl = gl.* ( y(k) - vy*tau ) + ...
+                    hl*directionVector(2);
+                red = obj.zeta1.*cos( bsxfun( @plus, obj.eta1, ...
+                    bsxfun( @times, obj.freq_mag, ...
+                    bsxfun( @times, xl , obj.cos_freq_ang) + ...
+                    bsxfun( @times, yl , obj.sin_freq_ang) ) ) ) + ...
+                    obj.zeta2.*cos( bsxfun( @minus, obj.eta2, ...
+                    bsxfun( @times, obj.freq_mag, ...
+                    bsxfun( @times, xl , obj.sin_freq_ang) - ...
+                    bsxfun( @times, yl , obj.cos_freq_ang) ) ) );
+                red = bsxfun( @times, xi0, red);
+                red = sum(red,3);
+                red = bsxfun( @times, ...
+                    obj.sqrt_spectrum_kernel, red);
+                out(k) = sum(red(:));
+            end
+            out = 1.4.*obj.r0.^(-5/6).*out;
+        end
+        
         function out = fourierPhaseScreen(atm,D,nPixel,nMap)
             %% FOURIERPHASESCREEN Phase screen computation
             %
@@ -331,7 +443,7 @@ classdef atmosphere < hgsetget
             N = 4*nPixel;
             L = (N-1)*D/(nPixel-1);
             [fx,fy]  = freqspace(N,'meshgrid');
-            [fo,fr]  = cart2pol(fx,fy);
+            [~,fr]  = cart2pol(fx,fy);
             fr  = fftshift(fr.*(N-1)/L./2);
             clear fx fy fo
             psdRoot = sqrt(phaseStats.spectrum(fr,atm)); % Phase FT magnitude

@@ -66,7 +66,7 @@ classdef lensletArray < handle
 
         %% Constructor
         function obj = lensletArray(nLenslet)
-            error(nargchk(1, 3, nargin))
+            narginchk(1, 3)
             obj.nLenslet        = nLenslet;
             obj.minLightRatio   = 0;
             obj.nyquistSampling = 1;
@@ -177,7 +177,7 @@ classdef lensletArray < handle
             out = skyAngle( (src.wavelength/tel.D)*obj.nLensletWavePx*obj.nLenslet/nOutWavePx );
         end
 
-        function propagateThrough(obj,src_in)
+        function wavePrgted = propagateThrough(obj,src_in)
             %% PROPAGATETHROUGH Fraunhoffer wave propagation to the lenslets focal plane
             %
             % propagateThrough(obj) progates the object wave throught the
@@ -329,7 +329,7 @@ classdef lensletArray < handle
             end
             % Back to transpose 2D
             wavePrgted  = reshape(wavePrgted,nLensletsImagePx*nLensletArray,nLensletsImagePx).';
-            wavePrgted = wavePrgted.*conj(wavePrgted);
+%             wavePrgted = wavePrgted.*conj(wavePrgted);
             % and back to input wave array shape
             [n,m] = size(wavePrgted);
             wavePrgted = reshape(wavePrgted,[n,m/nWave,nWave]);
@@ -337,12 +337,12 @@ classdef lensletArray < handle
                 wavePrgted = mean(wavePrgted,3);
             end
             obj.sumStack = false;
-            obj.imagelets = wavePrgted*obj.throughput;
         end
         
         function relay(obj,src)
-            propagateThrough(obj,src)
-        end
+            wavePrgted = propagateThrough(obj,src);
+            obj.imagelets = wavePrgted.*conj(wavePrgted)*obj.throughput;
+       end
 
         function varargout = imagesc(obj,varargin)
         %% IMAGESC Display the lenslet imagelets

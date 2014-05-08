@@ -135,7 +135,7 @@ classdef influenceFunction < handle
             out = obj.modes\c;
         end
         
-        function show(obj)
+        function show(obj,varargin)
             %% SHOW 
             
             P = obj.p_P;
@@ -153,7 +153,8 @@ classdef influenceFunction < handle
                 end
             else
                 x = linspace(0,obj.bezier(end,1),101);
-                obj.displayHandle = plot(obj.bezier(:,1),obj.bezier(:,2),x,ppval(obj.splineP,x),'r--');
+                obj.displayHandle = plot(obj.bezier(:,1),obj.bezier(:,2),...
+                  x,ppval(obj.splineP,x),'r--',varargin{:});
                 kPoints = [1 4 7];
 %                 kHandles = [2 3 5 6];
                 for kP=1:7
@@ -304,7 +305,7 @@ classdef influenceFunction < handle
                 wv = sparse(wv(:,iIF(kIF)));
                 wu = sparse(wu(:,jIF(kIF)));
                fprintf(' @(influenceFunction)> Computing the 2D DM zonal modes... (%4d,    \n',nValid)
-                for kIF = 1:nValid % parfor doesn't worj with sparse matrix!
+                for kIF = 1:nValid % parfor doesn't work with sparse matrix!
                     fprintf('\b\b\b\b%4d',kIF)
                     buffer = wv(:,kIF)*wu(:,kIF)';
                     m_modes(:,kIF) = buffer(:);

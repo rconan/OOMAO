@@ -61,7 +61,7 @@ classdef detector < handle
         
         %% Constructor
         function obj = detector(resolution,pixelScale)
-            error(nargchk(1, 2, nargin))
+            narginchk(1, 2)
             if numel(resolution)==1
                 obj.resolution = resolution*ones(1,2);
             else
@@ -142,10 +142,10 @@ classdef detector < handle
         %% Set/Get exposureTime
         function set.exposureTime(obj,val)
             obj.p_exposureTime = val;
-            if obj.clockRate==1
-                obj.clockRate = 1/obj.p_exposureTime;
-                fprintf('Clock rate is: %.2fHz\n',obj.clockRate)
-            end
+%             if obj.clockRate==1
+%                 obj.clockRate = 1/obj.p_exposureTime;
+%                 fprintf('Clock rate is: %.2fHz\n',obj.clockRate)
+%             end
         end
         function val = get.exposureTime(obj)
             val = obj.p_exposureTime;
@@ -164,7 +164,7 @@ classdef detector < handle
             %
             % See also: imagesc
             
-            if ndims(obj.frame)<3 % frame must be a 2-D array for plotting
+            if ismatrix(obj.frame) % frame must be a 2-D array for plotting
                 
                 if isempty(obj.frame)
                     m_frame = obj.frameBuffer;
@@ -182,16 +182,14 @@ classdef detector < handle
                 end
                 
                 if all(ishandle(obj.frameHandle)) && ~isempty(obj.frameHandle)
+                    nm = size(m_frame);
+                    if ~all(size(get(obj.frameHandle(1),'Cdata'))==nm)
+                        set(get(obj.frameHandle(1),'parent'),'xlim',0.5+[0 nm(2)],'ylim',0.5+[0 nm(1)])
+                    end
                     set(obj.frameHandle(1),'Cdata',m_frame,varargin{:});
-                    %                 xAxisLim = [0,size(obj.frame,2)]+0.5;
-                    %                 yAxisLim = [0,size(obj.frame,1)]+0.5;
-                    %                 set( get(obj.frameHandle,'parent') , ...
-                    %                     'xlim',xAxisLim,'ylim',yAxisLim);
                     set(obj.frameHandle(2),'String',...
                         sprintf('Frame #%d',obj.frameCount),...
                         'color',titleColor)
-                    [n,m] = size(m_frame);
-                    set(get(obj.frameHandle(1),'parent'),'xlim',0.5+[0 m],'ylim',0.5+[0 n])
                 else
                     if isempty(obj.pixelScale)
                         obj.frameHandle(1) = image(m_frame,...
@@ -211,7 +209,7 @@ classdef detector < handle
                         'color',titleColor);
                     colormap(pink)
                     axis xy equal tight
-                    colorbar('location','SouthOutside')
+                    colorbar('location','EastOutside')
                     hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
                         hu = uimenu('Label','OOMAO');
@@ -302,8 +300,10 @@ classdef detector < handle
 %                 disp('Binning')
                 image = utilities.binning(image,obj.resolution.*[n,m]/n);
             end
-            obj.frameCount = obj.frameCount + 1;
-            if obj.frameCount<obj.p_exposureTime*obj.clockRate
+            obj.frameCount = obj.frameCount + 1;         
+            if obj.frameCount<obj.p_exposureTime*obj.clockRate && obj.frameCount>obj.startDelay*obj.clockRate
+                obj.frameCount = obj.frameCount - obj.startDelay*obj.clockRate;
+                obj.startDelay = 0;
                 obj.frameBuffer = obj.frameBuffer + image;
                 obj.frame = [];
             else
@@ -329,8 +329,10 @@ classdef detector < handle
                     if obj.readOutNoise>0
                         image = image + randn(size(image)).*obj.readOutNoise;
                     end
-                end
-                obj.frameCount = 0;
+                end                
+                if obj.frameCount>obj.startDelay*obj.clockRate
+                    obj.frameCount = 0;
+                end                
                 obj.frame = image;
                 obj.frameBuffer = 0;
             end

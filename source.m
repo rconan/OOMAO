@@ -88,7 +88,9 @@ classdef source < stochasticWave & hgsetget
         wavelengthInMicron;
         % optical path difference
         opd;
+        opdRms;
         meanRmOpd;
+        catMeanRmOpd;
     end
     
     properties (Access=private)
@@ -312,9 +314,21 @@ classdef source < stochasticWave & hgsetget
             out = obj.phase/obj.waveNumber;
         end
         
-        %% Get the opd
+        %% Get the opd rms
+        function out = get.opdRms(obj)
+            out = std(obj)/obj.waveNumber;
+        end
+        
+        %% Get the zeroed-mean opd 
         function out = get.meanRmOpd(obj)
             out = obj.meanRmPhase/obj.waveNumber;
+        end
+        %% Get the zeroed-mean opd 
+        function out = get.catMeanRmOpd(obj)
+            ndims(obj)
+            a = catPhase(obj);
+            whos a
+            out = catMeanRmPhase(obj)/obj(1).waveNumber;
         end
         
         %% Get the opd vector
@@ -652,25 +666,29 @@ classdef source < stochasticWave & hgsetget
             
         end
         
-        function copy = clone(obj)
+        function varargout = clone(obj)
             %% CLONE Create an object clone
             %
             % copy = clone(obj) clones the source object to another object
             % with a different handle
             
-            copy = eval(class(obj));
-            meta = eval(['?',class(obj)]);
-            for p = 1: size(meta.Properties,1)
-                pname = meta.Properties{p}.Name;
-                try
-                    if ~meta.Properties{p}.Dependent
-                        eval(['copy.',pname,' = obj.',pname,';']);
+            for kCopy = 1:nargout
+                copy = eval(class(obj));
+                meta = eval(['?',class(obj)]);
+                for p = 1: size(meta.Properties,1)
+                    pname = meta.Properties{p}.Name;
+                    try
+                        if ~meta.Properties{p}.Dependent
+                            eval(['copy.',pname,' = obj.',pname,';']);
+                        end
+                    catch ME
+                        fprintf(['\nCould not copy ',pname,'.\n']);
+                        rethrow(ME)
                     end
-                catch ME
-                    fprintf(['\nCould not copy ',pname,'.\n']);
-                    rethrow(ME)
                 end
+                varargout{kCopy} = copy;
             end
+
         end
         
         function varargout = polar(obj,lineSpec)
