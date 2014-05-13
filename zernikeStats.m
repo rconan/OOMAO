@@ -1360,7 +1360,7 @@ classdef zernikeStats
             % the given range and propagates through the atmosphere defined
             % by the object atm
             %
-            % C = spatioAngularCovarianceMatrix(sampling,range,atm,src1,src2)
+            % C = residueAngularCovariance(sampling,range,modes,atm,src1,src2)
             % computes the spatio-angular cross-correlation meta-matrix of
             % the wavefront with Zernike modes between all src2 and src1.
             % The phase is sampling with sampling points in the given range

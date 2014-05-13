@@ -370,7 +370,8 @@ classdef shackHartmann < hgsetget
                 G = sparseGradientMatrix(obj);
                 modes = speye((obj.lenslets.nLenslet+1)^2);
                 obj.iG = calibrationVault(full(G),...
-                    modes(:,obj.validActuator),obj.validActuator);
+                    modes(:,obj.validActuator),obj.validActuator,...
+                    'noshow',true);
                 obj.iG.cond = 100;
             end
             if size(obj.slopes,2)>1

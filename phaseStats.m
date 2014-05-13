@@ -62,7 +62,7 @@ classdef phaseStats
         function out = angularCovariance(theta,atm)
             %% ANGULARCOVARIANCE Phase angular covariance
             %
-            % out = phaseStats.angularCovariance(rho,atm) computes the
+            % out = phaseStats.angularCovariance(theta,atm) computes the
             % phase angular covariance from the zenith angle theta and an
             % atmosphere object
             %

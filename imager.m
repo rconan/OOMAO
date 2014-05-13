@@ -16,8 +16,6 @@ classdef imager < detector
         referenceFrame;
         % imaging lens
         imgLens;
-        % imaging camera
-        imgCcd;
         % Strehl ratio
         strehl;
         % entrapped energy

@@ -221,7 +221,7 @@ classdef deformableMirror < handle
             obj.coefs = 0.5*(F\maps(src.mask,:))/src.waveNumber;
         end
         
-        function calib = calibration(obj,sensor,src,calibDmStroke,steps)
+        function calib = calibration(obj,sensor,src,calibDmStroke,steps,varargin)
             %% CALIBRATION DM calibration
             %
             % obj = calibration(obj,sensor,src,calibDmCommands) calibrate
@@ -234,7 +234,7 @@ classdef deformableMirror < handle
             % the calibration process is split in nSteps steps.
             
             obj.coefs = 0;
-            if nargin<5
+            if nargin<5 || isempty(steps)
                 steps = 1;
                 if obj.nValidActuator>1000
                     steps  = 25;
@@ -290,9 +290,9 @@ classdef deformableMirror < handle
 
                 pokeMatrix = pokeMatrix./calibDmStroke;
                 if isnumeric(obj.modes)
-                    calib = calibrationVault(pokeMatrix,obj.modes,src.mask);
+                    calib = calibrationVault(pokeMatrix,obj.modes,src.mask,varargin{:});
                 else
-                    calib = calibrationVault(pokeMatrix,obj.modes.modes,src.mask);
+                    calib = calibrationVault(pokeMatrix,obj.modes.modes,src.mask,varargin{:});
                 end
             else 
                 

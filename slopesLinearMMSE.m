@@ -97,6 +97,7 @@ classdef slopesLinearMMSE < handle
             obj.sf            = inputs.Results.sf;    
            
             obj.log = logBook.checkIn(obj);
+            obj.log.verbose = false;
             add(obj.log,obj,'atmosphere wavelength set to mmse star wavelength!') 
             obj.atmModel.wavelength = obj.p_mmseStar(1).wavelength;
             
@@ -115,7 +116,7 @@ classdef slopesLinearMMSE < handle
                 
                 obj.Cox{1} = cell( obj.atmModel.nLayer , 1 );
                 for kLayer = 1:obj.atmModel.nLayer
-                    fprintf('. Layer #%d\n',kLayer);
+%                     fprintf('. Layer #%d\n',kLayer);
                    atmLayer = slab(obj.atmModel,kLayer);
                     g   = 1 - atmLayer.layer.altitude./[obj.guideStar.height];
                     pad = ceil( 0.5*obj.resolution*(1-g)./g );
@@ -138,7 +139,8 @@ classdef slopesLinearMMSE < handle
             obj.wavefrontToMeter = obj.atmModel.wavelength^2/2/pi/obj.sampling/(2*wfs.lenslets.nyquistSampling);
             obj.wavefrontSize    = ones(1,2)*(obj.resolution+1);
             obj.x0               = zeros(size(obj.c));
-        end
+            obj.log.verbose = true;
+       end
         
         
         %% Destructor
@@ -174,7 +176,7 @@ classdef slopesLinearMMSE < handle
             else
                 obj.c( obj.slopesMask ) = wfs;
             end
-            yy = minres(obj.fun,obj.c(:),obj.RTOL,obj.MAXIT,[],[],obj.x0*obj.warmStart);
+            [yy,~] = minres(obj.fun,obj.c(:),obj.RTOL,obj.MAXIT,[],[],obj.x0*obj.warmStart);
             obj.x0 = yy;
             m_Cox = obj.Cox{1};
             n = length(m_Cox);
@@ -278,10 +280,10 @@ classdef slopesLinearMMSE < handle
             [fx0,fy0] = freqspace(obj.NF,'meshgrid');
             
             tic
-            fprintf(' . Layer #  ');
+%             fprintf(' . Layer #  ');
             for kLayer = 1:obj.atmModel.nLayer
                 
-                fprintf('\b\b%2d',kLayer);
+%                 fprintf('\b\b%2d',kLayer);
                 atmLayer = slab(obj.atmModel,kLayer);
                 h = atmLayer.layer.altitude;
                 g = 1-h/obj.guideStar(1).height;
@@ -301,7 +303,7 @@ classdef slopesLinearMMSE < handle
                 cov   = cov   + real( fftshift( fft2( fftshift( spectrum(fx,fy,[0,1],[1,0]) ) ) ) );
 
             end
-            fprintf('\n');
+%             fprintf('\n');
             
             covxx(1) = covxx(1) + obj.p_noiseVar;
             covxx = real( fftshift(  covxx ) );
