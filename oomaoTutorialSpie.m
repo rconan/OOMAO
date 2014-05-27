@@ -25,7 +25,7 @@
 % \oo{source}, \item \oo{atmosphere}, \item \oo{telescope}, \item
 % \oo{shackHartmann}, \item \oo{deformableMirror}. \end{itemize}
 % Fig.~\ref{fig:oomaoClassTree} shows the relations between the main
-% classes of oomao. 
+% classes of \oomao. 
 % The classes are setup along an optical path for a closed--loop AO system.
 % The operators used to optically link the classes are superimposed to the
 % optical link.

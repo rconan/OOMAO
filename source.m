@@ -468,7 +468,12 @@ classdef source < stochasticWave & hgsetget
             for kObj = 1:nObj
                 obj(kObj).opticalPath{ length(obj(kObj).opticalPath)+1 } = otherObj;
             end
-            relay(otherObj,obj);
+            if (ndims(obj)~=3)
+                relay(otherObj,obj);
+            elseif strcmpi(otherObj.tag,'SHACK-HARTMANN') % LGS
+%                 disp('LGS through a Shack!')
+                uplus(obj)
+            end            
         end
         
          function uplus(obj)
@@ -482,7 +487,36 @@ classdef source < stochasticWave & hgsetget
                 obj(kObj).p_amplitude = 1;
                 obj(kObj).p_phase     = 0;
             end
-            cellfun(@(x)relay(x,obj),obj(1).opticalPath,'uniformOutput',false)
+%             cellfun(@(x)relay(x,obj),obj(1).opticalPath,'uniformOutput',false)
+            if ndims(obj)==3 % LGS
+                set(obj,'saveWavefront',false);
+                nObj = size(obj,3);
+                nOpticalPath = length(obj(1).opticalPath);
+                buffer = 0;
+                for kObj = 1:nObj
+                    fprintf(' LGS #%2d\n',kObj)
+                    obj_3 = obj(:,:,kObj);
+                    for kOpticalpath=1:nOpticalPath
+                        otherObj = obj_3(1).opticalPath{kOpticalpath};
+                        if strcmpi(otherObj.tag,'SHACK-HARTMANN')
+                            wavePrgted = propagateThrough(otherObj.lenslets,obj_3);
+                            buffer = buffer + wavePrgted.*conj(wavePrgted);
+                        else
+                            relay(otherObj,obj_3)
+                        end
+                    end
+                    reset(obj_3)
+                end
+                if strcmpi(otherObj.tag,'SHACK-HARTMANN')
+                    otherObj.lenslets.imagelets = buffer*otherObj.lenslets.throughput;
+                    relay(otherObj,obj,'lenslets set!')
+                end
+            else
+                for kOpticalpath=1:length(obj(1).opticalPath)
+                    otherObj = obj(1).opticalPath{kOpticalpath};
+                    relay(otherObj,obj)
+                end
+            end
         end
               
         function obj = times(obj,otherObj)

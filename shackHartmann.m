@@ -584,7 +584,7 @@ classdef shackHartmann < hgsetget
             end
         end
         
-        function relay(obj,src)
+        function relay(obj,src,~)
             %% RELAY shackhartmann to source relay
             %
             % relay(obj,src) propagates the source through the
@@ -627,13 +627,15 @@ classdef shackHartmann < hgsetget
                 
             end
             
-%             if isempty(src(1).magnitude)
-%                 obj.camera.photonNoise = false;
-%             else
-%                 obj.camera.photonNoise = true;
-%             end
-%             propagateThrough(obj.lenslets,src)
-            relay(obj.lenslets,src)
+            %             if isempty(src(1).magnitude)
+            %                 obj.camera.photonNoise = false;
+            %             else
+            %                 obj.camera.photonNoise = true;
+            %             end
+            %             propagateThrough(obj.lenslets,src)
+            if nargin<3
+                relay(obj.lenslets,src)
+            end
             %             grabAndProcess(obj)
             spotsSrcKernelConvolution(obj,src)
             grab(obj.camera)

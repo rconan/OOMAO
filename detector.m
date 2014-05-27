@@ -79,9 +79,9 @@ classdef detector < handle
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Detector';
-%             obj.paceMaker.TimerFcn = @(src,evnt) obj.grab;% {@timerCallBack, obj};
+            obj.paceMaker.TimerFcn = @(src,evnt) obj.grab;% {@timerCallBack, obj};
             obj.paceMaker.ExecutionMode = 'FixedSpacing';
-            %             obj.paceMaker.BusyMode = 'error';
+            obj.paceMaker.BusyMode = 'error';
             obj.paceMaker.Period = 1;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
 %             function timerCallBack( timerObj, event, a)
@@ -231,7 +231,7 @@ classdef detector < handle
             end
         end
         
-        function varargout = grab(obj)
+        function varargout = grab(obj,~)
             %% GRAB Frame grabber
             %
             % grab(obj) grabs a frame

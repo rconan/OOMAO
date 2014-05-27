@@ -16,7 +16,7 @@ classdef skyAngle < double
             if nargin<2
                 unit_ = 'radian';
             end
-            
+            unit_ = lower( unit_ );
             switch unit_
                 case 'arcmin'
                     angle_ = angle_/constants.radian2arcmin;

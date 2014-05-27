@@ -97,27 +97,30 @@ classdef imager < detector
                 m_frame = mat2cell( m_frame , n*ones(1,nf(1)), n*ones(1,nf(2)));
                 
                 obj.strehl = zeros(1,length(m_frame));
+                obj.ee     = zeros(1,length(m_frame));
+                a = [];
                 for kFrame = 1:length(m_frame)
                     src_ = src_.*m_frame{kFrame};
                     wavePrgted = propagateThrough(obj.imgLens,src_);
                     otfAO =  abs(wavePrgted);
+                    a = [a otfAO];
                     % strehl ratio
                     obj.strehl(kFrame) = sum(otfAO(:))/sum(otf(:));
+                    % entrapped energy
+%                     if ~isempty(obj.eeWidth)
+%                         a      = (obj.eeWidth/(src_.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;
+%                         nOtf   = length(otfAO);
+%                         u      = linspace(-1,1,nOtf).*obj.tel.D;
+%                         [x,y]  = meshgrid(u);
+%                         eeFilter ...
+%                             = a^2*(sin(pi.*x.*a)./(pi.*x.*a)).*...
+%                             (sin(pi.*y.*a)./(pi.*y.*a));
+%                         otfAO = otfAO/max(otfAO(:));
+%                         obj.ee(kFrame) = real(trapz(u,trapz(u,otfAO.*eeFilter)));
+%                     end
+
                 end
                 obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize/2;
-
-                %                         figure, imagesc(real(otfAO)/max(otfAO(:)))
-                % entrapped energy
-%                 obj.tel
-%                 a      = (obj.eeWidth/(src.wavelength/obj.tel.D*constants.radian2arcsec))/obj.tel.D;
-%                 nOtf   = length(otfAO);
-%                 u      = linspace(-1,1,nOtf).*obj.tel.D;
-%                 [x,y]  = meshgrid(u);
-%                 eeFilter ...
-%                     = a^2*(sin(pi.*x.*a)./(pi.*x.*a)).*...
-%                     (sin(pi.*y.*a)./(pi.*y.*a));
-%                 otfAO = otfAO/max(otfAO(:));
-%                 obj.ee = real(trapz(u,trapz(u,otfAO.*eeFilter)));
             end
             obj.frameCount = 0;
         end

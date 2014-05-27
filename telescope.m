@@ -244,7 +244,7 @@ classdef telescope < telescopeAbstract
             n = resolution;
             u = pixelScaleInSpFreq*linspace(-1,1,n)*n/2;
             [fx,fy] = meshgrid(u);
-            out = psf(obj,hypot(fx,fy))/psf(obj,0);
+            out = psf(obj,hypot(fx,fy))/obj.area;%/psf(obj,0);
 
         end
              

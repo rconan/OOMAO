@@ -373,6 +373,11 @@ classdef atmosphere < hgsetget
                 obj.r0;
         end
         
+        function out = mu(obj,order)
+            z = [obj.layer.altitude];
+            out = sum( [obj.layer.fractionnalR0].*z.^(order) );
+        end
+        
         function out = polarLogPhaseScreen_(obj,x,y,tau,src)
             %% POLARLOGPHASESCREEN Polar-logarithmic phase screen
             

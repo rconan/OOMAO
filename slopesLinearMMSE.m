@@ -99,14 +99,18 @@ classdef slopesLinearMMSE < handle
             obj.log = logBook.checkIn(obj);
             obj.log.verbose = false;
             add(obj.log,obj,'atmosphere wavelength set to mmse star wavelength!') 
+            atmWavelength = obj.atmModel.wavelength;
             obj.atmModel.wavelength = obj.p_mmseStar(1).wavelength;
             
             if isinf(obj.guideStar(1).height)
                 add(obj.log,obj,'Computing the covariance matrices for NGS')
+                tic
                 obj.Cxx = { slopestoSlopesCovariance(obj,0,0) };
-                obj.Cox{1} = { { phaseToSlopesCovariance(obj,0,obj.atmModel,0,0,1) } };              
+                obj.Cox{1} = { { phaseToSlopesCovariance(obj,0,obj.atmModel,0,0,1) } };        
+                toc
             else
                 add(obj.log,obj,'Computing the covariance matrices for LGS')
+                tic
                 dv = [obj.guideStar.directionVector];
                 ddv_x = bsxfun( @minus, dv(1,:), dv(1,:)' );
                 ddv_y = bsxfun( @minus, dv(2,:), dv(2,:)' );
@@ -131,15 +135,18 @@ classdef slopesLinearMMSE < handle
                     NP = NI + 2*pad(1);
                     obj.B{kLayer} = tools.bilinearSparseInterpolator(NI,NP,1,g(1));
                 end
-              obj.B = cell2mat( obj.B );
+                obj.B = cell2mat( obj.B );
+                toc
             end
             
             obj.fun = @(x) mtimes4squareBlocks(obj.Cxx,x,wfs.validLenslet(:));
             obj.c   = zeros(obj.resolution^2*2*length(obj.guideStar),1 );
-            obj.wavefrontToMeter = obj.atmModel.wavelength^2/2/pi/obj.sampling/(2*wfs.lenslets.nyquistSampling);
+            obj.wavefrontToMeter = ...
+                obj.guideStar(1).wavelength*obj.atmModel.wavelength/2/pi/obj.sampling/(2*wfs.lenslets.nyquistSampling);
             obj.wavefrontSize    = ones(1,2)*(obj.resolution+1);
             obj.x0               = zeros(size(obj.c));
             obj.log.verbose = true;
+            obj.atmModel.wavelength = atmWavelength;
        end
         
         
@@ -263,7 +270,7 @@ classdef slopesLinearMMSE < handle
         
         function  m_Cxx = slopestoSlopesCovariance(obj,deltaSrc_x,deltaSrc_y)
             %% slopes-to-slopes covariance matrix
-            fprintf(' ==> Computing slopes-to-slopes covariance matrix ...\n');
+%             fprintf(' ==> Computing slopes-to-slopes covariance matrix ...\n');
             nLenslet = obj.resolution;
             atm = obj.atmModel;
             lambda = atm.wavelength;
@@ -279,7 +286,7 @@ classdef slopesLinearMMSE < handle
             
             [fx0,fy0] = freqspace(obj.NF,'meshgrid');
             
-            tic
+%             tic
 %             fprintf(' . Layer #  ');
             for kLayer = 1:obj.atmModel.nLayer
                 
@@ -319,13 +326,13 @@ classdef slopesLinearMMSE < handle
             m_Cxx{1,2} = T;
             m_Cxx{2,1} = T';
             
-            elapsedTime = toc;
-            fprintf(' ==> slopes-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
+%             elapsedTime = toc;
+%             fprintf(' ==> slopes-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
         end
         
         function m_Cox = phaseToSlopesCovariance(obj,pad,m_atm,deltaSrc_x,deltaSrc_y, gl)
             %% phase-to-slopes covariance matrix
-            fprintf(' ==> Computing phase-to-slopes covariance matrix ...\n');
+%             fprintf(' ==> Computing phase-to-slopes covariance matrix ...\n');
             alpha = 1;
             [fx,fy] = freqspace(obj.NF,'meshgrid');
             nLenslet = obj.resolution;
@@ -344,13 +351,13 @@ classdef slopesLinearMMSE < handle
             b0 = obj.NF/2+1;
             b = (1-nLenslet-pad:nLenslet+pad)*obj.sf + b0;
             
-            tic
+%             tic
             covx  = fftshift(real( fft2( fftshift( spectrum2([1,0]) ) ) ) );
             covy  = fftshift(real( fft2( fftshift( spectrum2([0,1]) ) ) ) );
             m_Cox{1} = toeplitzBlockToeplitz( nm, nm, covx(b,b) );
             m_Cox{2} = toeplitzBlockToeplitz( nm, nm, covy(b,b) );
-            elapsedTime = toc;
-            fprintf(' ==> phase-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
+%             elapsedTime = toc;
+%             fprintf(' ==> phase-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
         end
         
     end
