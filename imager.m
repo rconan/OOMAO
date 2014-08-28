@@ -83,7 +83,7 @@ classdef imager < detector
         end
         
         function flush(obj)
-            fprintf(' @(detector:relay)> reading out and emptying buffer (%d frames)!\n',obj.frameCount)
+            %fprintf(' @(detector:relay)> reading out and emptying buffer (%d frames)!\n',obj.frameCount)
             if ~isempty(obj.referenceFrame) && ~isempty(obj.frame)
                 obj.imgLens.fieldStopSize = obj.imgLens.fieldStopSize*2;
                 src_ = source.*obj.referenceFrame;

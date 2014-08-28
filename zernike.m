@@ -43,16 +43,22 @@ classdef zernike < telescopeAbstract
         o;
         % Noll normalisation
         nollNorm;
-        % coefficients in meter
-        c;
         % lexicographic ordering of frames (default: true)
         lex = true;
         %         % Projection matrix of a Zernike portion on the same basis defined
         %         % on the portion
         %         P
-%         pupil;
+%         pupil;        
+        % coefs display handle
+        coefsHandle;
+        cListener;
         % zernike tag
         tag = 'ZERNIKE POLYNOMIALS';
+    end
+    
+    properties (SetObservable=true)    
+        % coefficients in meter
+        c;
     end
     
     properties (Dependent)%, SetAccess=private)
@@ -115,7 +121,10 @@ classdef zernike < telescopeAbstract
             end
             obj.p_p = polynomials(obj,p.Results.unitNorm);
             obj.c = ones(length(obj.j),1);
-            if obj.log.writable
+            obj.cListener = addlistener(obj,'c','PostSet',...
+                    @(src,evnt) obj.bar );
+            obj.cListener.Enabled = false;            
+           if obj.log.writable
                 display(obj)
             end
         end
@@ -341,6 +350,18 @@ classdef zernike < telescopeAbstract
                     otherwise
                         src(kSrc).phase     = utilities.toggleFrame(obj.p_p*obj.c*src(kSrc).waveNumber,3);
                 end
+            end
+        end
+        
+        function varargout = bar(obj,varargin)
+           
+            if isempty(obj.coefsHandle)
+                obj.coefsHandle = bar( obj.j , obj.c, 0.6, varargin{:});
+            else
+                set(obj.coefsHandle,'YData', obj.c )
+            end
+            if nargout==1
+                varargout{1} = obj.coefsHandle;
             end
         end
         

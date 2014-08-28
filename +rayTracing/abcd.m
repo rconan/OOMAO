@@ -29,14 +29,16 @@ classdef abcd < handle
         function obj = abcd(varargin)
             
             p = inputParser;
-            p.addParamValue('offset',0,@isnumeric);
-            p.addParamValue('stopWidth',Inf,@isnumeric);
-            p.addParamValue('stopOffset',Inf,@isnumeric);
+            p.addParameter('offset',0,@isnumeric);
+            p.addParameter('stopWidth',Inf,@isnumeric);
+            p.addParameter('stopOffset',Inf,@isnumeric);
+            p.addParameter('zPropDir',1,@isnumeric);
             p.parse(varargin{:});
 
             obj.offset = p.Results.offset;
             obj.stopWidth = p.Results.stopWidth;
             obj.stopOffset = p.Results.stopOffset;
+            obj.zPropDir = p.Results.zPropDir;
             
         end
         

@@ -241,6 +241,8 @@ classdef detector < handle
             switch class(obj.frameGrabber)
                 case {'lensletArray','gpuLensletArray'}
                     readOut(obj,obj.frameGrabber.imagelets)
+                case {'pyramid'}
+                    readOut(obj,obj.frameGrabber.lightmap)
                 case 'function_handle'
                     buffer = obj.frameGrabber();
                     [n,m] = size(buffer);
@@ -274,7 +276,7 @@ classdef detector < handle
                         obj.frameBuffer = obj.frameBuffer + src.intensity;
                         if src.timeStamp>=obj.exposureTime
                             src.timeStamp = 0;
-                            disp(' @(detector:relay)> reading out and emptying buffer!')
+                            %disp(' @(detector:relay)> reading out and emptying buffer!')
                             readOut(obj,obj.frameBuffer)
                             obj.frameBuffer = 0*obj.frameBuffer;
                         end
