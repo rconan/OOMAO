@@ -314,7 +314,7 @@ classdef utilities
             
             % Sub-array index in array
             [i,j] = ndgrid(uint(1:nSub),uint(1:mSub));
-            index = repmat( sub2ind( [n,m] , i(:) , j(:) ) , [ 1 , nNSub*mMSub*k ] );
+            index = repmat( uint( sub2ind( [n,m] , i(:) , j(:) ) ) , [ 1 , nNSub*mMSub*k ] );
             
             % Step index
             indexStep = ...
@@ -328,7 +328,7 @@ classdef utilities
             
             indexStep = repmat( reshape( indexStep , [1,nNSub*mMSub*k] ) , [nSub*mSub,1] );
             
-            index = index + double( indexStep );
+            index = index + indexStep;
         end
         
         function out = sombrero(n,x)

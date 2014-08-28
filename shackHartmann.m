@@ -36,7 +36,7 @@ classdef shackHartmann < hgsetget
         % timer
         paceMaker;
         % slopes display handle
-        slopesDisplayHandle;z
+        slopesDisplayHandle;
         % slope listener
         slopesListener;
         % intensity display handle

@@ -65,6 +65,7 @@ classdef slopesLinearMMSE < handle
         p_mmseStar
         p_noiseVar = 0;
         fun;
+        funp;
         c;
         wavefrontToMeter;
     end
@@ -140,6 +141,7 @@ classdef slopesLinearMMSE < handle
             end
             
             obj.fun = @(x) mtimes4squareBlocks(obj.Cxx,x,wfs.validLenslet(:));
+            obj.funp = @(x) mtimes4precond(obj.Cxx,x,obj.slopesMask);
             obj.c   = zeros(obj.resolution^2*2*length(obj.guideStar),1 );
             obj.wavefrontToMeter = ...
                 obj.guideStar(1).wavelength*obj.atmModel.wavelength/2/pi/obj.sampling/(2*wfs.lenslets.nyquistSampling);
@@ -403,5 +405,16 @@ else
         u = u + nw/n;
     end
 end
+
+end
+
+function out = mtimes4precond( OO, w, mask)
+
+x = w(1:end/2);
+y = w(1+end/2:end);
+O = OO{1};
+A = O{1,1};
+B = O{2,2};
+out = [medfilt1( A\x ) ; medfilt1( B\y )];
 
 end
