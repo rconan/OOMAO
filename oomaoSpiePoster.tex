@@ -1,1 +1,529 @@
-/home/rconan/Desktop/Meeting/SPIE2014/oomao/oomaoSpiePoster.tex
+\documentclass{beamer}
+  \mode<presentation> {  
+    \usetheme{I6pd2}    
+  }
+
+\usepackage[orientation=portrait,size=a0,scale=1.1]{beamerposter}    
+\usepackage{xspace,tikz}
+\usetikzlibrary{arrows,calc,scopes,patterns,decorations.pathmorphing,snakes,shapes,shapes.callouts,positioning,backgrounds,topaths,fit,shapes.multipart}
+\usetikzlibrary{decorations.text}
+\newcommand{\waveA}[3][90]{
+\draw[red,ultra thick,rotate around={#1:(#2,#3)},decorate] (#2,#3) sin ++(0.25,0.1) cos ++(0.25,-0.1) sin ++(0.25,-0.1) cos ++(0.25,0.1);
+}
+\newcommand{\waveB}[3][90]{
+\draw[red,ultra thick,rotate around={#1:(#2,#3)},decorate] (#2,#3) sin ++(0.25,0.1) cos ++(0.25,-0.1) sin ++(0.25,-0.1) cos ++(0.25,0.1);
+}
+\newcommand{\whirl}[3][1]{
+\draw[domain=0:4.2*3.141,smooth,variable=\t,blue!75,line width=5pt] plot ({0.06*#1*\t*sin(\t r)+#2},{0.02*#1*\t*cos(\t r)+#3});
+}
+\def\lightColor{red!20}
+\def\dmIncidence{10}
+\def\boxColor{red}
+\def\matlab{\emph{Matlab}$^{\textrm{\scriptsize \textregistered}}$\xspace}
+\def\oomao{\textsf{OOMAO}\xspace}
+
+\title{\Huge Object--Oriented \matlab\\ Adaptive Optics Toolbox}
+\author{\Large R. Conan$^\ast$ and C. Correia$^\dagger$}
+\institute[ANU CPME RSAA]{$^\ast$~RSAA, The Australian National University, Weston Creek, ACT 2611, Australia\\
+$^\dagger$~Centre for Astrophysics, University of Porto, Rua das Estrelas 4150-762 Porto, Portugal}
+\date[July 2012]{July 2012}
+
+\setlength\parindent{0pt}
+
+\begin{document}
+\begin{frame}[fragile]
+
+  \begin{columns}
+    \begin{column}{0.33\linewidth}
+      \begin{block}{\oomao}
+    \oomao is a \alert{\matlab toolbox} to model Adaptive Optics systems;\\
+    \oomao is \alert{object--oriented} with classes for the AO components and for the stochastic description of the optical turbulence;\\
+    \oomao extends Matlab \alert{vectorization} capability to AO  modeling;\\
+    \oomao optimizes the use of the computer resources by relying of special matrices like \alert{sparse} and \alert{Toeplitz} matrices;\\
+    \oomao uses Matlab \alert{multi--threaded} native routines and its own \alert{parallel} algorithms;\\
+    \oomao can be used to model \alert{closed--, open-- and pseudo--open-- loop,  NGS and LGS, ``classical'' and tomographic AO} systems;\\
+    \oomao is used in the \alert{control software} of the MOAO demonstrator \alert{RAVEN} at the Subaru telescope;\\
+    \oomao has been used to define and to estimate the performance of the \alert{LTAO} system of the \alert{Giant Magellan Telescope}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.64\linewidth}
+
+  \begin{block}{\oomao Class Tree}
+\begin{tikzpicture}[>=stealth',
+class/.style={draw=blue!30!black!50,top color=white,bottom color=blue!30!black!20,thick,rounded corners,minimum height=7mm,align=center},
+classdev/.style={class,dotted,opacity=0.5},
+light/.style={<-,ultra thick,red!50!blue!50,decorate,decoration={snake,post length=5pt,pre length=10pt}},
+operator/.style={draw,black,thin,circle,minimum size=4mm,dotted,inner sep=2pt,fill=white},
+operator path/.style={->,draw,thin,dotted},
+inherit/.style={<-,thick},
+encapsulate/.style={<-,thick,dashed},
+node distance=3cm]
+% Optical path
+  \node[class,label=below right:\emph{ngs}] (src) {source};
+  \node[class,right=50mm of src,label=below right:\emph{tel}] (tel) {telescope}        edge[light] node[operator,inner sep=1pt](op){$\cdot\times$}  (src);
+  \draw[operator path] (op) to[out=140,in=60,looseness=0.6] (src);
+  \node[class,right=50mm of tel,label=below right:\emph{dm}] (dm)  {deformableMirror} edge[light] node[operator](op){$\times$}  (tel);
+  \draw[operator path] (op) to[out=130,in=60,looseness=0.4] (src);
+  \node[class,right=50mm of dm,label=below right:\emph{wfs}]  (wfs)  {shackHartmann}   edge[light] node[operator](op){$\times$}  (dm);
+  \draw[operator path] (op) to[out=140,in=60,looseness=0.35] (src);
+  \node[class,above=40mm of dm]  (img)  {imager}          edge[light] node[operator](op){$\times$}  (dm);
+  \draw[operator path] (op) to[out=180,in=60,looseness=0.5] (src);
+% Inheritance and encapsulation
+  \node[class,left=of src] (lgs) {laserGuideStar} edge[inherit,->] (src);
+  \node[class,above=40mm of src]  (stw)  {stochasticWave}    edge[inherit] (src); 
+  \node[class,below=of tel]       (telA) {telescopeAbstract} edge[inherit] (tel); 
+  \node[class,below=40mm of telA,label=below right:\emph{atm}] (atm)  {atmosphere}        edge[encapsulate] node[operator,inner sep=0pt](op){+/-} (telA); 
+  \node[class,right=of atm]       (turb) {turbulenceLayer}   edge[encapsulate] (atm); 
+  \draw[operator path] (op) to[out=160,in=230,in min distance=5mm] (telA);
+  \node[class,left=of telA]       (gmt) {giantMagellanTelescope} edge[inherit,->] (telA); 
+  \node[class,below=of gmt]       (zern) {zernike} edge[inherit,->,in=185,out=0] (telA)
+                                                   edge[encapsulate] (gmt); 
+  \node[class,below=     of dm]   (IF)   {influenceFunction} edge[encapsulate] (dm); 
+  \node[class,above=15mm of wfs.north west,anchor=south east]  
+                                  (la) {lensletArray}       edge[encapsulate,in=100,out=-90] (wfs)
+                                                             edge[encapsulate,out=90,in=-10] (img); 
+  \node[class,above right=15mm of la,anchor=south west]  
+                                  (ccd)  {detector}        edge[encapsulate,in=80,out=-90] (wfs)
+                                                           edge[inherit,in=0,out=180] (img); 
+  \node[classdev,right=of ccd,anchor=south west,yshift=5mm] (pyr) {pyramid} edge[encapsulate,->,in=30,out=180] (ccd);
+  \node[classdev,right=of ccd,anchor=north west,yshift=-5mm] (curv) {curvature} edge[encapsulate,->,in=-30,out=180] (ccd);
+% Legend
+  \coordinate[right=of IF,yshift=2cm,xshift=-1cm] (a00);
+  \node[class,anchor=west] at (a00) (class) {class};
+  \coordinate[right=of a00] (b);
+  \node[anchor=west] at (b.east) (opt00) {\small \oomao class};
+%--
+  \coordinate[below=10mm of class.south west] (a01);
+  \node[classdev,anchor=west] at (a01) (classdev) {class};
+  \coordinate[right=of a01] (b);
+  \node[anchor=west,text width=10.6cm] at (b.east) (opt01) {\small \oomao class in development};
+%--
+  \coordinate[below=6mm of classdev.south west] (a0);
+  \coordinate[right=of a0] (b) edge[->,inherit] (a0);
+  \node[anchor=west] at (b.east) (opt0) {\small Inherit from};
+%--
+  \coordinate[below=12mm of a0] (a1);
+  \coordinate[right=of a1] (b) edge[->,encapsulate] (a1);
+  \node[anchor=west] at (b.east) (opt1) {\small Embed};
+%--
+  \coordinate[below=12mm of a1] (a2);
+  \coordinate[right=of a2] (b) edge[->,operator path] (a2);
+  \node[anchor=west] at (b.east) {\small Class method};
+%--
+  \coordinate[below=12mm of a2] (a3);
+  \node[anchor=west] at (a3) {\emph{object}};
+  \coordinate[right=of a3] (b);
+  \node[anchor=west] at (b.east) (opt3) {\small Class instance};
+%--
+  \coordinate[below=20mm of a3] (a4);
+  \coordinate[right=of a4] (b) edge[->,light] (a4);
+  \node[anchor=west,text width=9cm] at (b.east) (opt4) {\small Optical path: \emph{ngs}$\cdot\times$\emph{tel}$\times$\emph{dm}$\times$\emph{wfs}};
+%--
+%  \node[draw,rounded corners,fit=(class) (opt0) (opt01) (opt4)] {};
+\end{tikzpicture}    
+  \end{block}
+      
+    \end{column}
+
+  \end{columns}
+  
+
+  \begin{block}{Adaptive Optics Modeling with \oomao}
+    \begin{tikzpicture}[x=4cm,y=4cm]
+      \tikzstyle{beamSplitter}=[black!50,very thick,opacity=0.5]
+      \tikzstyle{light}=[color=\lightColor ,opacity=0.5]
+      \tikzstyle{lightShade}=[opacity=0.5,top color=red!20,bottom color=red!20,middle color=red!40,shading angle=47.5]
+      \tikzstyle{rtc}=[draw=black!50,thick,double,rounded
+      corners,inner sep=2mm,top color=black!20,bottom
+      color=black!20,middle color=white,font=\ttfamily]
+      \tikzstyle{rtcLinks}=[>=stealth',->,ultra thick,dashed]
+      \tikzstyle{dm}=[draw=blue!20,rectangle,minimum width=6cm,minimum
+      height=2.75cm,rotate=90,anchor=south,fill=blue!50,rounded
+      corners]
+      \tikzstyle{wfs}=[fill=blue!20!green!40,draw=blue!40!green!40,opacity=0.5,rectangle,minimum
+      width=5cm,minimum height=1.75cm,anchor=north,rounded corners]
+      \tikzstyle{decoWaveA}=[decoration={snake,amplitude=2pt,segment
+        length=7mm}]
+      \tikzstyle{decoWaveB}=[decoration={snake,amplitude=1.75pt,segment length=8mm}] 
+      \tikzstyle{oomao}=[draw,rounded corners=5mm,text
+      width=7cm,rectangle callout,callout pointer width=1.5cm]
+      \coordinate (dm00) at (5,4);
+      % light-path
+      \fill[light,rotate around={-\dmIncidence:(dm00)}] (4.75,3.5) --
+      (11,3.5) -- (13,4) -- (11,4.5) -- (4.75,4.5) -- cycle;
+      \fill[light,rotate around={\dmIncidence:(dm00)}] (4.75,3.5) --
+      (11,3.5) -- (11,4.5) -- (4.75,4.5) -- cycle;
+      % dm
+      { [] \path[clip,rotate around={90:(5,3.5)}] (5,3.52) sin
+        ++(0.25,0.05) cos ++(0.25,-0.05) sin ++(0.25,-0.05) cos
+        ++(0.25,0.05) -- ++(0.5,0) -- ++(0,0.5) -- ++(-2,0) --
+        ++(0,-0.5) -- cycle; \node[dm] (dm) at ($(dm00)+(0.25,0)$) {};
+      } \draw[black!20,thick,rotate around={90:(5,3.5)}] (4.75,3.52)
+      -- (5,3.52) sin ++(0.25,0.05) cos ++(0.25,-0.05) sin
+      ++(0.25,-0.05) cos ++(0.25,0.05) -- (6.25,3.52); 
+{ [rotate around={\dmIncidence:(dm00)}]
+        %% SOURCE
+        \draw[light,decorate,decoration={expanding
+          waves,angle=10,segment length=10mm},line width=8pt] (16,4) -- (11,4); 
+        \node[draw=white,star,star points=5, star point
+        height=1.5cm,minimum size=2cm,inner color=white,outer
+        color=red!20,inner sep=0,scale=0.4](src) at (16,4) {src};
+{ [rotate around={-5:(11,4)}]
+        %% SOURCE
+        \draw[light,decorate,decoration={expanding
+          waves,angle=10,segment length=10mm},line width=8pt] (16,4) -- (11,4); 
+        \node[draw=white,star,star points=5, star point
+        height=1.5cm,minimum size=2cm,inner color=white,outer
+        color=red!20,inner sep=0,scale=0.4](ngs) at (16,4) {ngs};
+}
+%         \draw[red,ultra thick ] (13.75,3.5) -- +(0,1);
+       %% TELESCOPE
+        \draw[black, dotted,ultra thick ] (11,3.5) -- +(0,1);
+        \fill[black] (10,3.3) rectangle (11,3.5); 
+        \fill[black] (10,4.5) rectangle (11,4.7); 
+}
+      %% TURBULENCE
+{ [yshift=-3cm]
+      \whirl{12.5}{6.5} \whirl[0.5]{13}{6} \whirl[0.6]{11.6}{6.1}
+      \whirl[1.5]{12}{5.5}
+      \whirl[0.3]{12.25}{6.05}
+}
+      %% CLOSED LOOP PATH
+      { [rotate around={-\dmIncidence:(dm00)}]
+        % wave
+        \draw[->,thin,black!40] (10,4) -- (10.75,4); { [decoWaveA]
+          \draw[red,ultra thick,decorate] (7.75,3.5) -- +(0,1);
+          \draw[red,ultra thick,decorate] (10.5,3.5) -- +(0,1); } {
+          [decoWaveB] \draw[red,ultra thick,decorate] (10.25,3.5) --
+          +(0,1); }
+        % light-path
+        \fill[light] (8.5,2.25)[rotate around={45:(9,4)}] -- (9,4.75)
+        -- (9,3.25)[rotate around={-45:(9,4)}] -- (9.5,2.25) -- cycle;
+        % beam splitter
+        \draw[beamSplitter,rotate around={45:(9,4)}] (9,3) -- +(0,2);
+        % beam lens
+        \draw[<->,beamSplitter] (11,3.25) -- +(0,1.5);
+%% IMAGER
+\fill[black!20,draw=black!50,rounded corners,opacity=0.5] (12.75,3.5) rectangle (13.75,4.5);
+        % wave
+        { [decoWaveA] \draw[red,ultra thick,decorate] (8.5,2.25) --
+          +(1,0); }
+        % closed-loop wfs
+        \node[wfs,rotate=-\dmIncidence] (clWfs) at (9,2.5) {}; }
+      %% --------------------- OPEN LOOP PATH
+      { [rotate around={\dmIncidence:(dm00)}]
+        % wave
+        \draw[->,very thick,black!40] (10.75,4) -- (10,4); {
+          [decoWaveA] \waveA{10.25}{3.5} \waveA{7}{3.5} } {
+          [decoWaveB] \waveB{10.5}{3.5} }
+        % light-path
+        { [] \path[clip] (8.5,5.65) sin ++(0.25,0.1) cos ++(0.25,-0.1)
+          sin ++(0.25,-0.1) cos
+          ++(0.25,0.1);%[rotate around={45:(9,4)}] -- (9,3.25) -- (9,4.75) -- cycle;
+          \fill[light] (8.5,5.75)[rotate around={45:(9,4)}] --
+          (9,4.75) --
+          (9,3.25);%[rotate around={-45:(9,4)}] -- (9.5,5.75) -- cycle;
+        } }
+      %% --------------------- LABEL
+      % \node[above,text width=4cm, text centered] at (dm.east)
+      % {\emph{Deformable Mirror}}; \node[below,text width=6cm, text
+      % centered] at (clWfs.south east) {\emph{Closed--loop wavefront
+      % sensor}};
+      %% \oomao
+      % _ source_
+      \node[below=3cm of ngs,oomao,text width=16.5cm,callout absolute
+      pointer={(ngs.south)}] (code) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+ngs =source('zenith',arcsec(20));
+\end{verbatim}
+        \end{minipage}
+      };
+      \node[above=2cm of src,oomao,text width=21.5cm,callout absolute
+      pointer={(src.north)}] (code) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+science = source('wavelength',photometry.J);
+\end{verbatim}
+        \end{minipage}
+      };
+      % _ atmosphere _
+      \node[oomao,anchor=south east,text width=21cm,callout absolute
+      pointer={(12.25,5.3)}] (atm code) at (9.75,5.5) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+atm = atmosphere(photometry.V,20e-2,30,...
+    'fractionnalR0',[0.5,0.3,0.2],...
+    'altitude',[0e3,5e3,12e3],...
+    'windSpeed',[10,5,20],...
+    'windDirection',[0,pi/2,pi]);
+\end{verbatim}
+        \end{minipage}
+      };
+      % _ telescope _
+      \node[oomao,anchor=south west,text width=25cm,callout absolute
+      pointer={(10.75,5)}] (code) at (10,3.5) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+tel = telescope(25,'resolution',600,...
+    'fieldOfViewInArcsec',30,'samplingTime',1/500);
+\end{verbatim}
+        \end{minipage}
+      };
+      % _ wavefront sensor _
+      \node[oomao,left=2.5cm of clWfs,text width=17.5cm,callout
+      absolute pointer={(clWfs.west)},yshift=1cm] (code) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+wfs = shackHartmann(60,600,0.85);
+ngs = ngs.*tel*wfs;
+wfs.INIT
++wfs;
+\end{verbatim}
+        \end{minipage}
+      };
+      % _ deformable mirror _
+      \node[oomao,left=2cm of dm.north,anchor=east,text
+      width=22cm,callout absolute pointer={(dm.north)}] (dm code) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+bif = influenceFunction('monotonic',0.75);
+dm = deformableMirror(61,'modes',bif,...
+    'resolution',tel.resolution,...
+    'validActuator',wfs.validActuator);
+ngs = ngs.*tel;
+calibDm = calibration(dm,wfs,ngs,...
+    ngs.wavelength,nL+1,'cond',1e2);
+\end{verbatim}
+        \end{minipage}
+      };
+      % _ imager _
+      \node[oomao,text
+      width=15.5cm,callout absolute pointer={(13.25,2.5)},anchor=north west] (code) at (14,3) {
+        \begin{minipage}{\linewidth}
+\begin{verbatim}
+cam = imager(tel);
+science = science.*tel*cam;
+cam.referenceFrame = cam.frame;
+\end{verbatim}
+        \end{minipage}
+      };
+\path let \p1 = (atm code.north west), \p2 = (dm code.north west) in node[draw,rounded corners,anchor=north west,text width=20cm] (code)  at (\x2,\y1) {
+  \begin{minipage}[linewidth]{1.0\linewidth}
+\textbf{Propagation of the sources:}
+\begin{verbatim}
+tel = tel + atm;
+ngs = ngs.*tel*dm*wfs;
+dm.coefs = -calibDm.M*wfs.slopes;
+science = science.*tel*dm*cam;
+\end{verbatim}
+  \end{minipage}
+};
+    \end{tikzpicture}
+  \end{block}
+
+%% __ IMAGE PLANE SAMPLING __
+  \begin{block}{Image Plane Sampling}
+\begin{columns}
+  \begin{column}{0.75\linewidth}
+    \begin{center}
+      \begin{verbatim}
+science = source('zenith',arcsec([0,logspace(0,log10(60),20)]),'azimuth',zeros(1,21),'wavelength',photometry.H);
+source*tel*wfs; 
+dm.coefs = -calibDm.M*wfs.slopes; 
+science = science.*tel*dm*cam; figure, imagesc(cam)
+figure, plot([science.zenith]*constants.radian2arcsec,cam.strehl,'.-')
+\end{verbatim}
+      \begin{center}
+        \fbox{\includegraphics[trim=6.95cm 5.8cm 5.1cm
+          5.3cm,clip,width=0.95\linewidth]{imagerDemo.png}}
+      \end{center}
+\end{center}
+\end{column}
+  \begin{column}{0.2\linewidth}
+\fbox{\includegraphics{imagerDemoStrehl.png}}
+  \end{column}
+\end{columns}
+  \end{block}
+
+%% __ __
+  \begin{columns}
+    \begin{column}{0.68\linewidth}
+
+      \begin{block}{Analytics}
+
+        \begin{tikzpicture}
+
+\node (code 1) {
+\begin{minipage}{0.36\linewidth}
+\textbf{Zernike variance:}
+\begin{verbatim}
+zern = zernike(tel,...
+   1:zernike.nModeFromRadialOrder(12));
+atm.L0 = 30; 
+zvVK = zernikeStats.variance(zern,atm);
+atm.L0 = Inf; 
+zvK = zernikeStats.variance(zern,atm);
+\end{verbatim}                
+\end{minipage}
+};
+\node[right=1pt of code 1.north east,anchor=north west,yshift=7pt] (image 1) {{\includegraphics[trim=0cm 0cm 0cm 0cm,clip,width=0.3\linewidth]{zernVar.png}}};
+\node[below=20pt of code 1.south west,anchor=north west] (code 2) {
+\begin{minipage}{0.5\linewidth}
+\textbf{Residual variance:}
+\begin{verbatim}
+atm.L0 = 30; zveVK = arrayfun( @(x) ...
+   zernikeStats.residualVariance(x,atm,tel), zern.j );
+atm.L0 = Inf; zveK = arrayfun( @(x) ...
+   zernikeStats.residualVariance(x,atm,tel), zern.j );
+\end{verbatim}                
+\end{minipage}
+};
+\path let \p1 = (code 2.south east), \p2 = (image 1.north east) in node[anchor=south west,xshift=-10mm] (image 2) at (\x2,\y1) {{\includegraphics[trim=0cm 0cm 0cm 0cm,clip,width=0.3\linewidth]{zernResVar.png}}};
+          
+        \end{tikzpicture}
+
+        
+      \end{block}
+      
+    \end{column}
+%% __ LGS WAVEFRONT SENSING __
+    \begin{column}{0.31\linewidth}
+      \begin{block}{Sodium Laser Guide Star Wavefront Sensing}
+\begin{verbatim}
+nLgs = 21; u = linspace(-1,1,nLgs);
+p=exp(-((u-0.35)*5).^2)+0.65*exp(-((u+0.45)*4).^2);
+lgs = laserGuideStar(25/60,25,90e3,1,1e9,p,...
+    'wavelength',photometry.Na,...
+    'height',1e3*(linspace(-5,5,nLgs)+90),...
+    'viewPoint',[-25/2,0]);
+tel = telescope(25,'resolution',60*48);
+wfs = shackHartmann(60,60*16);
+wfs.lenslets.fieldStopSize = 24;
+lgs = lgs.*tel*wfs; imagesc(wfs.camera)
+\end{verbatim}
+        \includegraphics[trim=3.5cm 15.5cm 2.6cm 9cm,clip,width=0.9\linewidth]{lgsWfs.png}
+%     \begin{tikzpicture}[line/.style={red,thick}]
+%       \node[inner sep=0] (image) at (0,0) {\includegraphics[trim=3.5cm 10.5cm 2.6cm 2.7cm,clip,width=0.95\linewidth]{lgsWfs.png}};
+% \node[black!20,anchor=north west,fill=black!20,fill opacity=0.25,text opacity=1] (code) at (image.north west) {
+% \begin{minipage}{0.9\linewidth}
+% \begin{verbatim}
+% nLgs = 21; u = linspace(-1,1,nLgs);
+% p = exp(-((u-0.35)*5).^2) + ...
+%     0.65*exp(-((u+0.45)*4).^2);
+% lgs = laserGuideStar(25/60,25,90e3,1,1e9,p,...
+%     'wavelength',photometry.Na,...
+%     'height',1e3*(linspace(-5,5,nLgs)+90),...
+%     'viewPoint',[-25/2,0]);
+% tel = telescope(25,'resolution',60*48);
+% wfs = shackHartmann(60,60*16);
+% wfs.lenslets.fieldStopSize = 24;
+% lgs = lgs.*tel*wfs; imagesc(wfs.camera)
+% \end{verbatim}                
+% \end{minipage}
+% };
+%       \begin{scope}[x={(image.south east)},y={(image.north west)}]
+%       \end{scope}
+%     \end{tikzpicture}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+%% __ LTAO __
+  \begin{block}{Open--Loop Laser Tomography Adaptive Optics}
+
+\begin{tikzpicture}
+
+\node (code 1) {
+\begin{minipage}{0.14\linewidth}
+\textbf{1. Science wavefront:}
+\begin{verbatim}
+science = science.*tel;
+figure(11)
+imagesc(...
+   science.meanRmOpd*1e6)
+axis square
+\end{verbatim}                
+\end{minipage}
+};
+\node[right=of code 1] (image 1) {\fbox{\includegraphics[trim=3.4cm 1.6cm 4.5cm 1.1cm,clip,width=0.095\linewidth]{ltao_scienceWavefront.png}}};
+
+\node[right=of image 1] (code 2) {
+\begin{minipage}{0.29\linewidth}
+\textbf{2. Science wavefront estimation:}
+\begin{verbatim}
+lgsAst = source('asterism',{[6,arcsec(25),0]},...
+   'wavelength',photometry.Na,'height',90e3);
+slmmse = slopesLinearMMSE(wfs,tel,atm,lgsAst,...
+   'mmseStar',science);
+lgsAst = lgsAst.*tel*wfs;
+ps_e = slmmse* wfs.slopes;
+figure, imagesc(ps_e), axis square
+\end{verbatim}                
+\end{minipage}
+};
+\node[right=of code 2] (image 2) {\fbox{\includegraphics[trim=2cm 1.2cm 3.4cm 0.85cm,clip,width=0.1\linewidth]{ltao_scienceWavefrontEstimate.png}}};
+
+\path let \p1 = (code 1.west), \p2 = (code 2.south) in node[anchor=north west] (code 3) at ($(\x1,\y2)-(0,5mm)$) {
+\begin{minipage}{0.28\linewidth}
+\textbf{3. DM projection:}
+\begin{verbatim}
+bifaLowRes = influenceFunction('monotonic',0.5);
+dmLowRes = deformableMirror(61,...
+    'modes',bifaLowRes,'resolution',61,...
+    'validActuator',wfs.validActuator);
+F = 2*bifaLowRes.modes(wfs.validActuator,:);
+iF = pinv(full(F),1e-1);
+dm.coefs = iF*ps_e(dm.validActuator);
+\end{verbatim}                
+\end{minipage}
+};
+
+\node[right=of code 3] (code 4) {
+\begin{minipage}{0.18\linewidth}
+\textbf{4. Residual wavefront \& PSF:}
+\begin{verbatim}
+science = science*dm*cam;
+figure(13)
+imagesc(science.meanRmOpd*1e9)
+axis square
+imagesc(cam)
+title(...
+   sprintf('Strehl: %2.0f%%',cam.strehl*1e2))
+\end{verbatim}                
+\end{minipage}
+};
+\node[right=of code 4.north east,anchor=north west,label=\small{WFE rms: 155nm}] (image 4 a) {\fbox{\includegraphics[trim=3.4cm 1.6cm 4.5cm 1.1cm,clip,width=0.095\linewidth]{ltao_scienceresidue.png}}};
+\node[right=1pt of image 4 a,label=\small{Strehl: 67\%}] (image 4 b) {\fbox{\includegraphics[trim=3.4cm 1.6cm 4.5cm 1.1cm,clip,width=0.095\linewidth]{ltao_image.png}}};
+
+\node[right=1cm of image 2.north east,anchor=north west] (code 5) {
+\begin{minipage}{0.18\linewidth}
+\textbf{WFS calibration:}
+\begin{verbatim}
+wfs.pointingDirection = zeros(2,1);
+d = tel.D/wfs.lenslets.nLenslet;
+pixelScale = lgsAst(1).wavelength/...
+    (2*d*wfs.lenslets.nyquistSampling);
+nStep=floor(wfs.lenslets.nLensletImagePx/3)*2;
+u = (0:nStep)*pixelScale/2;
+u = [-fliplr(u) u(2:end) ];
+ngs = source('zenith',u,...
+   'azimuth',zeros(1,length(u)),...
+    'wavelength',photometry.Na);
+tel = tel - atm;
+ngs = ngs.*tel*wfs;
+u_wfs = median(wfs.slopes(1:end/2,:));
+slopesLinCoef =polyfit(u,u_wfs.*pixelScale,1);
+wfs.pointingDirection = [];
+tel = tel + atm;
+wfs.slopesUnits = abs(1/slopesLinCoef(1));
+\end{verbatim}                
+\end{minipage}
+};
+
+\end{tikzpicture}
+
+  \end{block}
+
+\end{frame}
+\end{document}
