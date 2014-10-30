@@ -244,7 +244,7 @@ classdef detector < handle
                 case {'pyramid'}
                     readOut(obj,obj.frameGrabber.lightmap)
                 case 'function_handle'
-                    buffer = obj.frameGrabber();
+                    buffer = obj.frameGrabber(obj);
                     [n,m] = size(buffer);
                     u = obj.roiSouthWestCorner(1):...
                         min(obj.roiSouthWestCorner(1)+obj.regionOfInterest(1)-1,n);

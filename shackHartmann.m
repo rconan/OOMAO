@@ -47,6 +47,8 @@ classdef shackHartmann < hgsetget
         framePixelThreshold = -inf;
         % slopes units (default:1 is pixel)
         slopesUnits = 1;
+        % wavefront units (default:1 is slopes pixel!)
+        wavefrontUnits = 1;
         % zernike to slopes conversion matrix
         zern2slopes;
         % wavefront sensor tag
@@ -59,6 +61,14 @@ classdef shackHartmann < hgsetget
         intensityFunction = @sum;
         % inverse of the sparse gradient matrix
         iG;
+        % finiteDifferenceWavefront listener
+        finiteDifferenceWavefrontListener
+        % finiteDifferenceWavefront handle
+        finiteDifferenceWavefrontHandle
+        % zernCoefs listener
+        zernCoefsListener
+        % zernCoefs handle
+        zernCoefsHandle
     end
     
     properties (SetAccess=private)
@@ -144,41 +154,53 @@ classdef shackHartmann < hgsetget
                 repmat(obj.p_referenceSlopes,obj.lenslets.nArray,1);
             
             %             % intensity listener (BROKEN: shackhartmann is not deleted after a clear)
-            %             obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
-            %                 @(src,evnt) intensityDisplay(obj) );
-            % %             obj.intensityListener.Enabled = false;
+            obj.intensityListener = addlistener(obj.camera,'frame','PostSet',...
+                @(src,evnt) intensityDisplay(obj) );
+            obj.intensityListener.Enabled = false;
+                        
+            obj.finiteDifferenceWavefrontListener = addlistener(obj,...
+                'slopes','PostSet',...
+                @(src,evnt) wavefrontDisplay(obj) );
+            obj.finiteDifferenceWavefrontListener.Enabled = false;
+                        
+            obj.zernCoefsListener = addlistener(obj,...
+                'slopes','PostSet',...
+                @(src,evnt) bar(obj) );
+            obj.zernCoefsListener.Enabled = false;
+            
             % Timer settings
             obj.paceMaker = timer;
             obj.paceMaker.name = 'Shack-Hartmann Wavefront Sensor';
-            %             obj.paceMaker.TimerFcn = {@timerCallBack, obj};(BROKEN: shackhartmann is not deleted after a clear)
+            obj.paceMaker.TimerFcn = {@timerCallBack, obj};%(BROKEN: shackhartmann is not deleted after a clear)
             obj.paceMaker.ExecutionMode = 'FixedSpacing';
             obj.paceMaker.BusyMode = 'drop';
-            obj.paceMaker.Period = 1e-1;
+            obj.paceMaker.Period = 3;
             obj.paceMaker.ErrorFcn = 'disp('' @detector: frame rate too high!'')';
-            %             function timerCallBack( timerObj, event, a)
-            %                 %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
-            %                 a.grabAndProcess
-            %             end
             display(obj)
             obj.log = logBook.checkIn(obj);
             end
             setSlopesListener(obj)
+            function timerCallBack( timerObj, event, a)
+            %                 fprintf(' @detector: %3.2fs\n',timerObj.instantPeriod)
+%             a.grabAndProcess
+                uplus(a)
+            end
         end
         
         %% Destructor
         function delete(obj)
-            %             if isvalid(obj.slopesListener)
-            %                 delete(obj.slopesListener)
-            %             end
-            %             if isvalid(obj.intensityListener)
-            %                 delete(obj.intensityListener)
-            %             end
-            %             if isvalid(obj.paceMaker)
-            %                 if strcmp(obj.paceMaker.Running,'on')
-            %                     stop(obj.paceMaker)
-            %                 end
-            %                 delete(obj.paceMaker)
-            %             end
+            if isvalid(obj.slopesListener)
+                delete(obj.slopesListener)
+            end
+            if isvalid(obj.intensityListener)
+                delete(obj.intensityListener)
+            end
+            if isvalid(obj.paceMaker)
+                if strcmp(obj.paceMaker.Running,'on')
+                    stop(obj.paceMaker)
+                end
+                delete(obj.paceMaker)
+            end
             if ishandle(obj.slopesDisplayHandle)
                 delete(obj.slopesDisplayHandle)
             end
@@ -335,7 +357,8 @@ classdef shackHartmann < hgsetget
         
         %% Get the zernike coeficients
         function val = get.zernCoefs(obj)
-            val = obj.zern2slopes\obj.slopes;
+            val = obj.zern2slopes'*obj.slopes;
+            val = val*obj.wavefrontUnits;
             val(1,:) = []; % piston=0 removed
         end
         
@@ -365,8 +388,8 @@ classdef shackHartmann < hgsetget
         
         %% Computes the finite difference wavefront 
         function out = get.finiteDifferenceWavefront(obj)
-            add(obj.log,obj,'Computing the finite differerence wavefront!')
             if isempty(obj.iG)
+                add(obj.log,obj,'Computing the finite differerence wavefront!')
                 G = sparseGradientMatrix(obj);
                 modes = speye((obj.lenslets.nLenslet+1)^2);
                 obj.iG = calibrationVault(full(G),...
@@ -374,12 +397,14 @@ classdef shackHartmann < hgsetget
                     'noshow',true);
                 obj.iG.cond = 100;
             end
-            if size(obj.slopes,2)>1
-                out = obj.iG.M*obj.slopes;
-            else
-                out = zeros( obj.lenslets.nLenslet+1 );
-                out(obj.validActuator) = obj.iG.M*obj.slopes;
-            end
+            out = obj.iG.M*obj.slopes;
+%             if size(obj.slopes,2)>1
+%                 out = obj.iG.M*obj.slopes;
+%             else
+%                 out = zeros( obj.lenslets.nLenslet+1 );
+%                 out(obj.validActuator) = obj.iG.M*obj.slopes;
+%             end
+            out = out*obj.wavefrontUnits;
         end
         
         function setValidLenslet(obj,pupilIntensity)
@@ -733,8 +758,11 @@ classdef shackHartmann < hgsetget
                     set(obj.slopesDisplayHandle,'CData',slopesMap)
                 else
                     obj.slopesDisplayHandle = imagesc(slopesMap,varargin{:});
+                    ax = gca;
+                    pos = get(ax,'position');
                     axis xy equal tight
                     ylabel(colorbar('location','EastOutside'),'Pixel')
+                    set(ax,'position',pos)
                     
                     hu = findobj(gcf,'Type','uimenu','Label','OOMAO');
                     if isempty(hu)
@@ -826,10 +854,13 @@ classdef shackHartmann < hgsetget
                     'Cdata',intensity,varargin{:})
             else
                 obj.intensityDisplayHandle = imagesc(intensity,varargin{:});
+                ax = gca;
+                pos = get(ax,'position');
                 axis equal tight xy
-                colorbar
+                colorbar('location','EastOutside')
+                set(ax,'position',pos)
             end
-            set(gca,'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
+            set(get(obj.intensityDisplayHandle,'parent'),'Clim',[floor(min(intensity(v))),ceil(max(intensity(v)))])
             if nargout>0
                 varargout{1} = obj.intensityDisplayHandle;
             end
@@ -853,6 +884,44 @@ classdef shackHartmann < hgsetget
                 makehgtform('translate',-[(n-1)/2,(n-1)/2,0]/n,'scale',1/n,'translate',[1,1,0]*2),varargin{:});
         end
         
+        function wavefrontDisplay(obj,varargin)
+            wft = zeros( obj.lenslets.nLenslet+1 );
+            wft__ = obj.finiteDifferenceWavefront;
+            wftRms = std(wft__);
+            wft(obj.validActuator) = wft__;
+
+            if any(ishandle(obj.finiteDifferenceWavefrontHandle))
+               set(obj.finiteDifferenceWavefrontHandle(1),...
+                   'CData',wft)
+               set(obj.finiteDifferenceWavefrontHandle(2),...
+                   'String',sprintf('F.D. Wavefront: %5.2f',wftRms))
+            else
+                obj.finiteDifferenceWavefrontHandle(1) = ...
+                    imagesc(wft,...
+                    varargin{:});
+                ax = gca;
+                pos = get(ax,'position');
+                axis equal tight xy
+                colorbar('location','EastOutside')
+                set(ax,'position',pos)
+                obj.finiteDifferenceWavefrontHandle(2) = ...
+                    title(sprintf('F.D. Wavefront: %5.2f',wftRms))
+            end
+        end        
+        
+        function bar(obj,varargin)
+            if ishandle(obj.zernCoefsHandle)
+               set(obj.zernCoefsHandle,...
+                   'YData',obj.zernCoefs)
+            else
+                obj.zernCoefsHandle = ...
+                    bar((1:length(obj.zernCoefs))+1,obj.zernCoefs,...
+                    varargin{:});
+                grid on
+                xlabel('Zernike modes')
+                ylabel('Zern. Coefs.')
+            end
+        end        
         
         function G = sparseGradientMatrix(obj)
             %% SPARSEGRADIENTMATRIX 
