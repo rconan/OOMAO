@@ -793,7 +793,7 @@ classdef shackHartmann < hgsetget
                     obj.spotTrail(:,end) = obj.slopes;
                     obj.slopesDisplayHandle(2) = ...
                         line(obj.spotTrail(1,:),obj.spotTrail(2,:),'color','r');
-                    set(gca,'xlim',[-1,1],'ylim',[-1,1])
+%                     set(gca,'xlim',[-1,1],'ylim',[-1,1])
                     grid on
                     axis square
                     

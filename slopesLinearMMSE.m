@@ -94,6 +94,9 @@ classdef slopesLinearMMSE < handle
             obj.guideStar     = inputs.Results.guideStar;
             obj.slopesMask    = repmat( repmat( inputs.Results.wfs.validLenslet(:) , 2, 1), 1, length(obj.guideStar) );
             obj.p_mmseStar    = inputs.Results.mmseStar;    
+            if isempty(obj.p_mmseStar)
+                obj.p_mmseStar = obj.guideStar;
+            end
             obj.NF            = inputs.Results.NF;    
             obj.sf            = inputs.Results.sf;    
            
@@ -106,8 +109,20 @@ classdef slopesLinearMMSE < handle
             if isinf(obj.guideStar(1).height)
                 add(obj.log,obj,'Computing the covariance matrices for NGS')
                 tic
-                obj.Cxx = { slopestoSlopesCovariance(obj,0,0) };
-                obj.Cox{1} = { { phaseToSlopesCovariance(obj,0,obj.atmModel,0,0,1) } };        
+                dv = [obj.guideStar.directionVector];
+                ddv_x = bsxfun( @minus, dv(1,:), dv(1,:)' );
+                ddv_y = bsxfun( @minus, dv(2,:), dv(2,:)' );
+                m_Cxx = arrayfun( @(dx,dy) slopestoSlopesCovariance(obj, dx, dy), ...
+                    ddv_x, ddv_y, 'UniformOutput', false );
+                obj.Cxx = m_Cxx;
+                deltaSrc = bsxfun( @minus ,dv , obj.p_mmseStar.directionVector );
+                m_Cox =...
+                    arrayfun( @(dx,dy) phaseToSlopesCovarianceFiniteHeight(obj,0,obj.atmModel,dx,dy,1) ,...
+                    deltaSrc(1,:), deltaSrc(2,:), ...
+                    'UniformOutput', false );
+                obj.Cox{1} = cell( 1 , 1 );
+                obj.Cox{1}{1} = m_Cox;
+%                 obj.Cox{1} = { { phaseToSlopesCovariance(obj,0,obj.atmModel,0,0,1) } };        
                 toc
             else
                 add(obj.log,obj,'Computing the covariance matrices for LGS')
@@ -362,6 +377,41 @@ classdef slopesLinearMMSE < handle
 %             fprintf(' ==> phase-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
         end
         
+        function m_Cox = phaseToSlopesCovarianceFiniteHeight(obj,pad,m_atm,deltaSrc_x,deltaSrc_y, gl)
+            %% phase-to-slopes covariance matrix
+%             fprintf(' ==> Computing phase-to-slopes covariance matrix ...\n');
+            alpha = 1;
+            [fx,fy] = freqspace(obj.NF,'meshgrid');
+            nLenslet = obj.resolution;
+            lambda = m_atm.wavelength;
+            d = obj.sampling;
+            lf = obj.sf/(d*2*gl);
+            fx = lf*alpha*fx;
+            fy = lf*alpha*fy;
+            delta = 2*lf*alpha/obj.NF;
+            covx = zeros( obj.NF );
+            covy = zeros( obj.NF );
+            for kLayer=1:m_atm.nLayer
+                atmLayer = slab(m_atm,kLayer);
+                h = atmLayer.layer.altitude;
+                phasor = exp( 2*1i*pi.*( (deltaSrc_x*h+0.5*d)*fx + (deltaSrc_y*h+0.5*d)*fy ) );
+                spectrum2 = @(u) lambda.*1i*(fx.*u(1) + fy.*u(2)).*...
+                    delta.^2.*phaseStats.spectrum(hypot(fx,fy),atmLayer).*...
+                    tools.sinc(gl*d*fx).*tools.sinc(gl*d*fy).*phasor./gl;
+                
+                nm = [nLenslet+1+2*pad nLenslet];
+                b0 = obj.NF/2+1;
+                b = (1-nLenslet-pad:nLenslet+pad)*obj.sf + b0;
+                
+                %             tic
+                covx  = covx + fftshift(real( fft2( fftshift( spectrum2([1,0]) ) ) ) );
+                covy  = covy + fftshift(real( fft2( fftshift( spectrum2([0,1]) ) ) ) );
+            end
+            m_Cox{1} = toeplitzBlockToeplitz( nm, nm, covx(b,b) );
+            m_Cox{2} = toeplitzBlockToeplitz( nm, nm, covy(b,b) );
+%             elapsedTime = toc;
+%             fprintf(' ==> phase-to-slopes covariance matrix computed in %5.2fs\n',elapsedTime);
+        end
     end
     
 end
