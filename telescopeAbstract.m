@@ -431,7 +431,6 @@ classdef telescopeAbstract < handle
                     obj.resolution = length(srcs(1).amplitude);
                 end
             end
-            
             nSrc = numel(srcs);
             for kSrc=1:nSrc % Browse the srcs array
                 src = srcs(kSrc);
@@ -440,7 +439,7 @@ classdef telescopeAbstract < handle
                 if isempty(src.nPhoton) || (isempty(obj.samplingTime) || isinf(obj.samplingTime))
                     src.amplitude = obj.pupil;
                 else
-                    src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:))); 
+                   src.amplitude = obj.pupil.*sqrt(obj.samplingTime*src.nPhoton.*obj.area/sum(obj.pupil(:)));
                 end
                 out = 0;
                 if ~isempty(obj.atm) % Set phase if an atmosphere is defined

@@ -412,17 +412,18 @@ phase = ngs.meanRmOpd;
 % method using the inverse of the sparse gradient matrix computed with
 % the method \oom{shackHartmann}{sparseGradientMatrix}.
 % </latex>
-phaseEst = tools.meanSub( wfs.finiteDifferenceWavefront*ngs.wavelength ,...
-    wfs.validActuator);
+phaseEst = zeros( dm.nActuator );
+phaseEst(wfs.validActuator) = wfs.finiteDifferenceWavefront;
 %%
 % <latex>
 % The source is propagated through the finite difference phase screen and the
 % residual wavefront and residual wavefront rms are retrieved from the
 % \matcall{ngs} \oop{source}{meanRmOpd} and \oop{source}{opdRms} properties. 
 % </latex>
-ngs = ngs.*telLowRes*{wfs.validActuator,-2*pi*wfs.finiteDifferenceWavefront};
+ngs = ngs.*telLowRes*{wfs.validActuator,-2*pi*phaseEst};
 phaseEstRes = ngs.meanRmOpd;
 phaseEstResRms = ngs.opdRms;
+phaseEst = tools.meanSub( phaseEst*ngs.wavelength , wfs.validActuator);
 %%
 % <latex>
 % The second method uses the interaction matrix to compute DM actuators

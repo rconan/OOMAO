@@ -144,7 +144,7 @@ classdef slopesLinearMMSE < handle
             obj.funp = @(x) mtimes4precond(obj.Cxx,x,obj.slopesMask);
             obj.c   = zeros(obj.resolution^2*2*length(obj.guideStar),1 );
             obj.wavefrontToMeter = ...
-                obj.guideStar(1).wavelength*obj.atmModel.wavelength/2/pi/obj.sampling/(2*wfs.lenslets.nyquistSampling);
+                obj.guideStar(1).wavelength*obj.atmModel.wavelength/2/pi/(obj.sampling*wfs.lenslets.fftPad)/wfs.lenslets.nyquistSampling;
             obj.wavefrontSize    = ones(1,2)*(obj.resolution+1);
             obj.x0               = zeros(size(obj.c));
             obj.log.verbose = true;
