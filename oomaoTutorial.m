@@ -139,6 +139,7 @@ pause(1)
 for k=1:150
     +tel
     +ngs
+    +science
     dm.coefs = -calibDm.M*wfs.slopes;
     set(h,'Cdata',ngs.meanRmOpd*1e6)
     drawnow
@@ -148,6 +149,7 @@ end
 figure(hf)
 hold all
 plot(1e6*sqrt(ngs.phaseVar((1:150*2)+300))/ngs.waveNumber,'.')
+grid
 results = reshape(ngs.phaseVar(1:600),300,2);
 fprintf('mean residual wfe in closed-loop: %4.2fnm and in open-loop: %4.2fnm\n',1e9*sqrt(mean(results(20:end,:)))/ngs.waveNumber)
 
@@ -182,21 +184,21 @@ lgs = lgs.*tel*wfs;
 
 %% extended laser guide star (off-axis launch)
 set(lgs,'viewPoint',[25,0])
-+lgs
+lgs = lgs.*tel*wfs;
 
 %% extended laser guide star (3 off-axis launch)
-% set(lgs(1,1,:),'viewPoint',[0,0])
-% set(lgs(1,2,:),'viewPoint',[10,10])
-% set(lgs(1,3,:),'viewPoint',[0,25])
-% +lgs
-% 
-% %% extended laser guide star (3 off-axis launch and z-profile)
-% lgs(1,2,1).nPhoton = 0;
-% +lgs
-% %%
-% lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton*2;
-% +lgs
-% %%
-% lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton/2;
-% +lgs
+set(lgs(1,1,:),'viewPoint',[0,0])
+set(lgs(1,2,:),'viewPoint',[10,10])
+set(lgs(1,3,:),'viewPoint',[0,25])
+lgs = lgs.*tel*wfs;
+
+%% extended laser guide star (3 off-axis launch and z-profile)
+lgs(1,2,1).nPhoton = 0;
+lgs = lgs.*tel*wfs;
+%%
+lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton*2;
+lgs = lgs.*tel*wfs;
+%%
+lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton/2;
+lgs = lgs.*tel*wfs;
 
