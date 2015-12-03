@@ -40,7 +40,7 @@ classdef turbulenceLayer < handle
                 windSpeed,...
                 windDirection)
             if nargin~=0
-                error(nargchk(1, 4, nargin))
+                narginchk(1, 4)
                 nLayer = length(altitude);
                 obj(nLayer) = turbulenceLayer;
                 for kLayer=1:nLayer
