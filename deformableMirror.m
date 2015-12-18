@@ -77,12 +77,12 @@ classdef deformableMirror < handle
         function obj = deformableMirror(nActuator,varargin)
             p = inputParser;
             p.addRequired('nActuator', @isnumeric);
-            p.addParamValue('modes', [], @(x) isnumeric(x) || ...
+            p.addParameter('modes', [], @(x) isnumeric(x) || ...
                 (isa(x,'influenceFunction') || isa(x,'zernike') || isa(x,'hexagonalPistonTipTilt')) );
-            p.addParamValue('resolution', [], @isnumeric);
-            p.addParamValue('validActuator', ones(nActuator), @islogical);
-            p.addParamValue('zLocation', 0, @isnumeric);
-            p.addParamValue('offset', [0,0], @isnumeric);
+            p.addParameter('resolution', [], @isnumeric);
+            p.addParameter('validActuator', ones(nActuator), @islogical);
+            p.addParameter('zLocation', 0, @isnumeric);
+            p.addParameter('offset', [0,0], @isnumeric);
             p.parse(nActuator, varargin{:});
             obj.nActuator         = p.Results.nActuator;
             obj.p_validActuator     = p.Results.validActuator;
@@ -241,7 +241,7 @@ classdef deformableMirror < handle
                 end
             end
             
-            if sensor.lenslets.nLenslet>1
+            if isa(sensor,'pyramid') || sensor.lenslets.nLenslet>1
                 
                 src = src*obj*sensor;
                 
@@ -256,7 +256,11 @@ classdef deformableMirror < handle
                 if steps==1
                     obj.coefs = calibDmCommands;
                     +src;
-                    pokeMatrix = sensor.slopes;
+                    sp = sensor.slopes;
+                    obj.coefs = -calibDmCommands;
+                    +src;
+                    sm = sensor.slopes;
+                    pokeMatrix = 0.5*(sp-sm);
                 else
                     nMode = size(calibDmCommands,2);
                     nC              = floor(nMode/steps);
@@ -270,7 +274,11 @@ classdef deformableMirror < handle
 %                         fprintf('\b\b\b\b\b\b\b\b\b%4d:%4d',u(1),u(end))
                         obj.coefs = calibDmCommands(:,u);
                         +src;
-                        pokeMatrix(:,u) = sensor.slopes;
+                        sp = sensor.slopes;
+                        obj.coefs = -calibDmCommands(:,u);
+                        +src;
+                        sm = sensor.slopes;
+                        pokeMatrix(:,u) = 0.5*(sp-sm);
                     end
                     close(h)
                 end

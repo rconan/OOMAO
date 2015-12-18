@@ -75,7 +75,7 @@ wfs.camera.readOutNoise = 0;
 +wfs
 
 %% imaging camera
-cam = imager(100);
+cam = imager();
 science = source('wavelength',photometry.K);
 science = science.*tel*cam;
 figure

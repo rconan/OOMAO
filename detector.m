@@ -242,7 +242,7 @@ classdef detector < handle
                 case {'lensletArray','gpuLensletArray'}
                     readOut(obj,obj.frameGrabber.imagelets)
                 case {'pyramid'}
-                    readOut(obj,obj.frameGrabber.lightmap)
+                    readOut(obj,obj.frameGrabber.lightMap)
                 case 'function_handle'
                     buffer = obj.frameGrabber();
                     [n,m] = size(buffer);

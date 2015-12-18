@@ -734,10 +734,10 @@ classdef shackHartmann < hgsetget
         function varargout = slopesDisplay(obj,varargin)
             %% SLOPESDISPLAY WFS slopes display
             %
-            % slopesDisplay(obj) displays quiver plot of the slopes
+            % slopesDisplay(obj) displays image plot of the slopes
             %
             % slopesDisplay(obj,'PropertyName',PropertyValue) displays
-            % quiver plot of the slopes and set the properties of the
+            % image plot of the slopes and set the properties of the
             % graphics object quiver
             %
             % h = slopesDisplay(obj,...) returns the graphics handle
