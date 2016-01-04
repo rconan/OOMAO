@@ -34,27 +34,34 @@ classdef imager < detector
     methods
         
         %% Constructor
-        function obj = imager(in,exposureTime,clockRate)
-            if isa(in,'telescopeAbstract')
-                resolution = in.resolution;
-            elseif isnumeric(in)
-                resolution = in;
-            else
-                error('oomao:imager','Inputer is either numeric or a telescope class')
-            end
+        function obj = imager(varargin)
+            
+              p = inputParser;
+              addParameter(p,'nyquistSampling',4,@isnumeric)
+              addParameter(p,'fieldStopSize',10,@isnumeric)
+              addParameter(p,'exposureTime',1,@isnumeric)
+              addParameter(p,'clockRate',1,@isnumeric)
+              parse(p,varargin{:})
+              
+%             if isa(in,'telescopeAbstract')
+%                 resolution = in.resolution;
+%             elseif isnumeric(in)
+%                 resolution = in;
+%             else
+%                 error('oomao:imager','Inputer is either numeric or a telescope class')
+%             end
+            resolution = 2*p.Results.nyquistSampling*p.Results.fieldStopSize;
             obj = obj@detector(resolution);
-            if isa(in,'telescopeAbstract')
-                obj.tel = in;
-                obj.exposureTime = in.samplingTime;
-            end
-            if nargin>1
-                obj.exposureTime = exposureTime;
-                obj.clockRate = clockRate;
-            end
             obj.imgLens = lensletArray(1);
-            obj.imgLens.nyquistSampling = 4;
-            obj.imgLens.fieldStopSize = 10;
-            % Frame listener
+            obj.imgLens.nyquistSampling = p.Results.nyquistSampling;
+            obj.imgLens.fieldStopSize = p.Results.fieldStopSize;
+%             if isa(in,'telescopeAbstract')
+%                 obj.tel = in;
+%                 obj.exposureTime = in.samplingTime;
+%             end
+                obj.exposureTime = p.Results.exposureTime;
+                obj.clockRate = p.Results.clockRate;
+               % Frame listener
 %             obj.frameListener = addlistener(obj,'frameBuffer','PostSet',...
 %                 @(src,evnt) obj.imagesc );
 %             obj.frameListener.Enabled = false;

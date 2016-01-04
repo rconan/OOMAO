@@ -351,7 +351,7 @@ classdef phaseStats
 %                 out = cell2mat( ...
 %                     cellfun(@(x) phaseStats.covariance(x,atm), rho, 'UniformOutput', false) );
                 out = cell(size(rho));
-                parfor ii=1:numel(rho)
+                for ii=1:numel(rho)
                     out{ii} = phaseStats.covariance(rho{ii},atm);
                 end
                 out = cell2mat(out);
@@ -584,7 +584,7 @@ classdef phaseStats
                 y = y(mask);
                 f02 = 1./L0.^2;
                 
-                parfor k=1:nSs*nGs
+                for k=1:nSs*nGs
                     
                     [kSs,iGs] = ind2sub([nSs,nGs],k);
                     buf = 0;
@@ -636,7 +636,7 @@ classdef phaseStats
                 C = cellfun( @(x) zeros(length(xCC),length(xAC)) , cell(nSs,nGs) , 'UniformOutput' , false );
                 cstL0CC = cstL0*ones(length(xCC),length(xAC));
                 
-                parfor k=1:nSs*nGs
+                for k=1:nSs*nGs
                     
                     [kSs,iGs] = ind2sub([nSs,nGs],k);
                     buf = 0;
@@ -689,7 +689,7 @@ classdef phaseStats
                     S = cellfun( @(x) zeros(sum(mask(:))) , cell(1,length(kGs)) , 'UniformOutput' , false );
                     cstL0AC = cstL0*ones(sampling);
                     
-                    parfor k=1:length(kGs)
+                    for k=1:length(kGs)
                         
                         [iGs,jGs] = ind2sub( [nGs,nGs] , kGs(k) );
                         buf = 0;
@@ -1185,7 +1185,7 @@ classdef phaseStats
 %                     for iGs = 1:nGs
 %                         fprintf(' @(Data covariance)> ');
 %                         gsCurrent = iSrc(iGs);
-%                         parfor jGs = iGs:mGs
+%                         for jGs = iGs:mGs
 %                             fprintf('gs#%d/gs#%d - ',iGs,jGs)
 %                             aiaj{iGs,jGs} = phaseStats.zernikeAngularCovariance(zern,atm,[gsCurrent,jSrc(jGs)]);
 %                         end
@@ -1221,7 +1221,7 @@ classdef phaseStats
 %                         fprintf('\b\b\b\n')
 %                     end
                     nmGs  = [nGs mGs];
-                    parfor kGs = 1:nGs*mGs
+                    for kGs = 1:nGs*mGs
                         [iGs,jGs] = ind2sub(nmGs,kGs);
 %                         fprintf(' @(phaseStats.zernikeAngularCovariance)> gs#%d/gs#%d \n',iGs,jGs);
                         aiaj{kGs} = phaseStats.zernikeAngularCovariance(zern,atm,[iSrc(iGs),jSrc(jGs)]);
@@ -1249,8 +1249,8 @@ classdef phaseStats
                         (gamma(11./6).^2./(2.*pi.^(11./3))).*...
                         atm.r0.^(-5./3);
                     if all( isinf( [zs1 zs2] ) ) % NGS CASE
-                        a1l     = R;
-                        a2l     = R;
+                        a1l     = R*ones(1,atm.nLayer);
+                        a2l     = R*ones(1,atm.nLayer);
                         denom   = pi.*a1l.*a2l;
                         sl      = [atm.layer.altitude]'.*rhoSrcLayer;
                         fr0     = [atm.layer.fractionnalR0]';
@@ -1323,12 +1323,12 @@ classdef phaseStats
                     phasePSD = atm.layer(kLayer).fractionnalR0.*...
                         psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6);
 %                     phasePSD = phaseStats.spectrum(0.5*x/pi,atm.slab(lLayer));
-%                     besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
-%                     tripleBessel1 = besselj(mi+mj,red);
-%                     tripleBessel2 = besselj(abs(mi-mj),red);
-                    besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
-                    tripleBessel1 = besselmx('J',mi+mj,red);
-                    tripleBessel2 = besselmx('J',abs(mi-mj),red);
+                    besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
+                    tripleBessel1 = besselj(mi+mj,red);
+                    tripleBessel2 = besselj(abs(mi-mj),red);
+%                     besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
+%                     tripleBessel1 = besselmx('J',mi+mj,red);
+%                     tripleBessel2 = besselmx('J',abs(mi-mj),red);
                     out = out +  (factor1./denom(kLayer)).*(phasePSD./x).*...
                         ( factor2.*tripleBessel1 + factor3.*tripleBessel2 ).*...
                         besselsRadialOrder;
@@ -1359,13 +1359,13 @@ classdef phaseStats
                 factor3 = factor3*factor1;
                 red1 = a1l.*x;
                 red2 = a2l.*x;
-                besselsRadialOrder = besselmx('J',ni+1,red1).*besselmx('J',nj+1,red2);
+                besselsRadialOrder = besselj(ni+1,red1).*besselj(nj+1,red2);
                 f = 0.5*x/pi;
                 phasePSD = ...
                     psdCst.*(f.^2 + 1./atm.L0.^2).^(-11./6)./x;
                 red = sl*x;
-                tripleBessel1 = besselmx('J',mipmj,red);
-                tripleBessel2 = besselmx('J',mimmj,red);
+                tripleBessel1 = besselj(mipmj,red);
+                tripleBessel2 = besselj(mimmj,red);
                 out = (fr0*phasePSD).*...
                     ( factor2.*tripleBessel1 + factor3.*tripleBessel2 );
                 out = sum( bsxfun( @times , out , besselsRadialOrder ) );
@@ -1648,7 +1648,7 @@ classdef phaseStats
                     var_xy = cst_xy.*4*(pi*D).^-4.*...
                         tools.oneParameterExample3(2,1,2,11/6,pi.*D*f0,nmax)*ones(sampling);
                     
-                    parfor k=1:length(kGs)
+                    for k=1:length(kGs)
                         
                         [iGs,jGs] = ind2sub( [nGs,nGs] , kGs(k) );
                         buf = 0;

@@ -72,6 +72,7 @@ ngs = source('wavelength',photometry.J);
 % illuminated subaperture and a fully illuminated aperture
 nLenslet = 10;
 wfs = shackHartmann(nLenslet,nPx,0.75);
+%wfs = pyramid(nLenslet,nPx,'modulation',6);
 %%
 % Propagation of the calibration source to the WFS through the telescope
 ngs = ngs.*tel*wfs;
@@ -133,7 +134,7 @@ dm = deformableMirror(nActuator,...
 
 %% Interaction matrix: DM/WFS calibration
 ngs=ngs.*tel;
-dmCalib = calibration(dm,wfs,ngs,ngs.wavelength/2);
+dmCalib = calibration(dm,wfs,ngs,ngs.wavelength/40);
 % The influence functions are normalized to 1, the actuator are then
 % controlled in stroke in meter, here we choose a half a wavelength stroke.
 % stroke = ngs.wavelength/2;

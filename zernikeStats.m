@@ -604,7 +604,13 @@ classdef zernikeStats
                     end
                     aiaj(mask) = buffer;
                     index = cellfun(@isempty,aiaj);
-                    aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
+                    % address cells colums-wise, otherwise aiaj fails to be
+                    % symmetric
+                    [r,c] = find(triu(~index,1));
+                    [r,s] = sort(r);
+                    blocks = sub2ind(size(index),r,c(s));
+                    aiaj(index) = cellfun(@transpose,aiaj(blocks),'UniformOutput',false);
+                    %aiaj(index) = cellfun(@transpose,aiaj(triu(~index,1)),'UniformOutput',false);
                 else % a cross-correlation meta-matrix
 %                     disp('@(phaseStats.zernikeAngularCovariance)> CROSS CORRELATION META-MATRIX:')
                     iSrc = src;

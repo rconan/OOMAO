@@ -569,7 +569,7 @@ drawnow
 % Then, the science imaging camera is created with the class \oo{imager}.
 % </latex>
 science = source('wavelength',photometry.J);
-cam = imager(tel);
+cam = imager();
 %%
 % <latex>
 % The \oo{atmosphere} object is detached from the telescope and the

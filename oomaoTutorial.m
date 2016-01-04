@@ -192,13 +192,13 @@ set(lgs(1,2,:),'viewPoint',[10,10])
 set(lgs(1,3,:),'viewPoint',[0,25])
 lgs = lgs.*tel*wfs;
 
-%% extended laser guide star (3 off-axis launch and z-profile)
-lgs(1,2,1).nPhoton = 0;
-lgs = lgs.*tel*wfs;
-%%
-lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton*2;
-lgs = lgs.*tel*wfs;
-%%
-lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton/2;
-lgs = lgs.*tel*wfs;
+% %% extended laser guide star (3 off-axis launch and z-profile)
+% lgs(1,2,1).nPhoton = 0;
+% lgs = lgs.*tel*wfs;
+% %%
+% lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton*2;
+% lgs = lgs.*tel*wfs;
+% %%
+% lgs(1,2,1).nPhoton = lgs(1,2,2).nPhoton/2;
+% lgs = lgs.*tel*wfs;
 

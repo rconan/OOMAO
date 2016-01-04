@@ -52,7 +52,7 @@ methods
                 set(obj,'extent',intensityProfile)
             end
             
-            lgsHeight2 = [obj.height].^2;
+            lgsHeight2 = [obj(1,1,:).height].^2;
             if isempty(naDensityProfile)
                 set(obj,'nPhoton',nPhoton./sum(1./lgsHeight2));
             else
